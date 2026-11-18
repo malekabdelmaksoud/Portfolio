@@ -2,7 +2,7 @@
 
 A modern, bilingual (FR/EN) personal portfolio showcasing my journey in **Web Development & Multimedia**.
 
-🔗 **Live Site:** [malekabdelmaksoud.github.io/Portfolio](https://malekabdelmaksoud.github.io/Portfolio/)
+🔗 **Live Site:** [portfolio.melekabdelmaksoud72.workers.dev](https://portfolio.melekabdelmaksoud72.workers.dev/)
 
 ---
 
