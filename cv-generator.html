@@ -341,6 +341,16 @@
       editables.forEach(el => el.setAttribute('contenteditable', 'false'));
     }
   }
+
+  // Check if autoprint query is requested
+  window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoprint') === 'true') {
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    }
+  });
 </script>
 </body>
 </html>

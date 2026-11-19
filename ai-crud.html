@@ -3,479 +3,311 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Knowledge Base Studio — CRUD & Assistant</title>
+<title>Admin & AI Knowledge Studio — Melek Abdelmaksoud</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:#f3f4f9;color:#181828;line-height:1.5}
+  body{font-family:'DM Sans',sans-serif;background:#f1f3f9;color:#181828;line-height:1.55}
 
-  /* Top Navigation */
-  .top-nav{background:#111322;color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.1)}
-  .nav-title{font:700 17px 'Space Grotesk';display:flex;align-items:center;gap:10px}
-  .nav-title a{color:#a78bfa;font-size:12.5px;text-decoration:none;font-family:'DM Sans';margin-left:10px}
-  .nav-title a:hover{text-decoration:underline}
-  .nav-badges{display:flex;gap:8px}
-  .btn{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+  .nav-header{background:#111322;color:#fff;padding:14px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.15)}
+  .brand{font:700 18px 'Space Grotesk';display:flex;align-items:center;gap:10px}
+  .brand a{color:#a78bfa;font-size:12.5px;text-decoration:none;font-family:'DM Sans';margin-left:12px}
+  .user-badge{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+  .pill.admin{background:#10b981;color:#fff}
+  .pill.guest{background:#64748b;color:#fff}
+
+  .btn{padding:8px 16px;border-radius:20px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;transition:all .2s;text-decoration:none}
   .btn-primary{background:#6957e8;color:#fff}
   .btn-primary:hover{background:#5544cc}
+  .btn-sec{background:#252945;color:#e2e8f0;border:1px solid #3e446d}
+  .btn-sec:hover{background:#353b61;color:#fff}
   .btn-danger{background:#ef4444;color:#fff}
-  .btn-danger:hover{background:#dc2626}
-  .btn-secondary{background:#272a45;color:#e2e8f0;border:1px solid #3d426b}
-  .btn-secondary:hover{background:#353a5e;color:#fff}
 
-  /* Layout Container */
-  .app-container{max-width:1300px;margin:24px auto;display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;padding:0 20px}
+  .container{max-width:1240px;margin:28px auto;padding:0 20px}
 
-  /* Left Panel: CRUD Knowledge Manager */
-  .crud-panel{background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,.04);padding:22px;display:flex;flex-direction:column}
-  .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
-  .panel-header h2{font:700 18px 'Space Grotesk';color:#181828}
+  /* Auth Banner */
+  .auth-card{background:#fff;border-radius:14px;padding:18px 24px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,.04);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:24px}
+  .auth-form{display:flex;gap:8px;align-items:center}
+  .auth-form input{padding:8px 14px;border:1px solid #cbd5e1;border-radius:20px;font-size:12.5px;outline:none;width:260px}
+  .auth-form input:focus{border-color:#6957e8}
 
-  /* Search & Filter Bar */
-  .filter-row{display:flex;gap:10px;margin-bottom:16px}
-  .search-box{flex:1;padding:8px 14px;border-radius:20px;border:1px solid #cbd5e1;font-size:12.5px;outline:none}
-  .search-box:focus{border-color:#6957e8}
-  .category-filter{padding:8px 12px;border-radius:20px;border:1px solid #cbd5e1;font-size:12.5px;outline:none;background:#fff}
+  /* Grid Workspace */
+  .grid-two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 
-  /* Add/Edit Modal/Form */
-  .form-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:16px;display:none}
-  .form-card.active{display:block}
-  .form-card h3{font:700 14px 'Space Grotesk';margin-bottom:10px;color:#6957e8}
-  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
-  .form-group{margin-bottom:8px}
-  .form-group label{display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:3px}
-  .form-group input, .form-group textarea, .form-group select{width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12.5px;font-family:inherit;outline:none}
+  .studio-card{background:#fff;border-radius:14px;padding:24px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,.04);height:fit-content}
+  .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+  .card-head h2{font:700 16.5px 'Space Grotesk';color:#0f172a;display:flex;align-items:center;gap:8px}
+
+  /* Form controls */
+  .form-group{margin-bottom:14px}
+  .form-group label{display:block;font-size:11.5px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px}
+  .form-group input, .form-group textarea{width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:12.5px;font-family:inherit;outline:none}
   .form-group input:focus, .form-group textarea:focus{border-color:#6957e8}
-  .form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
-
-  /* Knowledge Cards List */
-  .knowledge-list{display:flex;flex-direction:column;gap:10px;overflow-y:auto;max-height:680px;padding-right:4px}
-  .k-card{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #6957e8;border-radius:8px;padding:12px 14px;transition:box-shadow .2s;display:flex;justify-content:space-between;align-items:flex-start}
-  .k-card:hover{box-shadow:0 4px 12px rgba(105,87,232,.08)}
-  .k-cat{font-size:9.5px;font-weight:700;text-transform:uppercase;color:#6957e8;letter-spacing:.5px;display:inline-block;margin-bottom:2px}
-  .k-title{font:700 14px 'Space Grotesk';color:#0f172a}
-  .k-content{font-size:12px;color:#475569;margin-top:4px;line-height:1.45}
-  .k-keywords{font-size:10.5px;color:#94a3b8;margin-top:6px}
-  .k-actions{display:flex;gap:6px;margin-left:12px}
-  .k-btn{background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;transition:background .15s}
-  .k-btn:hover{background:#f1f5f9}
-
-  /* Right Panel: AI Live Playground */
-  .ai-panel{background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,.04);display:flex;flex-direction:column;height:calc(100vh - 120px);position:sticky;top:80px;overflow:hidden}
-  .ai-head{padding:14px 18px;background:linear-gradient(135deg,#171a35,#272461);color:#fff;display:flex;justify-content:space-between;align-items:center}
-  .ai-head-title{font:700 14.5px 'Space Grotesk';display:flex;align-items:center;gap:8px}
-  .ai-tag{font-size:10px;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:12px}
   
-  .ai-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fbfbfd}
-  .chat-msg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:12.5px;line-height:1.5;word-break:break-word}
-  .chat-msg.bot{background:#f0eeff;color:#1e1b4b;align-self:flex-start;border-bottom-left-radius:3px}
-  .chat-msg.user{background:#6957e8;color:#fff;align-self:flex-end;border-bottom-right-radius:3px}
-  .chat-msg.bot b{color:#5b21b6}
+  .loader-spinner{display:none;font-size:12px;color:#6957e8;font-weight:600;margin-top:6px}
 
-  .ai-suggested{padding:8px 12px;background:#fff;border-top:1px solid #f1f5f9;display:flex;gap:6px;overflow-x:auto}
-  .ai-suggested button{background:#f4f4f5;border:1px solid #e4e4e7;border-radius:14px;padding:4px 10px;font-size:11px;font-weight:600;color:#52525b;cursor:pointer;white-space:nowrap}
-  .ai-suggested button:hover{background:#ede9fe;color:#6957e8;border-color:#ddd6fe}
+  /* Project Item Row */
+  .proj-row{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #6957e8;border-radius:8px;margin-bottom:10px}
+  .proj-row strong{font-size:13.5px;color:#181828}
+  .proj-row p{font-size:12px;color:#64748b;margin-top:3px}
+  .proj-actions{display:flex;gap:6px;margin-left:12px}
 
-  .ai-input-wrap{display:flex;gap:8px;padding:12px 14px;background:#fff;border-top:1px solid #e2e8f0}
-  .ai-input-wrap input{flex:1;padding:8px 14px;border:1px solid #cbd5e1;border-radius:24px;font-size:12.5px;outline:none}
-  .ai-input-wrap input:focus{border-color:#6957e8}
-  .ai-input-wrap button{background:#6957e8;color:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;display:grid;place-items:center}
+  .notice-box{background:#fdf2f8;border:1px solid #fbcfe8;color:#9d174d;padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:16px}
+  .admin-only{position:relative}
+  .locked-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.9);backdrop-filter:blur(3px);z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:10px;border-radius:14px;text-align:center;padding:20px}
+  .locked-overlay.active{display:flex}
 
-  @media(max-width:960px){
-    .app-container{grid-template-columns:1fr}
-    .ai-panel{position:static;height:550px}
+  @media(max-width:850px){
+    .grid-two{grid-template-columns:1fr}
   }
 </style>
 </head>
 <body>
 
-<header class="top-nav">
-  <div class="nav-title">
-    <span>🧠 AI Knowledge Base Studio (CRUD)</span>
-    <a href="index.html">← Retour au Portfolio</a>
+<header class="nav-header">
+  <div class="brand">
+    <span>⚙️ Studio d'Administration & AI Manager</span>
+    <a href="index.html">← Revenir au Portfolio</a>
   </div>
-  <div class="nav-badges">
-    <button class="btn btn-primary" id="openAddModalBtn">+ Ajouter une Entrée (Create)</button>
+  <div class="user-badge" id="userBadge">
+    <!-- Populated by JS -->
   </div>
 </header>
 
-<main class="app-container">
+<div class="container">
 
-  <!-- CRUD Knowledge Base Manager -->
-  <section class="crud-panel">
-    <div class="panel-header">
-      <div>
-        <h2>Base de Connaissances de l'IA</h2>
-        <p style="font-size:12px;color:#64748b">Ajoutez, modifiez ou supprimez les informations que l'IA utilise pour répondre.</p>
-      </div>
-      <button class="btn btn-secondary" onclick="exportJSON()">📥 Exporter</button>
+  <!-- Authentication Banner -->
+  <div class="auth-card">
+    <div>
+      <strong style="font-size:14px">Authentification / Switch de Compte</strong>
+      <p style="font-size:12px;color:#64748b">Connectez-vous avec votre e-mail administrateur <b>(melekabdelmaksoud72@gmail.com)</b> pour débloquer l'ajout automatique de dépôts.</p>
     </div>
-
-    <!-- Create / Edit Form Card -->
-    <div class="form-card" id="formCard">
-      <h3 id="formTitle">Ajouter une nouvelle information</h3>
-      <input type="hidden" id="entryIndex" value="-1">
-      
-      <div class="form-row">
-        <div class="form-group">
-          <label>Catégorie</label>
-          <select id="fCategory">
-            <option value="Projet">Projet</option>
-            <option value="Compétence">Compétence</option>
-            <option value="Expérience">Expérience / Stage</option>
-            <option value="Formation">Formation</option>
-            <option value="Contact">Contact / Personnel</option>
-            <option value="Autre">Autre</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Titre / Sujet</label>
-          <input type="text" id="fTitle" placeholder="Ex: Projet Mobile Flutter">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Contenu / Réponse de l'IA</label>
-        <textarea id="fContent" rows="3" placeholder="Informations détaillées que l'IA doit expliquer aux visiteurs..."></textarea>
-      </div>
-
-      <div class="form-group">
-        <label>Mots-clés déclencheurs (séparés par virgules)</label>
-        <input type="text" id="fKeywords" placeholder="Ex: flutter, mobile, dart, android, ios">
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-secondary" type="button" onclick="closeForm()">Annuler</button>
-        <button class="btn btn-primary" type="button" onclick="saveEntry()">Enregistrer (Save)</button>
-      </div>
-    </div>
-
-    <!-- Filter & Search -->
-    <div class="filter-row">
-      <input type="text" class="search-box" id="searchBox" placeholder="Rechercher une compétence, un projet, une technologie...">
-      <select class="category-filter" id="filterCategory">
-        <option value="ALL">Toutes les catégories</option>
-        <option value="Projet">Projets</option>
-        <option value="Compétence">Compétences</option>
-        <option value="Expérience">Expériences</option>
-        <option value="Formation">Formation</option>
-        <option value="Contact">Contact</option>
-      </select>
-    </div>
-
-    <!-- List of Knowledge Items -->
-    <div class="knowledge-list" id="knowledgeList">
-      <!-- Dynamic Items Rendered Here -->
-    </div>
-  </section>
-
-  <!-- Live AI Assistant Test Playground -->
-  <aside class="ai-panel">
-    <div class="ai-head">
-      <div class="ai-head-title">
-        <span>🤖 Live AI Assistant</span>
-        <span class="ai-tag" id="entriesCount">0 connaissances</span>
-      </div>
-      <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px" onclick="clearChat()">Effacer</button>
-    </div>
-
-    <div class="ai-messages" id="aiChatMessages">
-      <div class="chat-msg bot">
-        👋 Bonjour ! Je suis l'assistant connecté à votre base de données CRUD. Posez-moi une question, j'utilise directement vos données pour répondre !
-      </div>
-    </div>
-
-    <div class="ai-suggested">
-      <button onclick="askPreset('Quels sont tes projets ?')">🚀 Projets</button>
-      <button onclick="askPreset('Quelles sont tes compétences ?')">🛠️ Compétences</button>
-      <button onclick="askPreset('Où as-tu fait tes stages ?')">💼 Stages</button>
-      <button onclick="askPreset('Comment te contacter ?')">📬 Contact</button>
-    </div>
-
-    <form class="ai-input-wrap" id="aiForm">
-      <input type="text" id="aiQuery" placeholder="Posez une question pour tester l'IA..." autocomplete="off" required>
-      <button type="submit">➤</button>
+    <form class="auth-form" id="loginForm">
+      <input type="email" id="loginEmail" placeholder="Votre adresse e-mail" required>
+      <button class="btn btn-primary" type="submit">Se connecter</button>
     </form>
-  </aside>
+  </div>
 
-</main>
+  <div class="grid-two">
 
+    <!-- Section 1: Admin GitHub Repository Linker -->
+    <div class="studio-card admin-only" id="adminRepoCard">
+      <div class="locked-overlay" id="adminLockOverlay">
+        <span style="font-size:32px">🔒</span>
+        <strong>Espace Administrateur Réservé</strong>
+        <p style="font-size:12px;color:#64748b;max-width:300px">Connectez-vous avec l'adresse <b>melekabdelmaksoud72@gmail.com</b> pour lier de nouveaux projets GitHub avec description automatique.</p>
+      </div>
+
+      <div class="card-head">
+        <h2><span>🔗</span> Lier un Dépôt GitHub (Auto Description)</h2>
+        <span class="pill admin">Admin Only</span>
+      </div>
+
+      <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+        Entrez le nom du dépôt ou son lien complet. L'API GitHub extrait automatiquement les technologies et génère la description pour votre portfolio !
+      </p>
+
+      <div class="form-group">
+        <label>Nom ou URL du Dépôt GitHub</label>
+        <input type="text" id="repoInput" placeholder="Ex: mon-nouveau-projet ou https://github.com/malekabdelmaksoud/mon-projet">
+        <div class="loader-spinner" id="repoLoader">⏳ Récupération des données GitHub en cours...</div>
+      </div>
+
+      <button class="btn btn-primary" id="fetchAndAddBtn" style="width:100%;justify-content:center;">
+        ⚡ Lier au Portfolio & Générer Description
+      </button>
+
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9">
+        <strong style="font-size:13px;display:block;margin-bottom:10px">Dépôts actuellement affichés sur le Portfolio :</strong>
+        <div id="projectsManagerList">
+          <!-- Rendered live -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: AI History & Conversation Logs -->
+    <div class="studio-card">
+      <div class="card-head">
+        <h2><span>💬</span> Historique & CRUD des Messages AI</h2>
+        <button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="clearAllChatHistory()">Vider l'historique</button>
+      </div>
+
+      <p style="font-size:12px;color:#64748b;margin-bottom:14px">
+        Toutes les questions et réponses sont synchronisées. Vous pouvez modifier n'importe quelle question passée ou la supprimer.
+      </p>
+
+      <div id="historyViewer" style="display:flex;flex-direction:column;gap:8px;max-height:550px;overflow-y:auto">
+        <!-- Rendered live -->
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="portfolio-auth-projects.js"></script>
+<script src="chat-crud-store.js"></script>
 <script>
-  // Initial Knowledge Base (Default Data from Official CV)
-  const defaultKnowledge = [
-    {
-      category: "Contact",
-      title: "Coordonnées de Melek Abdelmaksoud",
-      content: "Melek est joignable par e-mail à melekabdelmaksoud72@gmail.com, par téléphone au 53103285 / 21327795, ou sur son profil LinkedIn (linkedin.com/in/melek-abdelmaksoud-518713436). Elle réside à Sfax, Tunisie.",
-      keywords: "contact, email, mail, téléphone, tel, adresse, sfax, linkedin, coordonnées, joindre"
-    },
-    {
-      category: "Formation",
-      title: "Licence en Technologie de l'Informatique (DWM)",
-      content: "Étudiante en Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid (2024 – Présent), spécialité Développement Web et Multimédia. Titulaire d'un Baccalauréat en Sciences Expérimentales au Lycée Tayeb Mhiri de Sfax (2023 – 2024).",
-      keywords: "formation, étude, diplôme, licence, iset, bac, sidi bouzid, études, université"
-    },
-    {
-      category: "Expérience",
-      title: "Stage à l'Hôpital Hédi Chaker Sfax",
-      content: "Stage de 2 mois (Juil. – Août 2026) au Service Informatique de l'Hôpital Hédi Chaker : paramétrage de l'application de soins, intervention sur le Dossier Médical Informatisé (DMI) et inventaire matériel avec OCS Inventory.",
-      keywords: "stage, hopital, hedi chaker, dmi, ocs inventory, expérience, soins"
-    },
-    {
-      category: "Expérience",
-      title: "Stage Web chez ACS",
-      content: "Stage en développement web chez Advanced Computer Solutions (Janv. 2026) : participation active aux projets web de l'équipe et intégration côté serveur.",
-      keywords: "acs, advanced computer solutions, stage web, développement web, stage"
-    },
-    {
-      category: "Expérience",
-      title: "Stages Réseaux (Netsys) & Maintenance (CISEN)",
-      content: "Stage chez Netsys Com Support (Juin – Juil. 2025) en câblage réseau, et stage chez CISEN (Janv. – Févr. 2025) en maintenance matérielle et logicielle des ordinateurs.",
-      keywords: "netsys, cisen, maintenance, réseaux, câblage, hardware, software"
-    },
-    {
-      category: "Compétence",
-      title: "Langages de programmation & Frameworks",
-      content: "Maîtrise de Java, PHP, C, C# (.NET), Python et JavaScript. Côté web : HTML5, CSS3, Angular, Laravel, Symfony et Spring Boot.",
-      keywords: "compétence, compétences, langages, framework, java, php, c#, laravel, symfony, spring boot, python, javascript, html, css, angular"
-    },
-    {
-      category: "Projet",
-      title: "Elearning Platform (Java)",
-      content: "Plateforme d'apprentissage en ligne développée en Java avec gestion complète des cours, inscriptions des étudiants et suivi des apprenants.",
-      keywords: "elearning, cours, java, elearning-platform, projet java, étudiants"
-    },
-    {
-      category: "Projet",
-      title: "Applications Web PHP & Laravel",
-      content: "Développement d'une application en PHP/CSS pur et d'une application full-stack avec Laravel (architecture MVC, migrations BD, authentification complète).",
-      keywords: "laravel, php, projet php, projet-laravel, web, mvc, authentification"
-    },
-    {
-      category: "Projet",
-      title: "Projet Symfony & App C# .NET",
-      content: "Application web avec Symfony (routage, Twig, Doctrine ORM), gestion de magasin en Java (tp-magasin) et première application desktop en C# .NET.",
-      keywords: "symfony, c#, doctrine, magasin, tp-magasin, tp-poo, first-app-csharp"
-    }
-  ];
+  // UI Auth Handling
+  function updateAuthUI() {
+    const user = AuthSystem.getCurrentUser();
+    const badge = document.getElementById("userBadge");
+    const lockOverlay = document.getElementById("adminLockOverlay");
 
-  // LocalStorage Persistence
-  let knowledge = JSON.parse(localStorage.getItem('ai_crud_knowledge')) || defaultKnowledge;
-
-  function saveToStorage() {
-    localStorage.setItem('ai_crud_knowledge', JSON.stringify(knowledge));
-    renderKnowledgeList();
-    updateCounter();
-  }
-
-  function updateCounter() {
-    document.getElementById('entriesCount').textContent = `${knowledge.length} connaissances`;
-  }
-
-  // Render Knowledge Cards
-  function renderKnowledgeList(filterQuery = "", filterCat = "ALL") {
-    const list = document.getElementById('knowledgeList');
-    list.innerHTML = "";
-
-    const q = filterQuery.toLowerCase();
-
-    knowledge.forEach((item, index) => {
-      if (filterCat !== "ALL" && item.category !== filterCat) return;
-      if (q && !item.title.toLowerCase().includes(q) && !item.content.toLowerCase().includes(q) && !item.keywords.toLowerCase().includes(q)) return;
-
-      const card = document.createElement('div');
-      card.className = "k-card";
-      card.innerHTML = `
-        <div style="flex:1">
-          <span class="k-cat">${item.category}</span>
-          <div class="k-title">${item.title}</div>
-          <p class="k-content">${item.content}</p>
-          <div class="k-keywords">🔍 Déclencheurs : ${item.keywords}</div>
-        </div>
-        <div class="k-actions">
-          <button class="k-btn" title="Modifier" onclick="editEntry(${index})">✏️</button>
-          <button class="k-btn" title="Supprimer" onclick="deleteEntry(${index})" style="color:#ef4444">🗑️</button>
-        </div>
+    if (user) {
+      const isAdmin = user.role === "admin";
+      badge.innerHTML = `
+        <span>Connecté : <b>${user.email}</b></span>
+        <span class="pill ${isAdmin ? 'admin' : 'guest'}">${isAdmin ? 'ADMINISTRATEUR' : 'UTILISATEUR'}</span>
+        <button class="btn btn-sec" style="padding:3px 8px;font-size:11px" onclick="logout()">Déconnexion</button>
       `;
-      list.appendChild(card);
-    });
-
-    if (list.children.length === 0) {
-      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;">Aucune donnée ne correspond à votre recherche.</div>';
+      if (isAdmin) {
+        lockOverlay.classList.remove("active");
+      } else {
+        lockOverlay.classList.add("active");
+      }
+    } else {
+      badge.innerHTML = `
+        <span class="pill guest">Non connecté (Invité)</span>
+      `;
+      lockOverlay.classList.add("active");
     }
+
+    renderProjectsList();
+    renderChatHistoryUI();
   }
 
-  // CRUD Operations
-  const formCard = document.getElementById('formCard');
-  const formTitle = document.getElementById('formTitle');
-  const entryIndex = document.getElementById('entryIndex');
-  const fCategory = document.getElementById('fCategory');
-  const fTitle = document.getElementById('fTitle');
-  const fContent = document.getElementById('fContent');
-  const fKeywords = document.getElementById('fKeywords');
-
-  document.getElementById('openAddModalBtn').addEventListener('click', () => {
-    formTitle.textContent = "Ajouter une nouvelle information à l'IA (Create)";
-    entryIndex.value = "-1";
-    fCategory.value = "Projet";
-    fTitle.value = "";
-    fContent.value = "";
-    fKeywords.value = "";
-    formCard.classList.add('active');
-    fTitle.focus();
+  document.getElementById("loginForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("loginEmail").value.trim();
+    if (!email) return;
+    AuthSystem.login(email);
+    document.getElementById("loginEmail").value = "";
+    updateAuthUI();
   });
 
-  function closeForm() {
-    formCard.classList.remove('active');
+  function logout() {
+    AuthSystem.logout();
+    updateAuthUI();
   }
 
-  function editEntry(index) {
-    const item = knowledge[index];
-    formTitle.textContent = "Modifier l'information (Update)";
-    entryIndex.value = index;
-    fCategory.value = item.category;
-    fTitle.value = item.title;
-    fContent.value = item.content;
-    fKeywords.value = item.keywords;
-    formCard.classList.add('active');
-    fTitle.focus();
-  }
-
-  function deleteEntry(index) {
-    if (confirm(`Voulez-vous vraiment supprimer "${knowledge[index].title}" de la mémoire de l'IA ?`)) {
-      knowledge.splice(index, 1);
-      saveToStorage();
-    }
-  }
-
-  function saveEntry() {
-    const cat = fCategory.value;
-    const title = fTitle.value.trim();
-    const content = fContent.value.trim();
-    const keywords = fKeywords.value.trim();
-
-    if (!title || !content) {
-      alert("Veuillez remplir au moins le titre et le contenu !");
+  // GitHub Auto Project Add
+  document.getElementById("fetchAndAddBtn").addEventListener("click", async () => {
+    const input = document.getElementById("repoInput").value.trim();
+    if (!input) {
+      alert("Veuillez renseigner un nom de dépôt !");
       return;
     }
 
-    const item = {
-      category: cat,
-      title: title,
-      content: content,
-      keywords: keywords || title.toLowerCase()
-    };
+    const loader = document.getElementById("repoLoader");
+    loader.style.display = "block";
 
-    const idx = parseInt(entryIndex.value, 10);
-    if (idx >= 0) {
-      // Update
-      knowledge[idx] = item;
-    } else {
-      // Create
-      knowledge.unshift(item);
+    try {
+      const data = await fetchGithubRepoData(input);
+      const newProj = {
+        id: "proj_" + Date.now(),
+        name: data.name,
+        type: data.type,
+        description: data.description,
+        github: data.github
+      };
+      ProjectsStore.addProject(newProj);
+      document.getElementById("repoInput").value = "";
+      renderProjectsList();
+      alert(`✅ Projet "${data.name}" ajouté avec succès avec description automatique !`);
+    } catch (e) {
+      alert("Erreur lors de la récupération : " + e.message);
+    } finally {
+      loader.style.display = "none";
     }
-
-    saveToStorage();
-    closeForm();
-  }
-
-  // Search & Filter Events
-  document.getElementById('searchBox').addEventListener('input', (e) => {
-    renderKnowledgeList(e.target.value, document.getElementById('filterCategory').value);
-  });
-  document.getElementById('filterCategory').addEventListener('change', (e) => {
-    renderKnowledgeList(document.getElementById('searchBox').value, e.target.value);
   });
 
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(knowledge, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "ai_knowledge_melek.json";
-    a.click();
-  }
+  function renderProjectsList() {
+    const container = document.getElementById("projectsManagerList");
+    const list = ProjectsStore.getProjects();
+    const isAdmin = AuthSystem.isAdmin();
 
-  // ── AI Engine based on CRUD Database ──
-  const aiChatMessages = document.getElementById('aiChatMessages');
-  const aiForm = document.getElementById('aiForm');
-  const aiQuery = document.getElementById('aiQuery');
-
-  function appendChat(text, role) {
-    const div = document.createElement('div');
-    div.className = `chat-msg ${role}`;
-    div.innerHTML = text;
-    aiChatMessages.appendChild(div);
-    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-    return div;
-  }
-
-  function clearChat() {
-    aiChatMessages.innerHTML = `
-      <div class="chat-msg bot">
-        Mémoire de chat réinitialisée. Posez une nouvelle question !
+    container.innerHTML = list.map(p => `
+      <div class="proj-row">
+        <div>
+          <span style="font-size:10px;font-weight:700;color:#6957e8">${p.type}</span>
+          <strong>${p.name}</strong>
+          <p>${p.description}</p>
+        </div>
+        <div class="proj-actions">
+          <a href="${p.github}" target="_blank" class="btn btn-sec" style="padding:3px 8px;font-size:11px">Lien ↗</a>
+          ${isAdmin ? `<button class="btn btn-danger" style="padding:3px 8px;font-size:11px" onclick="deleteProject('${p.id}')">Supprimer</button>` : ''}
+        </div>
       </div>
-    `;
+    `).join("");
   }
 
-  function askPreset(txt) {
-    aiQuery.value = txt;
-    handleAiSubmit(txt);
+  function deleteProject(id) {
+    if (confirm("Supprimer ce projet du portfolio ?")) {
+      ProjectsStore.deleteProject(id);
+      renderProjectsList();
+    }
   }
 
-  aiForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const q = aiQuery.value.trim();
-    if (!q) return;
-    aiQuery.value = "";
-    handleAiSubmit(q);
-  });
+  // Chat History Viewer & In-Place CRUD
+  function renderChatHistoryUI() {
+    const viewer = document.getElementById("historyViewer");
+    const history = ChatStore.getHistory();
 
-  function handleAiSubmit(q) {
-    appendChat(q, "user");
-    const thinking = appendChat("🧠 Recherche dans la base CRUD...", "bot");
-
-    setTimeout(() => {
-      thinking.remove();
-      const response = queryKnowledgeBase(q);
-      appendChat(response, "bot");
-    }, 300);
-  }
-
-  function queryKnowledgeBase(query) {
-    const terms = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    
-    // Score each knowledge entry
-    let bestMatch = null;
-    let highestScore = 0;
-
-    knowledge.forEach(item => {
-      let score = 0;
-      const combined = (item.title + " " + item.content + " " + item.keywords + " " + item.category).toLowerCase();
-
-      terms.forEach(term => {
-        if (item.keywords.toLowerCase().includes(term)) score += 4;
-        if (item.title.toLowerCase().includes(term)) score += 3;
-        if (combined.includes(term)) score += 1;
-      });
-
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = item;
-      }
-    });
-
-    if (bestMatch && highestScore > 0) {
-      return `📌 <b>${bestMatch.title}</b> [${bestMatch.category}] :<br>${bestMatch.content}`;
+    if (history.length === 0) {
+      viewer.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:12px">Aucun historique de message.</div>';
+      return;
     }
 
-    return "🤖 Je n'ai pas trouvé d'information exacte dans la base actuelle. Vous pouvez en ajouter une nouvelle via le panneau <b>'+ Ajouter une Entrée (Create)'</b> à gauche !";
+    viewer.innerHTML = history.map(item => `
+      <div style="background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1">
+          <div style="display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;color:${item.role === 'user' ? '#6957e8' : '#059669'}">
+            <span>${item.role === 'user' ? '👤 Utilisateur' : '🤖 Assistant'}</span>
+            <span style="color:#94a3b8;font-weight:400">${item.timestamp || ''}</span>
+          </div>
+          <div style="font-size:12.5px;color:#1e293b;margin-top:4px">${item.text}</div>
+        </div>
+        <div style="display:flex;gap:4px;margin-left:8px">
+          ${item.role === 'user' ? `<button class="btn btn-sec" style="padding:2px 6px;font-size:11px" onclick="editHistoryMessage('${item.id}')">✏️</button>` : ''}
+          <button class="btn btn-danger" style="padding:2px 6px;font-size:11px" onclick="deleteHistoryMessage('${item.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join("");
   }
 
-  // Initial load
-  saveToStorage();
+  function editHistoryMessage(id) {
+    const history = ChatStore.getHistory();
+    const item = history.find(m => m.id === id);
+    if (!item) return;
+    const newText = prompt("Modifier le message :", item.text);
+    if (newText !== null && newText.trim() !== "") {
+      ChatStore.updateMessage(id, newText.trim());
+      renderChatHistoryUI();
+    }
+  }
+
+  function deleteHistoryMessage(id) {
+    ChatStore.deleteMessage(id);
+    renderChatHistoryUI();
+  }
+
+  function clearAllChatHistory() {
+    if (confirm("Effacer tout l'historique des conversations ?")) {
+      ChatStore.clearHistory();
+      renderChatHistoryUI();
+    }
+  }
+
+  // Auto login as admin by default for convenience
+  if (!AuthSystem.getCurrentUser()) {
+    AuthSystem.login("melekabdelmaksoud72@gmail.com", "Melek Abdelmaksoud");
+  }
+
+  updateAuthUI();
 </script>
 </body>
 </html>

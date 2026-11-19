@@ -83,7 +83,10 @@ if (aiChatToggle && aiChatPopup) {
   aiChatToggle.addEventListener("click", () => {
     const isActive = aiChatPopup.classList.toggle("active");
     aiChatPopup.setAttribute("aria-hidden", String(!isActive));
-    if (isActive) aiChatInput.focus();
+    if (isActive) {
+      renderChatFromHistory();
+      aiChatInput.focus();
+    }
   });
 
   aiChatClose.addEventListener("click", () => {
@@ -107,35 +110,112 @@ if (aiChatToggle && aiChatPopup) {
   });
 }
 
-function appendAiMessage(text, role, isHtml = false) {
+function renderChatFromHistory() {
+  if (typeof ChatStore === "undefined") return;
+  const history = ChatStore.getHistory();
+  aiChatMessages.innerHTML = "";
+
+  if (history.length === 0) {
+    appendAiMessage("👋 Bonjour ! Je suis l'assistant intelligent de Melek. Posez-moi vos questions ou utilisez les boutons rapides.", "bot", false, null);
+    return;
+  }
+
+  history.forEach(item => {
+    appendAiMessage(item.text, item.role, true, item.id);
+  });
+}
+
+function appendAiMessage(text, role, isHtml = false, msgId = null) {
   const msg = document.createElement("div");
   msg.className = `ai-msg ${role}`;
+  if (msgId) msg.dataset.msgId = msgId;
+
+  const contentSpan = document.createElement("div");
   if (isHtml) {
-    msg.innerHTML = text;
+    contentSpan.innerHTML = text;
   } else {
-    msg.textContent = text;
+    contentSpan.textContent = text;
   }
+  msg.appendChild(contentSpan);
+
+  // Message CRUD actions (Edit & Delete for user, Delete for bot)
+  if (msgId && typeof ChatStore !== "undefined") {
+    const actions = document.createElement("div");
+    actions.className = "ai-msg-actions";
+
+    if (role === "user") {
+      const editBtn = document.createElement("button");
+      editBtn.className = "msg-act-btn";
+      editBtn.title = "Modifier la question";
+      editBtn.textContent = "✏️";
+      editBtn.addEventListener("click", () => editChatMessage(msgId, contentSpan));
+      actions.appendChild(editBtn);
+    }
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "msg-act-btn";
+    delBtn.title = "Supprimer du fil";
+    delBtn.textContent = "🗑️";
+    delBtn.addEventListener("click", () => deleteChatMessage(msgId, msg));
+    actions.appendChild(delBtn);
+
+    msg.appendChild(actions);
+  }
+
   aiChatMessages.appendChild(msg);
   aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
   return msg;
 }
 
+function editChatMessage(id, contentSpan) {
+  const currentText = contentSpan.textContent;
+  const newText = prompt("Modifier votre message :", currentText);
+  if (newText !== null && newText.trim() !== "" && newText !== currentText) {
+    ChatStore.updateMessage(id, newText.trim());
+    renderChatFromHistory();
+    // Re-trigger answer for edited prompt
+    const typing = appendAiMessage("Mise à jour de la réponse...", "bot");
+    setTimeout(() => {
+      typing.remove();
+      const answer = generateAiAnswer(newText.trim());
+      const botMsg = ChatStore.addMessage("bot", answer);
+      appendAiMessage(answer, "bot", true, botMsg.id);
+    }, 350);
+  }
+}
+
+function deleteChatMessage(id, msgElement) {
+  ChatStore.deleteMessage(id);
+  msgElement.remove();
+}
+
 function handleUserQuery(query) {
-  appendAiMessage(query, "user");
+  let userMsgId = null;
+  if (typeof ChatStore !== "undefined") {
+    const saved = ChatStore.addMessage("user", query);
+    userMsgId = saved.id;
+  }
+
+  appendAiMessage(query, "user", false, userMsgId);
   const typing = appendAiMessage("Réflexion en cours...", "bot");
 
   setTimeout(() => {
     typing.remove();
     const answer = generateAiAnswer(query);
-    appendAiMessage(answer, "bot", true);
-  }, 400);
+    let botMsgId = null;
+    if (typeof ChatStore !== "undefined") {
+      const savedBot = ChatStore.addMessage("bot", answer);
+      botMsgId = savedBot.id;
+    }
+    appendAiMessage(answer, "bot", true, botMsgId);
+  }, 350);
 }
 
 function generateAiAnswer(rawQuery) {
   const q = rawQuery.toLowerCase();
 
   if (q.includes("cv") || q.includes("curriculum") || q.includes("télécharger") || q.includes("download") || q.includes("resume")) {
-    return '📄 Vous pouvez télécharger directement le CV de Melek en cliquant ici : <br><a href="CV_Melek_Abdelmaksoud.pdf" download="CV_Melek_Abdelmaksoud.pdf" style="display:inline-block;margin-top:6px;padding:5px 12px;background:#6957e8;color:#fff;border-radius:20px;text-decoration:none;">⬇ Télécharger CV (PDF)</a>';
+    return '⚡ Vous pouvez générer et consulter en direct le CV officiel de Melek : <br><a href="cv-generator.html" target="_blank" style="display:inline-block;margin-top:6px;padding:6px 14px;background:#6957e8;color:#fff;border-radius:20px;text-decoration:none;font-weight:700;">Générer & Visualiser le CV ↗</a>';
   }
 
   if (q.includes("projet") || q.includes("project") || q.includes("réalisation") || q.includes("travaux")) {
