@@ -1,0 +1,115 @@
+{
+  "personal": {
+    "name": "Melek Abdelmaksoud",
+    "email": "melekabdelmaksoud72@gmail.com",
+    "location": "Sfax, Tunisie",
+    "linkedin": "https://www.linkedin.com/in/melek-abdelmaksoud-518713436/",
+    "github": "https://github.com/malekabdelmaksoud",
+    "title": "Étudiante en Technologie de l'Informatique — Développement Web & Multimédia",
+    "about": "Étudiante en Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid, spécialité Développement Web et Multimédia. Mon parcours m'a permis de découvrir plusieurs domaines : développement web, programmation, maintenance et réseaux. Mes stages m'ont permis de mieux comprendre le milieu professionnel, de travailler en équipe et d'appliquer mes connaissances à des situations concrètes."
+  },
+  "education": [
+    {
+      "degree": "Licence en Technologie de l'Informatique",
+      "institution": "ISET de Sidi Bouzid",
+      "period": "2024 – Présent",
+      "speciality": "Développement Web et Multimédia"
+    },
+    {
+      "degree": "Baccalauréat – Sciences expérimentales",
+      "institution": "Lycée Tayeb Mhiri, Sfax",
+      "period": "2023 – 2024"
+    }
+  ],
+  "skills": {
+    "languages": ["C", "C#", "Java", "Python", "JavaScript", "PHP"],
+    "web": ["HTML", "CSS", "Angular"],
+    "frameworks": ["Laravel", "Symfony", "Spring Boot", ".NET", "Android Studio"],
+    "systems": ["Maintenance informatique", "Câblage réseau", "OCS Inventory"],
+    "soft_skills": ["Travail en équipe", "Autonomie", "Leadership", "Adaptabilité"]
+  },
+  "experiences": [
+    {
+      "title": "Stage en informatique",
+      "company": "Hôpital Hédi Chaker",
+      "location": "Sfax",
+      "period": "Juil. – Août 2026",
+      "description": "Participation à la configuration d'une application de soins, découverte du Dossier Médical Informatisé (DMI) et utilisation d'OCS Inventory pour l'inventaire du matériel informatique."
+    },
+    {
+      "title": "Stage en développement web",
+      "company": "Advanced Computer Solutions (ACS)",
+      "period": "Janv. 2026",
+      "description": "Découverte du travail de développement web et participation aux activités de l'équipe."
+    },
+    {
+      "title": "Stage en réseaux",
+      "company": "Netsys Com Support",
+      "period": "Juin – Juil. 2025",
+      "description": "Initiation aux opérations de câblage réseau et découverte des équipements et pratiques de base."
+    },
+    {
+      "title": "Stage en maintenance informatique",
+      "company": "CISEN",
+      "period": "Janv. – Févr. 2025",
+      "description": "Découverte des opérations de maintenance matérielle et logicielle."
+    }
+  ],
+  "projects": [
+    {
+      "id": "01",
+      "name": "elearning-platform",
+      "type": "JAVA · APPLICATION",
+      "description": "Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.",
+      "github": "https://github.com/malekabdelmaksoud/elearning-platform"
+    },
+    {
+      "id": "02",
+      "name": "projet-php",
+      "type": "PHP · CSS · WEB",
+      "description": "Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur.",
+      "github": "https://github.com/malekabdelmaksoud/projet-php"
+    },
+    {
+      "id": "03",
+      "name": "projet-laravel",
+      "type": "PHP · LARAVEL · FRAMEWORK",
+      "description": "Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification.",
+      "github": "https://github.com/malekabdelmaksoud/projet-laravel"
+    },
+    {
+      "id": "04",
+      "name": "tp-magasin",
+      "type": "JAVA · GESTION",
+      "description": "Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente.",
+      "github": "https://github.com/malekabdelmaksoud/tp-magasin"
+    },
+    {
+      "id": "05",
+      "name": "tp-poo",
+      "type": "JAVA · POO",
+      "description": "Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation.",
+      "github": "https://github.com/malekabdelmaksoud/tp-poo"
+    },
+    {
+      "id": "06",
+      "name": "projet-symfony",
+      "type": "SYMFONY · PHP · WEB",
+      "description": "Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.",
+      "github": "https://github.com/malekabdelmaksoud/projet-symfony"
+    },
+    {
+      "id": "07",
+      "name": "first-app-csharp",
+      "type": "C# · APPLICATION",
+      "description": "Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.",
+      "github": "https://github.com/malekabdelmaksoud/first-app-csharp"
+    }
+  ],
+  "languages": [
+    {"language": "Arabe", "level": "Langue maternelle"},
+    {"language": "Français", "level": "Intermédiaire"},
+    {"language": "Anglais", "level": "Intermédiaire"},
+    {"language": "Espagnol", "level": "Débutant"}
+  ]
+}

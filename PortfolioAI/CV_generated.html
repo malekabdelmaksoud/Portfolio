@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CV – Melek Abdelmaksoud</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:#f5f4ff;color:#1a1a2e;font-size:13px;line-height:1.6}
+  .page{max-width:860px;margin:30px auto;padding:40px 48px;background:#fff;border-radius:12px;box-shadow:0 4px 32px rgba(105,87,232,.1)}
+
+  /* Header */
+  .cv-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #6957e8;padding-bottom:18px;margin-bottom:24px}
+  .cv-name{font-size:26px;font-weight:700;color:#6957e8;letter-spacing:-.5px}
+  .cv-title{font-size:12px;color:#555;margin-top:4px}
+  .cv-contact{text-align:right;font-size:11.5px;color:#444;line-height:1.9}
+  .cv-contact a{color:#6957e8;text-decoration:none}
+
+  /* Layout */
+  .cv-body{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+  .col-left{border-right:1px solid #ebe8ff;padding-right:24px}
+
+  /* Section */
+  .section{margin-bottom:22px}
+  .section-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#6957e8;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #ebe8ff}
+
+  /* Items */
+  .item{margin-bottom:12px}
+  .item-header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .item-title{font-weight:600;font-size:12.5px;color:#1a1a2e}
+  .item-date{font-size:10.5px;color:#888;white-space:nowrap}
+  .item-sub{font-size:11px;color:#6957e8;margin-top:1px;font-style:italic}
+  .item-desc{font-size:11.5px;color:#444;margin-top:4px}
+
+  /* Tags */
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .tag{background:#ebe8ff;color:#6957e8;padding:2px 8px;border-radius:50px;font-size:10.5px;font-weight:500}
+  .tag.small{font-size:9.5px;padding:1px 6px;background:#f0eeff}
+
+  /* Projects */
+  .project-item{margin-bottom:10px;padding:8px;background:#f8f7ff;border-radius:8px;border-left:3px solid #6957e8}
+  .gh-link{font-size:10.5px;color:#6957e8;text-decoration:none;display:inline-block;margin-top:3px}
+
+  /* Languages */
+  .lang-item{display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0;border-bottom:1px dotted #eee}
+  .lang-level{color:#888;font-size:10.5px}
+
+  .about-text{font-size:11.5px;color:#444;line-height:1.65}
+
+  /* Print btn */
+  .print-btn{display:block;margin:0 auto 20px;padding:.6rem 2rem;background:#6957e8;color:#fff;border:none;border-radius:50px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit}
+  .print-btn:hover{background:#5544cc}
+
+  .cv-footer{margin-top:28px;border-top:1px solid #eee;padding-top:10px;text-align:center;font-size:10px;color:#aaa}
+
+  @media print{
+    body{background:#fff}
+    .page{margin:0;padding:20px 24px;box-shadow:none;border-radius:0}
+    .print-btn{display:none}
+  }
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="cv-header">
+    <div>
+      <div class="cv-name">Melek Abdelmaksoud</div>
+      <div class="cv-title">Étudiante en Technologie de l'Informatique — Développement Web &amp; Multimédia</div>
+      <div style="margin-top:6px;font-size:11px;color:#555">📍 Sfax, Tunisie</div>
+    </div>
+    <div class="cv-contact">
+      <div><a href="mailto:melekabdelmaksoud72@gmail.com">melekabdelmaksoud72@gmail.com</a></div>
+      <div><a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/">LinkedIn ↗</a></div>
+      <div><a href="https://github.com/malekabdelmaksoud">GitHub ↗</a></div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="cv-body">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+
+      <!-- À PROPOS -->
+      <div class="section">
+        <div class="section-title">À propos</div>
+        <p class="about-text">Étudiante en Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid, spécialité Développement Web et Multimédia. Mon parcours m'a permis de découvrir plusieurs domaines : développement web, programmation, maintenance et réseaux. Mes stages m'ont permis de mieux comprendre le milieu professionnel, de travailler en équipe et d'appliquer mes connaissances à des situations concrètes.</p>
+      </div>
+
+      <!-- FORMATION -->
+      <div class="section">
+        <div class="section-title">Formation</div>
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Licence en Technologie de l'Informatique</span>
+            <span class="item-date">2024 – Présent</span>
+          </div>
+          <div class="item-sub">ISET de Sidi Bouzid</div>
+          <p class="item-desc">Spécialité Développement Web et Multimédia</p>
+        </div>
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Baccalauréat – Sciences expérimentales</span>
+            <span class="item-date">2023 – 2024</span>
+          </div>
+          <div class="item-sub">Lycée Tayeb Mhiri, Sfax</div>
+        </div>
+      </div>
+
+      <!-- EXPÉRIENCES -->
+      <div class="section">
+        <div class="section-title">Expériences</div>
+
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Stage en informatique</span>
+            <span class="item-date">Juil. – Août 2026</span>
+          </div>
+          <div class="item-sub">Hôpital Hédi Chaker · Sfax</div>
+          <p class="item-desc">Configuration d'une application de soins, découverte du DMI et utilisation d'OCS Inventory pour l'inventaire informatique.</p>
+        </div>
+
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Stage en développement web</span>
+            <span class="item-date">Janv. 2026</span>
+          </div>
+          <div class="item-sub">Advanced Computer Solutions (ACS)</div>
+          <p class="item-desc">Découverte du travail de développement web et participation aux activités de l'équipe.</p>
+        </div>
+
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Stage en réseaux</span>
+            <span class="item-date">Juin – Juil. 2025</span>
+          </div>
+          <div class="item-sub">Netsys Com Support</div>
+          <p class="item-desc">Initiation au câblage réseau et découverte des équipements de base.</p>
+        </div>
+
+        <div class="item">
+          <div class="item-header">
+            <span class="item-title">Stage en maintenance informatique</span>
+            <span class="item-date">Janv. – Févr. 2025</span>
+          </div>
+          <div class="item-sub">CISEN</div>
+          <p class="item-desc">Découverte des opérations de maintenance matérielle et logicielle.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+
+      <!-- COMPÉTENCES -->
+      <div class="section">
+        <div class="section-title">Langages de programmation</div>
+        <div class="tags">
+          <span class="tag">C</span><span class="tag">C#</span><span class="tag">Java</span>
+          <span class="tag">Python</span><span class="tag">JavaScript</span><span class="tag">PHP</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Web &amp; Frameworks</div>
+        <div class="tags">
+          <span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">Angular</span>
+          <span class="tag">Laravel</span><span class="tag">Symfony</span><span class="tag">Spring Boot</span>
+          <span class="tag">.NET</span><span class="tag">Android Studio</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Systèmes &amp; Réseaux</div>
+        <div class="tags">
+          <span class="tag">Maintenance informatique</span>
+          <span class="tag">Câblage réseau</span>
+          <span class="tag">OCS Inventory</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Soft skills</div>
+        <div class="tags">
+          <span class="tag">Travail en équipe</span><span class="tag">Autonomie</span>
+          <span class="tag">Leadership</span><span class="tag">Adaptabilité</span>
+        </div>
+      </div>
+
+      <!-- PROJETS -->
+      <div class="section">
+        <div class="section-title">Projets GitHub</div>
+
+        <div class="project-item">
+          <div class="item-header">
+            <span class="item-title">elearning-platform</span>
+            <span class="tag small">Java</span>
+          </div>
+          <p class="item-desc">Plateforme e-learning : gestion des cours, inscriptions et suivi des apprenants.</p>
+          <a class="gh-link" href="https://github.com/malekabdelmaksoud/elearning-platform">GitHub ↗</a>
+        </div>
+
+        <div class="project-item">
+          <div class="item-header">
+            <span class="item-title">projet-laravel</span>
+            <span class="tag small">PHP · Laravel</span>
+          </div>
+          <p class="item-desc">Application full-stack avec Laravel : MVC, migrations, authentification.</p>
+          <a class="gh-link" href="https://github.com/malekabdelmaksoud/projet-laravel">GitHub ↗</a>
+        </div>
+
+        <div class="project-item">
+          <div class="item-header">
+            <span class="item-title">projet-symfony</span>
+            <span class="tag small">Symfony · PHP</span>
+          </div>
+          <p class="item-desc">Application web avec Symfony : routage, Twig, Doctrine ORM.</p>
+          <a class="gh-link" href="https://github.com/malekabdelmaksoud/projet-symfony">GitHub ↗</a>
+        </div>
+
+        <div class="project-item">
+          <div class="item-header">
+            <span class="item-title">projet-php &amp; tp-magasin &amp; tp-poo &amp; first-app-csharp</span>
+            <span class="tag small">PHP · Java · C#</span>
+          </div>
+          <p class="item-desc">Applications PHP, gestion de magasin Java, TP POO et première app C#/.NET.</p>
+          <a class="gh-link" href="https://github.com/malekabdelmaksoud">Voir tous les projets ↗</a>
+        </div>
+
+      </div>
+
+      <!-- LANGUES -->
+      <div class="section">
+        <div class="section-title">Langues</div>
+        <div class="lang-item"><span>Arabe</span><span class="lang-level">Langue maternelle</span></div>
+        <div class="lang-item"><span>Français</span><span class="lang-level">Intermédiaire</span></div>
+        <div class="lang-item"><span>Anglais</span><span class="lang-level">Intermédiaire</span></div>
+        <div class="lang-item"><span>Espagnol</span><span class="lang-level">Débutant</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="cv-footer">Melek Abdelmaksoud · melekabdelmaksoud72@gmail.com · Sfax, Tunisie · 2026</div>
+</div>
+
+</body>
+</html>

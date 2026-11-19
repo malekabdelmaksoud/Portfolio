@@ -8,3 +8,15 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Environment variables & secrets
+.env
+PortfolioAI/.env
+*.env
+
+# Python venv
+.venv/
+PortfolioAI/.venv/
+__pycache__/
+*.pyc
+
