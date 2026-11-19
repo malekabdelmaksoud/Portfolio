@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV Dynamique & Générateur — Melek Abdelmaksoud</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:#f5f4ff;color:#1a1a2e;line-height:1.6}
+  
+  /* Top App Bar */
+  .control-bar{background:#171a35;color:#fff;padding:14px 24px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .brand-title{font:700 18px 'Space Grotesk',sans-serif;display:flex;align-items:center;gap:8px}
+  .brand-title a{color:#a78bfa;text-decoration:none;font-size:13px;margin-left:12px;opacity:.9}
+  .brand-title a:hover{opacity:1;text-decoration:underline}
+  .actions-group{display:flex;gap:10px;align-items:center}
+  .btn{padding:8px 16px;border-radius:30px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;border:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+  .btn-print{background:#6957e8;color:#fff}
+  .btn-print:hover{background:#5544cc;transform:translateY(-1px)}
+  .btn-edit{background:#2a2f55;color:#ddd;border:1px solid #43497d}
+  .btn-edit:hover{background:#353c6d;color:#fff}
+  .btn-download-pdf{background:#37b88a;color:#fff;text-decoration:none}
+  .btn-download-pdf:hover{background:#2e9d75}
+
+  .main-wrapper{max-width:1180px;margin:30px auto;display:flex;gap:28px;padding:0 20px}
+  
+  /* Editor Panel */
+  .editor-panel{flex:0 0 340px;background:#fff;border-radius:16px;padding:22px;border:1px solid #e2e0ef;box-shadow:0 8px 30px rgba(105,87,232,.06);height:fit-content;position:sticky;top:80px}
+  .editor-title{font:700 16px 'Space Grotesk';color:#171a35;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+  .form-group{margin-bottom:14px}
+  .form-group label{display:block;font-size:11.5px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+  .form-group input, .form-group textarea{width:100%;padding:8px 12px;border:1px solid #dcd9ef;border-radius:8px;font-size:12.5px;font-family:inherit;outline:none;transition:border-color .2s}
+  .form-group input:focus, .form-group textarea:focus{border-color:#6957e8}
+  .editor-hint{font-size:11px;color:#777;margin-top:12px;line-height:1.5;background:#f9f8ff;padding:10px;border-radius:8px;border-left:3px solid #6957e8}
+
+  /* CV Sheet */
+  .cv-sheet{flex:1;background:#fff;padding:48px 52px;border-radius:16px;box-shadow:0 10px 40px rgba(105,87,232,.08);border:1px solid #ebe8ff}
+  
+  /* CV Content */
+  .cv-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #6957e8;padding-bottom:20px;margin-bottom:26px}
+  .cv-name{font:700 28px 'Space Grotesk',sans-serif;color:#6957e8;letter-spacing:-1px}
+  .cv-title{font-size:13px;color:#555;margin-top:4px;font-weight:500}
+  .cv-contact{text-align:right;font-size:11.5px;color:#444;line-height:1.9}
+  .cv-contact a{color:#6957e8;text-decoration:none}
+  
+  .cv-body{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+  .col-left{border-right:1px solid #f0eeff;padding-right:24px}
+  
+  .section{margin-bottom:22px}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#6957e8;margin-bottom:12px;padding-bottom:4px;border-bottom:1px solid #f0eeff}
+  
+  .item{margin-bottom:13px}
+  .item-header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .item-title{font-weight:700;font-size:13px;color:#171a35}
+  .item-date{font-size:10.5px;color:#888;white-space:nowrap}
+  .item-sub{font-size:11.5px;color:#6957e8;font-style:italic;margin-top:1px}
+  .item-desc{font-size:12px;color:#555;margin-top:4px}
+  
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .tag{background:#f0eeff;color:#6957e8;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag.small{font-size:9.5px;padding:2px 7px}
+  
+  .project-box{background:#fbfaff;border-radius:10px;padding:10px 12px;margin-bottom:10px;border-left:3px solid #6957e8}
+  .project-box h4{font-size:12.5px;color:#171a35;margin-bottom:3px;display:flex;justify-content:space-between}
+  .project-box p{font-size:11.5px;color:#666}
+  .project-box a{font-size:11px;color:#6957e8;font-weight:700;text-decoration:none}
+  
+  .lang-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dotted #e9e7f8}
+  .lang-lvl{color:#888;font-size:11px}
+  
+  .cv-footer{margin-top:30px;padding-top:12px;border-top:1px solid #eee;text-align:center;font-size:10.5px;color:#999}
+
+  @media print{
+    body{background:#fff}
+    .control-bar, .editor-panel{display:none}
+    .main-wrapper{margin:0;padding:0;max-width:100%}
+    .cv-sheet{border:none;box-shadow:none;padding:20px 24px}
+  }
+  
+  @media(max-width:900px){
+    .main-wrapper{flex-direction:column}
+    .editor-panel{position:static;flex:auto;width:100%}
+    .cv-body{grid-template-columns:1fr;gap:20px}
+    .col-left{border-right:none;padding-right:0;border-bottom:1px solid #eee;padding-bottom:20px}
+  }
+</style>
+</head>
+<body>
+
+<div class="control-bar">
+  <div class="brand-title">
+    <span>⚡ CV Dynamique & Générateur</span>
+    <a href="index.html">← Retour au Portfolio</a>
+  </div>
+  <div class="actions-group">
+    <a href="CV_Melek_Abdelmaksoud.pdf" download="CV_Melek_Abdelmaksoud.pdf" class="btn btn-download-pdf">⬇ Télécharger PDF Original</a>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Imprimer / Sauvegarder PDF</button>
+  </div>
+</div>
+
+<div class="main-wrapper">
+
+  <!-- Interactive Editor Panel -->
+  <aside class="editor-panel">
+    <div class="editor-title">✏️ Personnaliser en direct</div>
+    <div class="form-group">
+      <label>Titre Professionnel</label>
+      <input type="text" id="editTitle" value="Étudiante en Technologie de l'Informatique — Développement Web & Multimédia">
+    </div>
+    <div class="form-group">
+      <label>Ajouter un nouveau projet</label>
+      <input type="text" id="newProjName" placeholder="Nom du projet (ex: AI Assistant)">
+      <input type="text" id="newProjTech" placeholder="Technologies (ex: Python, Flask)" style="margin-top:5px">
+      <input type="text" id="newProjDesc" placeholder="Courte description" style="margin-top:5px">
+      <input type="text" id="newProjLink" placeholder="Lien GitHub" style="margin-top:5px">
+      <button class="btn btn-edit" id="addProjBtn" style="width:100%;margin-top:8px;justify-content:center;">+ Ajouter au CV</button>
+    </div>
+    <div class="editor-hint">
+      💡 <b>Astuce :</b> Tout ce que vous modifiez ou ajoutez ici s'actualise instantanément sur la feuille de droite. Cliquez ensuite sur <b>Imprimer / Sauvegarder PDF</b> pour exporter votre nouveau CV prêt à l'emploi !
+    </div>
+  </aside>
+
+  <!-- CV Sheet -->
+  <main class="cv-sheet" id="cvContent">
+    <header class="cv-header">
+      <div>
+        <h1 class="cv-name">Melek Abdelmaksoud</h1>
+        <div class="cv-title" id="displayTitle">Étudiante en Technologie de l'Informatique — Développement Web & Multimédia</div>
+        <div style="font-size:11.5px;color:#666;margin-top:5px">📍 Sfax, Tunisie</div>
+      </div>
+      <div class="cv-contact">
+        <div><a href="mailto:melekabdelmaksoud72@gmail.com">melekabdelmaksoud72@gmail.com</a></div>
+        <div><a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank">LinkedIn ↗</a></div>
+        <div><a href="https://github.com/malekabdelmaksoud" target="_blank">github.com/malekabdelmaksoud ↗</a></div>
+        <div><a href="https://portfolio.melekabdelmaksoud72.workers.dev/" target="_blank">portfolio en ligne ↗</a></div>
+      </div>
+    </header>
+
+    <div class="cv-body">
+      <!-- Left Column -->
+      <div class="col-left">
+        <section class="section">
+          <h2 class="section-title">À propos</h2>
+          <p style="font-size:12px;color:#555">Étudiante en Licence à l'ISET de Sidi Bouzid, spécialité Développement Web et Multimédia. Passionnée par la conception de solutions logicielles et d'applications modernes, je recherche un stage PFE pour valoriser mes acquis dans un cadre professionnel stimulant.</p>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Formation</h2>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Licence en Technologie de l'Informatique</span>
+              <span class="item-date">2024 – Présent</span>
+            </div>
+            <div class="item-sub">ISET de Sidi Bouzid</div>
+            <p class="item-desc">Spécialité Développement Web et Multimédia</p>
+          </div>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Baccalauréat Sciences Expérimentales</span>
+              <span class="item-date">2023 – 2024</span>
+            </div>
+            <div class="item-sub">Lycée Tayeb Mhiri, Sfax</div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Expériences & Stages</h2>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Stage en Informatique</span>
+              <span class="item-date">Juil. – Août 2026</span>
+            </div>
+            <div class="item-sub">Hôpital Hédi Chaker · Sfax</div>
+            <p class="item-desc">Configuration de l'application de soins, intervention DMI et inventaire matériel avec OCS Inventory.</p>
+          </div>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Stage en Développement Web</span>
+              <span class="item-date">Janv. 2026</span>
+            </div>
+            <div class="item-sub">Advanced Computer Solutions (ACS)</div>
+            <p class="item-desc">Participation au développement web et aux travaux techniques d'équipe.</p>
+          </div>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Stage en Réseaux</span>
+              <span class="item-date">Juin – Juil. 2025</span>
+            </div>
+            <div class="item-sub">Netsys Com Support</div>
+            <p class="item-desc">Initiation aux opérations de câblage et gestion d'équipements réseaux.</p>
+          </div>
+          <div class="item">
+            <div class="item-header">
+              <span class="item-title">Stage en Maintenance Informatique</span>
+              <span class="item-date">Janv. – Févr. 2025</span>
+            </div>
+            <div class="item-sub">CISEN</div>
+            <p class="item-desc">Maintenance matérielle et logicielle des ordinateurs de bureau.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column -->
+      <div class="col-right">
+        <section class="section">
+          <h2 class="section-title">Compétences Techniques</h2>
+          <div style="margin-bottom:8px">
+            <span style="font-size:11.5px;font-weight:700;color:#333">Langages :</span>
+            <div class="tags">
+              <span class="tag">Java</span><span class="tag">PHP</span><span class="tag">C#</span><span class="tag">C</span><span class="tag">Python</span><span class="tag">JavaScript</span>
+            </div>
+          </div>
+          <div style="margin-bottom:8px">
+            <span style="font-size:11.5px;font-weight:700;color:#333">Frameworks & Web :</span>
+            <div class="tags">
+              <span class="tag">Laravel</span><span class="tag">Symfony</span><span class="tag">Spring Boot</span><span class="tag">.NET</span><span class="tag">Angular</span><span class="tag">HTML5 / CSS3</span>
+            </div>
+          </div>
+          <div>
+            <span style="font-size:11.5px;font-weight:700;color:#333">Systèmes & Outils :</span>
+            <div class="tags">
+              <span class="tag">Git / GitHub</span><span class="tag">OCS Inventory</span><span class="tag">Réseaux & Câblage</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Projets Réalisés</h2>
+          <div id="projectsContainer">
+            <div class="project-box">
+              <h4><span>Elearning Platform</span> <span class="tag small">Java</span></h4>
+              <p>Gestion des cours, inscriptions et suivi des apprenants.</p>
+              <a href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank">github.com/malekabdelmaksoud/elearning-platform ↗</a>
+            </div>
+            <div class="project-box">
+              <h4><span>Application Laravel</span> <span class="tag small">Laravel · PHP</span></h4>
+              <p>Application full-stack avec authentification, migrations et MVC.</p>
+              <a href="https://github.com/malekabdelmaksoud/projet-laravel" target="_blank">github.com/malekabdelmaksoud/projet-laravel ↗</a>
+            </div>
+            <div class="project-box">
+              <h4><span>Projet Symfony</span> <span class="tag small">Symfony · PHP</span></h4>
+              <p>Routage Twig, formulaires et gestion de données Doctrine.</p>
+              <a href="https://github.com/malekabdelmaksoud/projet-symfony" target="_blank">github.com/malekabdelmaksoud/projet-symfony ↗</a>
+            </div>
+            <div class="project-box">
+              <h4><span>Gestion de Magasin & TP POO</span> <span class="tag small">Java</span></h4>
+              <p>Gestion d'inventaire, ventes et principes avancés POO.</p>
+              <a href="https://github.com/malekabdelmaksoud/tp-magasin" target="_blank">github.com/malekabdelmaksoud/tp-magasin ↗</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Langues</h2>
+          <div class="lang-row"><span>Arabe</span><span class="lang-lvl">Langue maternelle</span></div>
+          <div class="lang-row"><span>Français</span><span class="lang-lvl">Intermédiaire</span></div>
+          <div class="lang-row"><span>Anglais</span><span class="lang-lvl">Intermédiaire</span></div>
+          <div class="lang-row"><span>Espagnol</span><span class="lang-lvl">Débutant</span></div>
+        </section>
+      </div>
+    </div>
+
+    <footer class="cv-footer">
+      Dossier de candidature & CV dynamique · Melek Abdelmaksoud · Généré en ligne
+    </footer>
+  </main>
+
+</div>
+
+<script>
+  // Live Title Sync
+  const editTitle = document.getElementById('editTitle');
+  const displayTitle = document.getElementById('displayTitle');
+  editTitle.addEventListener('input', (e) => {
+    displayTitle.textContent = e.target.value.trim() || "Étudiante en Informatique";
+  });
+
+  // Dynamic Project Adding
+  const addProjBtn = document.getElementById('addProjBtn');
+  const projectsContainer = document.getElementById('projectsContainer');
+
+  addProjBtn.addEventListener('click', () => {
+    const name = document.getElementById('newProjName').value.trim();
+    const tech = document.getElementById('newProjTech').value.trim() || 'Projet';
+    const desc = document.getElementById('newProjDesc').value.trim() || 'Description du projet.';
+    const link = document.getElementById('newProjLink').value.trim() || 'https://github.com/malekabdelmaksoud';
+
+    if (!name) {
+      alert("Veuillez renseigner au moins le nom du projet !");
+      return;
+    }
+
+    const box = document.createElement('div');
+    box.className = 'project-box';
+    box.innerHTML = `
+      <h4><span>${name}</span> <span class="tag small">${tech}</span></h4>
+      <p>${desc}</p>
+      <a href="${link}" target="_blank">${link} ↗</a>
+    `;
+
+    projectsContainer.prepend(box);
+
+    // Clear inputs
+    document.getElementById('newProjName').value = '';
+    document.getElementById('newProjTech').value = '';
+    document.getElementById('newProjDesc').value = '';
+    document.getElementById('newProjLink').value = '';
+  });
+</script>
+</body>
+</html>
