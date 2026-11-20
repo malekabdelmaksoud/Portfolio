@@ -83,6 +83,66 @@ const aiChatForm = document.getElementById("aiChatForm");
 const aiChatInput = document.getElementById("aiChatInput");
 const aiChatMessages = document.getElementById("aiChatMessages");
 
+/* Accessible browser voice controls — optional and capability-detected. */
+let assistantRecognition = null;
+let lastAssistantSpeech = "";
+function addAssistantVoiceControls() {
+  const form = aiChatForm;
+  if (!form || document.getElementById("aiChatVoiceBtn")) return;
+  const mic = document.createElement("button");
+  mic.type = "button"; mic.id = "aiChatVoiceBtn"; mic.className = "ai-voice-btn";
+  mic.title = "Dicter une question"; mic.setAttribute("aria-label", "Dicter une question"); mic.textContent = "🎙️";
+  const speak = document.createElement("button");
+  speak.type = "button"; speak.id = "aiChatSpeakBtn"; speak.className = "ai-voice-btn";
+  speak.title = "Écouter la dernière réponse"; speak.setAttribute("aria-label", "Écouter la dernière réponse"); speak.textContent = "🔊";
+  form.insertBefore(mic, form.querySelector("#aiChatSend"));
+  const actions = aiChatPopup.querySelector(".ai-chat-actions");
+  if (actions) actions.insertBefore(speak, actions.firstChild);
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    mic.disabled = true; mic.title = "La dictée vocale n'est pas prise en charge par ce navigateur";
+    mic.setAttribute("aria-label", mic.title);
+  } else {
+    mic.addEventListener("click", () => {
+      try {
+        if (assistantRecognition) { assistantRecognition.stop(); assistantRecognition = null; mic.textContent = "🎙️"; return; }
+        assistantRecognition = new SpeechRecognition();
+        assistantRecognition.lang = document.documentElement.lang === "en" ? "en-US" : (document.documentElement.lang === "ar" ? "ar-TN" : "fr-FR");
+        assistantRecognition.interimResults = false;
+        assistantRecognition.maxAlternatives = 1;
+        assistantRecognition.onresult = event => {
+          const transcript = event.results?.[0]?.[0]?.transcript || "";
+          if (transcript) { aiChatInput.value = transcript; aiChatInput.focus(); }
+        };
+        assistantRecognition.onerror = () => { mic.textContent = "🎙️"; assistantRecognition = null; };
+        assistantRecognition.onend = () => { mic.textContent = "🎙️"; assistantRecognition = null; };
+        assistantRecognition.start(); mic.textContent = "⏹️";
+      } catch (_) { mic.textContent = "🎙️"; assistantRecognition = null; }
+    });
+  }
+  speak.addEventListener("click", () => {
+    if (!lastAssistantSpeech || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(lastAssistantSpeech);
+    utterance.lang = document.documentElement.lang === "en" ? "en-US" : (document.documentElement.lang === "ar" ? "ar-TN" : "fr-FR");
+    window.speechSynthesis.speak(utterance);
+  });
+  const clear = document.createElement("button");
+  clear.type = "button"; clear.id = "aiChatClearBtn"; clear.className = "ai-voice-btn";
+  clear.title = "Effacer la conversation"; clear.setAttribute("aria-label", clear.title); clear.textContent = "🗑️";
+  if (actions) actions.insertBefore(clear, actions.firstChild);
+  clear.addEventListener("click", () => {
+    if (!window.confirm("Effacer l'historique de cette conversation sur cet appareil ?")) return;
+    if (typeof ChatStore !== "undefined") ChatStore.clearHistory();
+    aiChatMessages.innerHTML = "";
+    appendAiMessage("👋 Bonjour ! Posez-moi vos questions sur les projets, compétences, études et expériences de Melek.", "bot");
+    lastAssistantSpeech = "";
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  });
+}
+addAssistantVoiceControls();
+
+
 if (aiChatToggle && aiChatPopup) {
   aiChatToggle.addEventListener("click", () => {
     const isActive = aiChatPopup.classList.toggle("active");
@@ -168,6 +228,7 @@ function appendAiMessage(text, role, isHtml = false, msgId = null) {
   }
 
   aiChatMessages.appendChild(msg);
+  if (role === "bot") lastAssistantSpeech = contentSpan.textContent || "";
   aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
   return msg;
 }
