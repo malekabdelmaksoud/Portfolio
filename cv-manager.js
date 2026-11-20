@@ -30,14 +30,14 @@ const CvManager = {
     return {
       personal: {
         name: "Melek Abdelmaksoud",
-        title: "Étudiante en Technologie de l'Informatique — Développement Web & Multimédia",
+        title: "Étudiante en dernière année — Développement Web & applications intelligentes",
         email: "melekabdelmaksoud72@gmail.com",
         location: "Sfax, Tunisie",
         linkedin: "https://www.linkedin.com/in/melek-abdelmaksoud-518713436/",
         linkedinLabel: "linkedin.com/in/melek-abdelmaksoud",
         github: "https://github.com/malekabdelmaksoud",
         githubLabel: "github.com/malekabdelmaksoud",
-        summary: "Étudiante passionnée par le développement web et le génie logiciel à l'ISET de Sidi Bouzid. Rigoureuse, curieuse et dotée d'une grande capacité d'apprentissage, j'ai développé des compétences solides en Java, PHP (Laravel, Symfony), C# et technologies Web à travers mes formations, stages pratiques et projets personnels."
+        summary: "Étudiante en dernière année de Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid, spécialité Développement Web & Multimédia. Je développe des applications web et j'explore les usages pratiques de l'intelligence artificielle. Mes compétences progressent à travers mes projets, ma formation et mes stages."
       },
       skills: {
         languages: dynamicLanguages,
@@ -95,7 +95,7 @@ const CvManager = {
       languages: [
         { name: "Arabe", level: "Langue maternelle" },
         { name: "Français", level: "Courant / Professionnel" },
-        { name: "Anglais", level: "Technique & Professionnel" },
+        { name: "Anglais", level: "Intermédiaire (B1)" },
         { name: "Espagnol", level: "Notions de base" }
       ],
       strengths: ["Travail en équipe", "Autonomie", "Rigueur", "Adaptabilité", "Résolution de problèmes"]
