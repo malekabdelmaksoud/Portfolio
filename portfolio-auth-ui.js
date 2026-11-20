@@ -23,13 +23,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function initAuthGate() {
-  const user = AuthService.getCurrentUser();
+  // A personal portfolio is public content: never block visitors behind a client-side login.
+  // Client-side roles are not a security boundary and must not grant administrative access.
   const overlay = document.getElementById("authGateOverlay");
   const navContainer = document.getElementById("navUserSlot");
+  if (overlay) overlay.style.display = "none";
+  if (navContainer) navContainer.replaceChildren();
+  const user = null;
 
-  if (!user) {
-    if (overlay) overlay.style.display = "flex";
-  } else {
+  if (false && user) {
     if (overlay) overlay.style.display = "none";
     if (navContainer) {
       const isAdmin = user.role === "admin";
