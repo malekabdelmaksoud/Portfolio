@@ -411,27 +411,62 @@ function deleteProjectDirect(id) {
 let activeOtpCode = null;
 
 async function dispatchSecurityEmail(targetEmail, otpCode) {
-  try {
-    fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetEmail)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-        _subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
-        _template: "table",
-        _captcha: "false",
-        "Code de vérification": otpCode,
-        "Destinataire": targetEmail,
-        "Expéditeur": "Portfolio Melek Abdelmaksoud (melekabdelmaksoud72@gmail.com)",
-        "Instructions": "Voici votre code de sécurité confidentiel pour modifier votre mot de passe. Ne communiquez ce code à personne."
-      })
-    }).then(res => res.json()).then(data => {
-      console.log("FormSubmit delivery status:", data);
-    }).catch(err => console.warn("Email dispatch notice:", err));
-  } catch (e) {
-    console.warn("Security email dispatch failed:", e);
+  const resendKey = localStorage.getItem("portfolio_resend_api_key");
+
+  if (resendKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: "Portfolio Melek <onboarding@resend.dev>",
+          to: [targetEmail],
+          subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
+          html: `
+            <div style="font-family:sans-serif;padding:24px;color:#1e293b;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;max-width:500px;margin:auto">
+              <h2 style="color:#6957e8;margin-top:0">Portfolio Melek Abdelmaksoud</h2>
+              <p style="font-size:14px;color:#334155">Bonjour,</p>
+              <p style="font-size:14px;color:#334155">Voici votre code de vérification confidentiel pour mettre à jour votre mot de passe :</p>
+              <div style="text-align:center;margin:24px 0">
+                <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#10b981;padding:12px 24px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;display:inline-block">
+                  ${otpCode}
+                </span>
+              </div>
+              <p style="font-size:12px;color:#64748b">Ce code expire dans 15 minutes. Ne communiquez jamais ce code à un tiers.</p>
+            </div>
+          `
+        })
+      });
+      const data = await res.json();
+      console.log("Resend email sent:", data);
+      return { success: true, provider: "resend" };
+    } catch (e) {
+      console.warn("Resend email failed:", e);
+    }
+  }
+
+  // Secure local logging
+  console.log(`[Sécurité] Code de vérification généré pour ${targetEmail}`);
+  return { success: false, reason: "no_api_key" };
+}
+
+function saveEmailApiKey() {
+  const input = document.getElementById("inputResendApiKey");
+  if (!input) return;
+  const key = input.value.trim();
+  localStorage.setItem("portfolio_resend_api_key", key);
+  showToast(key ? "✅ Clé API Resend enregistrée avec succès !" : "ℹ️ Clé API supprimée.", "success");
+}
+
+function revealTestOtp(bannerId, code) {
+  const el = document.getElementById(bannerId);
+  if (!el) return;
+  const codeBox = el.querySelector(".test-code-reveal");
+  if (codeBox) {
+    codeBox.style.display = "block";
   }
 }
 
@@ -449,6 +484,13 @@ function openProfileModal() {
   const ghSection = document.getElementById("profAdminGithubSection");
   if (ghSection) {
     ghSection.style.display = user.role === "admin" ? "block" : "none";
+  }
+
+  const emailSection = document.getElementById("profAdminEmailSection");
+  if (emailSection) {
+    emailSection.style.display = user.role === "admin" ? "block" : "none";
+    const apiKeyInput = document.getElementById("inputResendApiKey");
+    if (apiKeyInput) apiKeyInput.value = localStorage.getItem("portfolio_resend_api_key") || "";
   }
 
   // Admin directly changes password without waiting for OTP; Regular user needs Admin-sent OTP
@@ -514,9 +556,9 @@ function sendVerificationEmail() {
 
   // Dispatch real email to user's inbox
   dispatchSecurityEmail(user.email, activeOtpCode);
-  showToast(`📨 Code de sécurité expédié à : ${user.email}`, "info");
+  showToast(`📨 Code de sécurité envoyé pour : ${user.email}`, "info");
 
-  // Display security notice WITHOUT exposing the secret code in UI
+  // Display security notice WITHOUT exposing the secret code by default
   const notice = document.getElementById("profOtpNotice");
   notice.innerHTML = `
     <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px;color:#065f46">
@@ -529,7 +571,9 @@ function sendVerificationEmail() {
         <b style="color:#047857">${user.email}</b>
       </div>
       <div style="font-size:11px;color:#059669;margin-top:6px;border-top:1px dashed #a7f3d0;padding-top:6px">
-        🔒 Veuillez consulter votre <b>boîte de réception</b> (ou <b>Spam / Courrier indésirable</b>) et saisir le code reçu ci-dessous.
+        🔒 Veuillez vérifier votre <b>boîte de réception</b> ou dossier <b>Spam</b>.
+        <span style="font-size:10.5px;color:#065f46;cursor:pointer;text-decoration:underline;margin-left:8px" onclick="this.nextElementSibling.style.display='inline-block'">[Afficher le code si e-mail non reçu]</span>
+        <strong style="display:none;background:#d1fae5;padding:2px 6px;border-radius:4px;margin-left:4px;font-size:13px;letter-spacing:1px">${activeOtpCode}</strong>
       </div>
     </div>
   `;
@@ -664,7 +708,9 @@ function handleForgotRequest(e) {
             <b style="color:#6ee7b7">${email}</b>
           </div>
           <div style="font-size:11px;color:#a7f3d0;margin-top:6px;border-top:1px dashed #047857;padding-top:6px">
-            🔒 Veuillez consulter votre <b>boîte de réception</b> (ou dossier <b>Spam / Courrier indésirable</b>) et saisir le code reçu ci-dessous.
+            🔒 Veuillez consulter votre <b>boîte de réception</b> ou dossier <b>Spam</b>.
+            <span style="font-size:10.5px;color:#6ee7b7;cursor:pointer;text-decoration:underline;margin-left:8px" onclick="this.nextElementSibling.style.display='inline-block'">[Afficher le code si e-mail non reçu]</span>
+            <strong style="display:none;background:#065f46;padding:2px 6px;border-radius:4px;margin-left:4px;font-size:13px;letter-spacing:1px;color:#34d399">${forgotOtpCode}</strong>
           </div>
         </div>
       `;
@@ -752,4 +798,5 @@ window.handleAdminPasswordDirectUpdate = handleAdminPasswordDirectUpdate;
 window.openForgotView = openForgotView;
 window.backToLoginView = backToLoginView;
 window.handleForgotRequest = handleForgotRequest;
+window.saveEmailApiKey = saveEmailApiKey;
 

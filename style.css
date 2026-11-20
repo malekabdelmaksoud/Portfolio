@@ -264,15 +264,28 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
     overflow: visible !important;
   }
 
-  /* Hide entire portfolio website UI during print */
-  .header, .footer, main, .ai-chat-toggle, .ai-chat-popup, .portfolio-toast,
-  .auth-gate-overlay, #editProjectModalBackdrop, #profileModalBackdrop,
-  .cv-top-toolbar, .no-print {
+  /* When CV modal is open during print, hide portfolio website UI */
+  body.cv-modal-open .header,
+  body.cv-modal-open .footer,
+  body.cv-modal-open main,
+  body.cv-modal-open .ai-chat-toggle,
+  body.cv-modal-open .ai-chat-popup,
+  body.cv-modal-open .portfolio-toast,
+  body.cv-modal-open .auth-gate-overlay,
+  body.cv-modal-open #editProjectModalBackdrop,
+  body.cv-modal-open #profileModalBackdrop,
+  body.cv-modal-open .cv-top-toolbar,
+  body.cv-modal-open .no-print {
+    display: none !important;
+  }
+
+  /* When CV modal is NOT open, don't show CV backdrop */
+  body:not(.cv-modal-open) .cv-modal-backdrop {
     display: none !important;
   }
 
   /* Ensure modal and window stay in flow without being hidden */
-  .cv-modal-backdrop {
+  body.cv-modal-open .cv-modal-backdrop {
     position: static !important;
     display: block !important;
     width: 100% !important;
@@ -284,7 +297,7 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
     overflow: visible !important;
   }
 
-  .cv-modal-window {
+  body.cv-modal-open .cv-modal-window {
     position: static !important;
     display: block !important;
     width: 100% !important;
@@ -297,7 +310,7 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
     overflow: visible !important;
   }
 
-  .cv-printable-area {
+  body.cv-modal-open .cv-printable-area {
     display: block !important;
     background: transparent !important;
     padding: 0 !important;
@@ -314,7 +327,7 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    max-width: none !important;
+    max-width: 100% !important;
     min-height: auto !important;
     color: #1e293b !important;
     background: #ffffff !important;

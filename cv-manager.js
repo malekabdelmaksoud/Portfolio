@@ -452,12 +452,14 @@ function openCvModal(e) {
   isCvInEditMode = false;
   CvManager.render(false);
   backdrop.classList.add("active");
+  document.body.classList.add("cv-modal-open");
   document.body.style.overflow = "hidden";
 }
 
 function closeCvModal() {
   const backdrop = document.getElementById("cvModalBackdrop");
   if (backdrop) backdrop.classList.remove("active");
+  document.body.classList.remove("cv-modal-open");
   document.body.style.overflow = "";
   isCvInEditMode = false;
 }
@@ -521,22 +523,94 @@ function saveCvEdits() {
   }
 }
 
+function getCvPrintStyles() {
+  return `
+    @page { size: A4 portrait; margin: 8mm 10mm; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      background: #ffffff !important;
+      color: #1e293b !important;
+      line-height: 1.45;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .cv-sheet {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 16px 20px !important;
+      background: #ffffff !important;
+      color: #1e293b !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    .cv-header { border-bottom: 2px solid #6957e8; padding-bottom: 10px; margin-bottom: 12px; }
+    .cv-header-main { margin-bottom: 4px; }
+    .cv-name { font: 700 22px 'Space Grotesk', sans-serif !important; color: #0f172a !important; margin: 0 0 2px; text-transform: uppercase; letter-spacing: -0.5px; }
+    .cv-headline { font-size: 12px !important; font-weight: 600; color: #6957e8 !important; margin: 0; }
+    .cv-contact-bar { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10.5px !important; color: #475569 !important; margin-top: 4px; }
+    .cv-contact-bar a { color: #6957e8 !important; text-decoration: none; font-weight: 600; }
+    .cv-layout { display: flex !important; gap: 18px !important; }
+    .cv-col-main { flex: 1.5 !important; display: flex; flex-direction: column; gap: 12px; }
+    .cv-col-side { flex: 1 !important; display: flex; flex-direction: column; gap: 12px; border-left: 1px solid #f1f5f9; padding-left: 16px; }
+    .cv-section { margin-bottom: 2px; }
+    .cv-sec-title { font: 700 12px 'Space Grotesk', sans-serif !important; color: #0f172a !important; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 3px; margin: 0 0 6px; display: flex; align-items: center; justify-content: space-between; }
+    .cv-sec-title span { color: #6957e8 !important; }
+    .cv-sec-badge { background: #e0e7ff !important; color: #4338ca !important; font-size: 8.5px; font-weight: 700; padding: 1px 5px; border-radius: 6px; }
+    .cv-summary-text { font-size: 11px !important; color: #475569 !important; line-height: 1.45; margin: 0; }
+    .cv-projects-list { display: flex; flex-direction: column; gap: 7px; }
+    .cv-project-entry { background: #f8fafc !important; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 9px; break-inside: avoid; }
+    .cv-entry-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+    .cv-entry-name { font: 700 11.5px 'Space Grotesk', sans-serif !important; color: #1e293b !important; }
+    .cv-entry-tag { font-size: 8px !important; font-weight: 700; color: #6957e8 !important; background: #f3f0ff !important; padding: 1px 5px; border-radius: 4px; }
+    .cv-entry-desc { font-size: 10px !important; color: #475569 !important; margin: 2px 0; line-height: 1.35; }
+    .cv-entry-link { font-size: 9px !important; color: #6957e8 !important; text-decoration: none; font-weight: 600; }
+    .cv-timeline-list { display: flex; flex-direction: column; gap: 7px; }
+    .cv-timeline-entry { border-left: 2px solid #6957e8; padding-left: 9px; margin-left: 2px; break-inside: avoid; }
+    .cv-entry-subtitle { font-size: 10.5px !important; font-weight: 700; color: #6957e8 !important; margin: 1px 0; }
+    .cv-entry-date { font-size: 9.5px !important; font-weight: 600; color: #64748b !important; }
+    .cv-skill-group { margin-bottom: 4px; break-inside: avoid; }
+    .cv-skill-cat { display: block; font-size: 9.5px !important; font-weight: 700; color: #0f172a !important; text-transform: uppercase; margin-bottom: 2px; }
+    .cv-skill-values { font-size: 10px !important; color: #475569 !important; margin: 0; line-height: 1.3; }
+    .cv-edu-list { display: flex; flex-direction: column; gap: 6px; }
+    .cv-edu-degree { display: block; font-size: 10.5px !important; font-weight: 700; color: #1e293b !important; }
+    .cv-edu-school { color: #6957e8 !important; font-weight: 600; font-size: 10px; }
+    .cv-edu-date { color: #64748b !important; font-size: 9px; display: block; }
+    .cv-edu-desc { color: #64748b !important; font-size: 9.5px; margin: 1px 0 0; }
+    .cv-lang-list { list-style: none; padding: 0; margin: 0; font-size: 10px !important; display: flex; flex-direction: column; gap: 3px; }
+    .cv-lang-list li { display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; }
+    .cv-lang-name { font-weight: 600; color: #1e293b !important; }
+    .cv-lang-lvl { color: #64748b !important; font-size: 9.5px; }
+    .cv-pills-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+    .cv-pill { background: #f1f5f9 !important; color: #334155 !important; font-size: 9px !important; font-weight: 600; padding: 2px 6px; border-radius: 6px; }
+    .cv-doc-footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; font-size: 8.5px; color: #94a3b8 !important; }
+  `;
+}
+
 function downloadCvPdf() {
-  const element = document.getElementById("cvSheetDocument");
+  let element = document.getElementById("cvSheetDocument");
   if (!element) {
-    window.print();
+    CvManager.render(false);
+    element = document.getElementById("cvSheetDocument");
+  }
+
+  if (!element) {
+    printCvDirect();
     return;
   }
 
   if (typeof html2pdf !== "undefined") {
     if (typeof showToast === "function") {
-      showToast("⏳ Génération et téléchargement du PDF...", "info");
+      showToast("⏳ Préparation et téléchargement du PDF...", "info");
     }
     const opt = {
       margin: [6, 8, 6, 8],
       filename: "CV_Melek_Abdelmaksoud.pdf",
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, backgroundColor: "#ffffff" },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
     };
     html2pdf().set(opt).from(element).save().then(() => {
@@ -545,15 +619,72 @@ function downloadCvPdf() {
       }
     }).catch(err => {
       console.warn("html2pdf fallback to print:", err);
-      window.print();
+      printCvDirect();
     });
   } else {
-    window.print();
+    printCvDirect();
   }
 }
 
 function printCvDirect() {
-  window.print();
+  let cvSheet = document.getElementById("cvSheetDocument");
+  if (!cvSheet) {
+    CvManager.render(false);
+    cvSheet = document.getElementById("cvSheetDocument");
+  }
+
+  if (!cvSheet) {
+    window.print();
+    return;
+  }
+
+  // Create an isolated hidden iframe with real A4 dimensions for accurate rendering
+  let printFrame = document.getElementById("cvPrintIframe");
+  if (printFrame) printFrame.remove();
+
+  printFrame = document.createElement("iframe");
+  printFrame.id = "cvPrintIframe";
+  printFrame.style.position = "fixed";
+  printFrame.style.right = "0";
+  printFrame.style.bottom = "0";
+  printFrame.style.width = "210mm";
+  printFrame.style.height = "297mm";
+  printFrame.style.border = "none";
+  printFrame.style.zIndex = "-9999";
+  printFrame.style.opacity = "0.01";
+  printFrame.style.pointerEvents = "none";
+  document.body.appendChild(printFrame);
+
+  const frameDoc = printFrame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>CV_Melek_Abdelmaksoud</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+      <style>${getCvPrintStyles()}</style>
+    </head>
+    <body>
+      ${cvSheet.outerHTML}
+    </body>
+    </html>
+  `);
+  frameDoc.close();
+
+  // Wait for fonts & layout, then trigger print on the clean frame
+  setTimeout(() => {
+    try {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+    } catch (e) {
+      console.warn("Iframe print error, falling back to window.print():", e);
+      window.print();
+    }
+  }, 400);
 }
 
 // Global Exports
@@ -566,3 +697,12 @@ window.handleCvFormSubmit = handleCvFormSubmit;
 window.saveCvEdits = saveCvEdits;
 window.downloadCvPdf = downloadCvPdf;
 window.printCvDirect = printCvDirect;
+
+// Auto pre-render CV so that #cvSheetDocument is available for print & download at all times
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof CvManager !== "undefined") CvManager.render(false);
+  });
+} else {
+  if (typeof CvManager !== "undefined") CvManager.render(false);
+}
