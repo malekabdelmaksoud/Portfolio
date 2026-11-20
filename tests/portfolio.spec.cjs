@@ -10,11 +10,10 @@ let baseURL;
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-    const file = path.resolve(root, '.' + pathname);
-    if (!file.startsWith(root + path.sep) && file !== path.join(root, 'index.html')) {
+    const target = pathname === '/' ? path.join(root, 'index.html') : path.resolve(root, '.' + pathname);
+    if (!target.startsWith(root + path.sep)) {
       res.writeHead(403).end('Forbidden'); return;
     }
-    const target = pathname === '/' ? path.join(root, 'index.html') : file;
     if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) {
       res.writeHead(404).end('Not found'); return;
     }
