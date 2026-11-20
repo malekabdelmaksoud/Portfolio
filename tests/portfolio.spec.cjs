@@ -1,22 +1,21 @@
-const { test, expect } = require('@playwright/test');
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 let server;
+let browser;
 let baseURL;
 
-test.beforeAll(async () => {
+before(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     const target = pathname === '/' ? path.join(root, 'index.html') : path.resolve(root, '.' + pathname);
-    if (!target.startsWith(root + path.sep)) {
-      res.writeHead(403).end('Forbidden'); return;
-    }
-    if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) {
-      res.writeHead(404).end('Not found'); return;
-    }
+    if (!target.startsWith(root + path.sep)) { res.writeHead(403).end('Forbidden'); return; }
+    if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) { res.writeHead(404).end('Not found'); return; }
     const ext = path.extname(target);
     const types = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.png':'image/png', '.svg':'image/svg+xml' };
     res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
@@ -24,66 +23,87 @@ test.beforeAll(async () => {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   baseURL = 'http://127.0.0.1:' + server.address().port;
+  browser = await chromium.launch({ headless: true });
 });
 
-test.afterAll(async () => {
+after(async () => {
+  if (browser) await browser.close();
   if (server) await new Promise(resolve => server.close(resolve));
 });
 
-test('public portfolio loads without a login gate', async ({ page }) => {
+async function openPage() {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#authGateOverlay')).toBeHidden();
-  await expect(page.locator('h1')).toContainText('Melek Abdelmaksoud');
-  await expect(page.locator('#contact a[href^="mailto:"]')).toBeVisible();
+  return page;
+}
+
+test('public portfolio loads without a login gate', async () => {
+  const page = await openPage();
+  try {
+    assert.equal(await page.locator('#authGateOverlay').isVisible(), false);
+    assert.match(await page.locator('h1').innerText(), /Melek Abdelmaksoud/);
+    assert.equal(await page.locator('#contact a[href^="mailto:"]').isVisible(), true);
+  } finally { await page.close(); }
 });
 
-test('navigation anchors and bilingual switch work', async ({ page }) => {
-  await page.goto(baseURL);
-  for (const id of ['apropos','competences','experiences','projets','contact']) {
-    await expect(page.locator('a[href="#' + id + '"]').first()).toHaveAttribute('href', '#' + id);
-    await expect(page.locator('#' + id)).toHaveCount(1);
-  }
-  await page.locator('.lang-btn[data-lang="en"]').click();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.locator('h1')).toContainText("Hello, I'm");
-  await page.locator('.lang-btn[data-lang="fr"]').click();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+test('navigation anchors and bilingual switch work', async () => {
+  const page = await openPage();
+  try {
+    for (const id of ['apropos','competences','experiences','projets','contact']) {
+      assert.equal(await page.locator('#' + id).count(), 1, 'missing section ' + id);
+      assert.equal(await page.locator('a[href="#' + id + '"]').count() > 0, true, 'missing nav link ' + id);
+    }
+    await page.locator('.lang-btn[data-lang="en"]').click();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    assert.match(await page.locator('h1').innerText(), /Hello, I'm/);
+    await page.locator('.lang-btn[data-lang="fr"]').click();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'fr');
+  } finally { await page.close(); }
 });
 
-test('project repository links point to real repository names', async ({ page }) => {
-  await page.goto(baseURL);
-  const links = await page.locator('#projets .project-card a[href*="github.com"]').evaluateAll(els => els.map(a => a.href));
-  expect(links.length).toBeGreaterThanOrEqual(7);
-  for (const repo of ['elearning-platform','projetphp','laravel','tpmagasin','tp-poo','projet-symfony','firstApp']) {
-    expect(links.some(url => url.endsWith('/' + repo))).toBeTruthy();
-  }
+test('project repository links use existing repository names', async () => {
+  const page = await openPage();
+  try {
+    const links = await page.locator('#projets .project-card a[href*="github.com"]').evaluateAll(els => els.map(a => a.href));
+    assert.ok(links.length >= 7, 'expected at least 7 project links');
+    for (const repo of ['elearning-platform','projetphp','laravel','tpmagasin','tp-poo','projet-symfony','firstApp']) {
+      assert.ok(links.some(url => url.endsWith('/' + repo)), 'missing GitHub link for ' + repo);
+    }
+  } finally { await page.close(); }
 });
 
-test('CV modal opens and closes', async ({ page }) => {
-  await page.goto(baseURL);
-  await page.locator('a[onclick*="openCvModal"]').first().click();
-  await expect(page.locator('#cvModalBackdrop')).toHaveClass(/active/);
-  await expect(page.locator('#cvPrintableArea')).not.toBeEmpty();
-  await page.locator('#cvModalBackdrop .btn-cv-close').click();
-  await expect(page.locator('#cvModalBackdrop')).not.toHaveClass(/active/);
+test('CV modal opens and closes', async () => {
+  const page = await openPage();
+  try {
+    await page.locator('a[onclick*="openCvModal"]').first().click();
+    assert.match(await page.locator('#cvModalBackdrop').getAttribute('class'), /active/);
+    assert.ok((await page.locator('#cvPrintableArea').innerText()).trim().length > 0);
+    await page.locator('#cvModalBackdrop .btn-cv-close').click();
+    assert.doesNotMatch(await page.locator('#cvModalBackdrop').getAttribute('class'), /active/);
+  } finally { await page.close(); }
 });
 
-test('mobile viewport has no horizontal overflow and menu toggles', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(baseURL);
-  const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
-  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
-  const toggle = page.locator('#menuToggle');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await page.locator('#navLinks a[href="#contact"]').click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+test('mobile layout has no horizontal overflow and menu toggles', async () => {
+  const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+    assert.ok(dimensions.scroll <= dimensions.width + 1, JSON.stringify(dimensions));
+    const toggle = page.locator('#menuToggle');
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    await page.locator('#navLinks a[href="#contact"]').click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  } finally { await page.close(); }
 });
 
-test('portfolio assistant returns a relevant FAQ answer', async ({ page }) => {
-  await page.goto(baseURL);
-  await page.locator('#aiChatToggle').click();
-  await page.locator('#aiChatInput').fill('Quels sont tes projets principaux ?');
-  await page.locator('#aiChatSend').click();
-  await expect(page.locator('#aiChatMessages')).toContainText('Projets');
+test('portfolio FAQ assistant answers a project question', async () => {
+  const page = await openPage();
+  try {
+    await page.locator('#aiChatToggle').click();
+    await page.locator('#aiChatInput').fill('Quels sont tes projets principaux ?');
+    await page.locator('#aiChatSend').click();
+    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes('Projets'));
+    assert.match(await page.locator('#aiChatMessages').innerText(), /Projets/);
+  } finally { await page.close(); }
 });
