@@ -141,8 +141,9 @@ function initAdminProjectTools() {
   ProjectsManager.render();
 }
 
-// ── Vercel / Cloudflare Style GitHub Importer Modal ──
-let loadedGithubReposList = [];
+// ── Multi-Platform Git Importer (GitHub & GitLab) ──
+let currentGitPlatform = localStorage.getItem("portfolio_last_git_platform") || "github";
+let loadedGitReposList = [];
 
 const FALLBACK_GITHUB_REPOS = [
   { name: "elearning-platform", language: "Java", updated_at: "2026-02-15" },
@@ -155,37 +156,119 @@ const FALLBACK_GITHUB_REPOS = [
   { name: "Portfolio", language: "JavaScript", updated_at: "2026-02-18" }
 ];
 
+function switchGitPlatform(platform) {
+  currentGitPlatform = platform;
+  localStorage.setItem("portfolio_last_git_platform", platform);
+
+  const btnGh = document.getElementById("btnPlatformGithub");
+  const btnGl = document.getElementById("btnPlatformGitlab");
+  const icon = document.getElementById("modalProviderIcon");
+  const accInput = document.getElementById("gitAccountInput");
+
+  if (platform === "github") {
+    if (btnGh) btnGh.classList.add("active");
+    if (btnGl) btnGl.classList.remove("active");
+    if (icon) icon.textContent = "🐙";
+    if (accInput) {
+      accInput.placeholder = "Nom d'utilisateur GitHub (ex: malekabdelmaksoud)";
+      accInput.value = localStorage.getItem("portfolio_last_github_user") || "malekabdelmaksoud";
+    }
+  } else {
+    if (btnGl) btnGl.classList.add("active");
+    if (btnGh) btnGh.classList.remove("active");
+    if (icon) icon.textContent = "🦊";
+    if (accInput) {
+      accInput.placeholder = "Nom d'utilisateur GitLab (ex: malekabdelmaksoud)";
+      accInput.value = localStorage.getItem("portfolio_last_gitlab_user") || "malekabdelmaksoud";
+    }
+  }
+
+  loadGitReposForActivePlatform();
+}
+
 function openAddProjectModal() {
   document.getElementById("projectModalBackdrop").classList.add("active");
-  loadVercelStyleGithubRepos();
+  switchGitPlatform(currentGitPlatform);
 }
 
 function closeProjectModal() {
   document.getElementById("projectModalBackdrop").classList.remove("active");
 }
 
-async function loadVercelStyleGithubRepos() {
+async function loadGitReposForActivePlatform() {
   const container = document.getElementById("vercelReposContainer");
-  container.innerHTML = '<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de vos dépôts GitHub...</div>';
+  const accInput = document.getElementById("gitAccountInput");
+  const username = (accInput ? accInput.value.trim() : "") || "malekabdelmaksoud";
+  const activeLabel = document.getElementById("gitActiveAccountLabel");
 
-  try {
-    const res = await fetch("https://api.github.com/users/malekabdelmaksoud/repos?sort=updated&per_page=30");
-    if (!res.ok) throw new Error("Erreur de connexion à GitHub.");
-    loadedGithubReposList = await res.json();
-    if (!loadedGithubReposList || loadedGithubReposList.length === 0) {
-      loadedGithubReposList = FALLBACK_GITHUB_REPOS;
+  if (currentGitPlatform === "github") {
+    localStorage.setItem("portfolio_last_github_user", username);
+    if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (${username})</b>`;
+    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des dépôts GitHub (<b>${username}</b>)...</div>`;
+
+    try {
+      const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=50`);
+      if (!res.ok) throw new Error("Compte GitHub introuvable ou limite d'API atteinte.");
+      const list = await res.json();
+      loadedGitReposList = list.map(r => ({
+        id: r.id,
+        name: r.name,
+        platform: "GitHub",
+        language: r.language || "Code",
+        updated_at: r.updated_at,
+        html_url: r.html_url,
+        description: r.description
+      }));
+    } catch (err) {
+      console.warn("GitHub fetch error:", err);
+      if (username.toLowerCase() === "malekabdelmaksoud") {
+        loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
+      } else {
+        container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Compte GitHub introuvable ou aucun dépôt public disponible.</div>`;
+        return;
+      }
     }
-  } catch (err) {
-    console.warn("Using fallback GitHub repos:", err);
-    loadedGithubReposList = FALLBACK_GITHUB_REPOS;
+  } else {
+    // GitLab Platform
+    localStorage.setItem("portfolio_last_gitlab_user", username);
+    if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (${username})</b>`;
+    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab (<b>${username}</b>)...</div>`;
+
+    try {
+      const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
+      const users = await userRes.json();
+      if (!users || users.length === 0) throw new Error("Utilisateur GitLab introuvable.");
+
+      const userId = users[0].id;
+      const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
+      const projects = await projRes.json();
+      if (!projects || projects.length === 0) {
+        container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+        return;
+      }
+      loadedGitReposList = projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        platform: "GitLab",
+        language: "GitLab Project",
+        updated_at: p.last_activity_at,
+        html_url: p.web_url,
+        description: p.description
+      }));
+    } catch (err) {
+      console.warn("GitLab fetch error:", err);
+      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+      return;
+    }
   }
-  renderVercelRepos(loadedGithubReposList);
+
+  renderVercelRepos(loadedGitReposList);
 }
 
 function renderVercelRepos(repos) {
   const container = document.getElementById("vercelReposContainer");
   if (!repos || repos.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Aucun dépôt trouvé.</div>';
+    container.innerHTML = '<div style="text-align:center;padding:26px;color:#666">Aucun dépôt trouvé pour ce compte.</div>';
     return;
   }
 
@@ -194,20 +277,21 @@ function renderVercelRepos(repos) {
   container.innerHTML = repos.map(r => {
     const isAdded = existingIds.includes(r.name.toLowerCase());
     const lang = r.language || 'Code';
+    const platIcon = r.platform === 'GitLab' ? '🦊 GitLab' : '🐙 GitHub';
 
     return `
       <div class="repo-card-vercel">
         <div class="repo-info-v">
           <strong>
             <span>📦</span> ${r.name}
-            ${r.fork ? '<span style="font-size:10px;color:#a855f7">(fork)</span>' : ''}
+            <span style="font-size:10.5px;color:#888;font-weight:500;margin-left:6px">${platIcon}</span>
           </strong>
           <span>${lang} • Mis à jour le ${new Date(r.updated_at).toLocaleDateString()}</span>
         </div>
         <div>
           ${isAdded 
             ? '<span style="color:#10b981;font-size:11.5px;font-weight:700">✓ Déjà sur le site</span>' 
-            : `<button class="btn-import-v" onclick="importGithubRepoDirect('${r.name}')">Importer ⚡</button>`
+            : `<button class="btn-import-v" onclick="importGitRepoDirect('${r.name.replace(/'/g, "\\'")}', '${r.platform}', '${r.html_url}', '${lang}', '${(r.description || '').replace(/'/g, "\\'")}')">Importer ⚡</button>`
           }
         </div>
       </div>
@@ -217,28 +301,36 @@ function renderVercelRepos(repos) {
 
 function filterVercelRepos(val) {
   const q = val.trim().toLowerCase();
-  const filtered = loadedGithubReposList.filter(r => r.name.toLowerCase().includes(q) || (r.language && r.language.toLowerCase().includes(q)));
+  const filtered = loadedGitReposList.filter(r => r.name.toLowerCase().includes(q) || (r.language && r.language.toLowerCase().includes(q)));
   renderVercelRepos(filtered);
 }
 
-async function importGithubRepoDirect(repoName) {
+async function importGitRepoDirect(name, platform, htmlUrl, lang, rawDesc) {
   const container = document.getElementById("vercelReposContainer");
   const originalHtml = container.innerHTML;
-  container.innerHTML = `<div style="text-align:center;padding:30px;color:#fff">⚡ Analyse de <b>${repoName}</b> & génération automatique de la description...</div>`;
+  container.innerHTML = `<div style="text-align:center;padding:30px;color:#fff">⚡ Analyse de <b>${name}</b> (${platform}) & génération automatique...</div>`;
 
   try {
-    const details = await ProjectsManager.fetchGitHubDetails(repoName);
+    let cleanLang = lang || "Logiciel";
+    let autoType = `${cleanLang.toUpperCase()} · ${platform.toUpperCase()}`;
+    if (cleanLang === "PHP") autoType = "PHP · FRAMEWORK & WEB";
+    if (cleanLang === "Java") autoType = "JAVA · APPLICATION";
+    if (cleanLang === "C#") autoType = "C# · .NET APPLICATION";
+    if (cleanLang === "TypeScript" || cleanLang === "JavaScript") autoType = "FULL STACK · APPLICATION";
+
+    let autoDesc = rawDesc && rawDesc.trim() ? rawDesc.trim() : `Projet officiel hébergé sur ${platform} (${name}). Développé principalement avec ${cleanLang}, structuré selon les standards modernes d'architecture logicielle.`;
+
     const newProj = {
       id: "p_" + Date.now(),
-      name: details.name,
-      type: details.type,
-      description: details.description,
-      github: details.github
+      name: name,
+      type: autoType,
+      description: autoDesc,
+      github: htmlUrl
     };
 
     ProjectsManager.add(newProj);
     closeProjectModal();
-    showToast(`🎉 Le projet "${details.name}" a été importé avec succès !`, "success");
+    showToast(`🎉 Le projet "${name}" (${platform}) a été importé avec succès !`, "success");
   } catch (err) {
     showToast("Erreur lors de l'importation : " + err.message, "error");
     container.innerHTML = originalHtml;
@@ -372,9 +464,12 @@ function handlePasswordUpdate(e) {
 
 // ── Global window handlers ──
 window.showToast = showToast;
+window.switchGitPlatform = switchGitPlatform;
+window.loadGitReposForActivePlatform = loadGitReposForActivePlatform;
 window.openAddProjectModal = openAddProjectModal;
 window.closeProjectModal = closeProjectModal;
-window.importGithubRepoDirect = importGithubRepoDirect;
+window.importGitRepoDirect = importGitRepoDirect;
+window.importGithubRepoDirect = importGitRepoDirect;
 window.filterVercelRepos = filterVercelRepos;
 window.openEditProjectModal = openEditProjectModal;
 window.closeEditProjectModal = closeEditProjectModal;
