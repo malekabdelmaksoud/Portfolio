@@ -89,15 +89,15 @@
   function intentOf(q) {
     const n = normalize(q);
     const has = (...terms) => terms.some(term => n.includes(normalize(term)));
-    if (has("cv", "resume", "curriculum", "télécharger", "download")) return "cv";
-    if (has("contact", "email", "mail", "linkedin", "github", "joindre", "coordonnées")) return "contact";
-    if (has("projet", "project", "réalisation", "application", "repository", "repo")) return "projects";
-    if (has("compétence", "skill", "technologie", "langage", "framework", "stack")) return "skills";
-    if (has("stage", "expérience", "experience", "internship", "hôpital", "hopital", "travail")) return "experience";
-    if (has("formation", "étude", "education", "diplôme", "diplome", "iset", "licence", "baccalauréat")) return "education";
-    if (has("langue", "languages", "french", "english", "anglais", "français")) return "languages";
-    if (has("qui est", "qui suis", "about", "présente", "presentation", "melek")) return "profile";
-    if (has("ia", "intelligence artificielle", "artificial intelligence", "ai")) return "ai";
+    if (has("cv", "resume", "curriculum", "télécharger", "download", "سيرة ذاتية", "ال cv", "cv متاع")) return "cv";
+    if (has("contact", "email", "mail", "linkedin", "github", "joindre", "coordonnées", "تواصل", "اتصل", "بريد", "ايميل", "كيفاش نتصل")) return "contact";
+    if (has("projet", "project", "réalisation", "application", "repository", "repo", "مشروع", "مشاريع", "المشاريع", "اعمال")) return "projects";
+    if (has("compétence", "skill", "technologie", "langage", "framework", "stack", "مهارات", "تقنيات", "تكنولوجيا", "لغات البرمجة")) return "skills";
+    if (has("stage", "expérience", "experience", "internship", "hôpital", "hopital", "travail", "تربص", "تدريب", "خبرات", "تجارب", "ستاج")) return "experience";
+    if (has("formation", "étude", "education", "diplôme", "diplome", "iset", "licence", "baccalauréat", "قراية", "دراسة", "شهادة", "معهد", "جامعة")) return "education";
+    if (has("langue", "languages", "french", "english", "anglais", "français", "لغة", "لغات")) return "languages";
+    if (has("qui est", "qui suis", "about", "présente", "presentation", "melek", "شكون", "من هي", "من هو", "عرفني", "قدمني")) return "profile";
+    if (has("ia", "intelligence artificielle", "artificial intelligence", "ai", "ذكاء اصطناعي", "الذكاء الاصطناعي")) return "ai";
     return null;
   }
   function answerFor(intent, docs, query) {
