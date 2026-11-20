@@ -3,6 +3,6 @@
     "playwright": "^1.65.1"
   },
   "scripts": {
-    "test": "playwright test"
+    "test": "node --test tests/portfolio.spec.cjs"
   }
 }
