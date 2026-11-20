@@ -29,6 +29,13 @@ function initAuthGate() {
   const navContainer = document.getElementById("navUserSlot");
   if (overlay) overlay.style.display = "none";
   if (navContainer) navContainer.replaceChildren();
+  // Remove legacy browser-only credentials and sessions from earlier versions.
+  try {
+    localStorage.removeItem("portfolio_registered_users");
+    localStorage.removeItem("portfolio_active_session");
+  } catch (error) {
+    console.warn("Could not clear legacy portfolio session data.", error);
+  }
   const user = null;
 
   if (false && user) {
