@@ -17,7 +17,9 @@ function initAuthGate() {
       const isAdmin = user.role === "admin";
       navContainer.innerHTML = `
         <div class="user-nav-status">
-          <span>👤 ${user.name}</span>
+          <span class="user-click-trigger" onclick="openProfileModal()" title="Voir mon profil & sécurité">
+            👤 <b>${user.name}</b> ⚙️
+          </span>
           <span class="role-badge ${user.role}">${user.role}</span>
           <button class="btn-nav-logout" onclick="AuthService.logout()">Déconnexion</button>
         </div>
@@ -204,3 +206,84 @@ function deleteProjectDirect(id) {
     ProjectsManager.delete(id);
   }
 }
+
+// ── Profile Modal & Email OTP Password Reset Logic ──
+let activeOtpCode = null;
+
+function openProfileModal() {
+  const user = AuthService.getCurrentUser();
+  if (!user) return;
+
+  document.getElementById("profName").textContent = user.name;
+  document.getElementById("profEmail").textContent = user.email;
+  document.getElementById("profRoleBadge").textContent = user.role.toUpperCase();
+  document.getElementById("profRoleBadge").className = `role-badge ${user.role}`;
+  document.getElementById("profAvatar").textContent = user.name.charAt(0).toUpperCase();
+
+  // Reset password form state
+  document.getElementById("stepSendOtp").style.display = "block";
+  document.getElementById("stepVerifyOtp").style.display = "none";
+  document.getElementById("profOtpNotice").style.display = "none";
+  document.getElementById("profErrorMsg").style.display = "none";
+  document.getElementById("inputOtpCode").value = "";
+  document.getElementById("inputNewPassword").value = "";
+
+  document.getElementById("profileModalBackdrop").classList.add("active");
+}
+
+function closeProfileModal() {
+  document.getElementById("profileModalBackdrop").classList.remove("active");
+}
+
+function sendVerificationEmail() {
+  const user = AuthService.getCurrentUser();
+  if (!user) return;
+
+  // Generate 6-digit OTP code
+  activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Display simulated email delivery alert & banner with code
+  const notice = document.getElementById("profOtpNotice");
+  notice.innerHTML = `
+    📧 <b>E-mail de sécurité envoyé à :</b> ${user.email}<br>
+    Votre code de vérification est : <strong style="font-size:15px;color:#059669;letter-spacing:1px">${activeOtpCode}</strong>
+  `;
+  notice.style.display = "block";
+
+  // Advance to step 2
+  document.getElementById("stepSendOtp").style.display = "none";
+  document.getElementById("stepVerifyOtp").style.display = "block";
+}
+
+function handlePasswordUpdate(e) {
+  e.preventDefault();
+  const enteredOtp = document.getElementById("inputOtpCode").value.trim();
+  const newPass = document.getElementById("inputNewPassword").value;
+  const errorDiv = document.getElementById("profErrorMsg");
+
+  if (enteredOtp !== activeOtpCode) {
+    errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code envoyé.";
+    errorDiv.style.display = "block";
+    return;
+  }
+
+  if (newPass.length < 4) {
+    errorDiv.textContent = "Le mot de passe doit comporter au moins 4 caractères.";
+    errorDiv.style.display = "block";
+    return;
+  }
+
+  // Update password in AuthService storage
+  const user = AuthService.getCurrentUser();
+  const users = AuthService.getUsers();
+  const target = users.find(u => u.email.toLowerCase() === user.email.toLowerCase());
+  
+  if (target) {
+    target.password = newPass;
+    AuthService.saveUsers(users);
+  }
+
+  alert("✅ Mot de passe mis à jour avec succès !");
+  closeProfileModal();
+}
+

@@ -168,10 +168,6 @@
 
       <button type="submit" class="auth-submit-btn" id="authSubmitBtn">Se connecter</button>
       <div class="auth-error-msg" id="authErrorMsg"></div>
-      
-      <div style="margin-top:14px;padding:8px;background:#f8fafc;border-radius:8px;font-size:11.5px;color:#64748b;line-height:1.4">
-        👑 <b>Accès Admin :</b> melekabdelmaksoud72@gmail.com
-      </div>
     </form>
   </div>
 </div>
@@ -221,6 +217,53 @@
         <button type="submit" class="btn btn-primary">Enregistrer le Projet</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- User Profile & Security Modal -->
+<div class="profile-modal-backdrop" id="profileModalBackdrop">
+  <div class="profile-modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="font:700 17px 'Space Grotesk';color:#181828">Mon Profil & Sécurité</h3>
+      <button type="button" onclick="closeProfileModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+    </div>
+
+    <div style="text-align:center;margin-bottom:18px">
+      <div class="profile-user-avatar" id="profAvatar">M</div>
+      <h4 id="profName" style="font-size:16px;color:#181828;margin-bottom:2px">Nom Utilisateur</h4>
+      <p id="profEmail" style="font-size:12.5px;color:#64748b">email@domaine.com</p>
+      <div style="margin-top:6px"><span id="profRoleBadge" class="role-badge">ROLE</span></div>
+    </div>
+
+    <!-- Password Modification with Verification Email -->
+    <div style="border-top:1px solid #f1f5f9;padding-top:16px;text-align:left">
+      <strong style="font-size:13px;display:block;margin-bottom:4px;color:#1e293b">Modifier mon mot de passe</strong>
+      <p style="font-size:11.5px;color:#64748b;margin-bottom:10px">Par mesure de sécurité, un e-mail avec code de vérification est envoyé à votre adresse.</p>
+
+      <div class="verification-banner" id="profOtpNotice" style="display:none"></div>
+
+      <!-- Step 1: Request Code -->
+      <div id="stepSendOtp">
+        <button type="button" class="btn btn-primary" onclick="sendVerificationEmail()" style="width:100%;justify-content:center;padding:10px">
+          📨 Envoyer l'e-mail de vérification
+        </button>
+      </div>
+
+      <!-- Step 2: Enter Code & New Password -->
+      <form id="stepVerifyOtp" onsubmit="handlePasswordUpdate(event)" style="display:none">
+        <div class="auth-form-group">
+          <label>Code de vérification (reçu par e-mail)</label>
+          <input type="text" id="inputOtpCode" placeholder="Ex: 582491" required>
+        </div>
+        <div class="auth-form-group">
+          <label>Nouveau mot de passe</label>
+          <input type="password" id="inputNewPassword" placeholder="Nouveau mot de passe" required>
+        </div>
+        <button type="submit" class="auth-submit-btn" style="margin-top:4px">Confirmer et changer le mot de passe</button>
+      </form>
+
+      <div class="auth-error-msg" id="profErrorMsg" style="display:none;margin-top:8px"></div>
+    </div>
   </div>
 </div>
 
