@@ -108,6 +108,12 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/api/health") return json({ ok: true, ai: Boolean(env.AI), database: Boolean(env.DB) });
+    if (url.pathname === "/api/content" && request.method === "GET") {
+      const row = env.DB ? await env.DB.prepare("SELECT value, updated_at FROM site_content WHERE key = ?").bind("published").first() : null;
+      if (!row?.value) return json({ content: null });
+      try { return json({ content: JSON.parse(row.value), updatedAt: row.updated_at }); }
+      catch { return json({ content: null }); }
+    }
     if (url.pathname === "/api/chat" && request.method === "POST") return handleChat(request, env);
     if (url.pathname.startsWith("/api/admin/content")) return handleAdmin(request, env, url);
     if (env.ASSETS) return env.ASSETS.fetch(request);
