@@ -431,11 +431,6 @@ const CvManager = {
 
         </div>
 
-        <footer class="cv-doc-footer">
-          <span>Curriculum Vitae · Melek Abdelmaksoud</span>
-          <span>portfolio.melekabdelmaksoud72.workers.dev</span>
-        </footer>
-
       </div>
     `;
   }
