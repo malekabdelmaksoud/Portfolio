@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=10.0">
+<link rel="stylesheet" href="style.css?v=11.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -43,7 +43,7 @@
 <a href="#competences" data-fr="Compétences" data-en="Skills">Compétences</a>
 <a href="#experiences" data-fr="Expériences" data-en="Experience">Expériences</a>
 <a href="#projets" data-fr="Projets" data-en="Projects">Projets</a>
-<a href="#" onclick="openCvModal(event)" style="display:inline-flex;align-items:center;gap:4px;color:#6957e8;font-weight:700" title="Consulter le CV généré en direct"><span>📄</span> <span data-fr="CV" data-en="Resume">CV</span></a>
+<a href="#" onclick="openCvModal(event)" class="btn-nav-cv" title="Consulter et télécharger mon CV"><span>📄</span> <span data-fr="Mon CV" data-en="My Resume">Mon CV</span></a>
 <a href="#contact" class="nav-cta" data-fr="Contact" data-en="Contact">Contact</a>
 <div class="lang-switch" aria-label="Language selector">
 <button type="button" class="lang-btn active" data-lang="fr" aria-pressed="true">FR</button>
@@ -71,6 +71,7 @@
 <p data-fr="Mes stages m'ont permis de mieux comprendre le milieu professionnel, de travailler en équipe et d'appliquer mes connaissances à des situations concrètes." data-en="My internships helped me understand professional environments, collaborate with a team, and apply my knowledge to practical situations.">Mes stages m'ont permis de mieux comprendre le milieu professionnel, de travailler en équipe et d'appliquer mes connaissances à des situations concrètes.</p>
 <div class="education"><span class="education-icon">✦</span><div><strong data-fr="Licence en Technologie de l'Informatique" data-en="Bachelor's Degree in Information Technology">Licence en Technologie de l'Informatique</strong><br><span>ISET de Sidi Bouzid · 2024 – <span data-fr="Présent" data-en="Present">Présent</span></span></div></div>
 <div class="education"><span class="education-icon">✦</span><div><strong data-fr="Baccalauréat – Sciences expérimentales" data-en="Baccalaureate – Experimental Sciences">Baccalauréat – Sciences expérimentales</strong><br><span>Lycée Tayeb Mhiri, Sfax · 2023 – 2024</span></div></div>
+<div style="margin-top:24px"><button type="button" class="button secondary" onclick="openCvModal(event)" style="border-color:#6957e8;color:#6957e8;font-weight:700"><span>📄</span> <span data-fr="Consulter & Télécharger mon CV complet (PDF)" data-en="View & Download full Resume (PDF)">Consulter & Télécharger mon CV complet (PDF)</span> ↗</button></div>
 </div></div></section>
 <section class="section container" id="competences"><p class="eyebrow" data-fr="02 / COMPÉTENCES" data-en="02 / SKILLS">02 / COMPÉTENCES</p><h2 class="section-title" data-fr="Outils et technologies" data-en="Tools and technologies">Outils et technologies</h2>
 <p class="section-intro" data-fr="Une sélection des technologies abordées durant ma formation et mes projets. Mon niveau évolue avec la pratique." data-en="A selection of technologies I have explored during my studies and projects. I continue to improve through practice.">Une sélection des technologies abordées durant ma formation et mes projets. Mon niveau évolue avec la pratique.</p>
@@ -414,9 +415,12 @@
         <!-- Admin-Only Tools (Edit / Sync / Reset) -->
         <div id="cvAdminToolbar" style="display:none;align-items:center;gap:6px"></div>
 
-        <!-- Download for Everyone (Admin & Regular Users) -->
-        <button type="button" class="btn-cv-download" onclick="downloadCvPdf()">
-          <span>🖨️</span> <span>Télécharger en PDF</span>
+        <!-- Download & Print for Everyone (Admin & Regular Users) -->
+        <button type="button" class="btn-cv-download" onclick="downloadCvPdf()" title="Télécharger le fichier PDF sur votre appareil">
+          <span>📥</span> <span>Télécharger en PDF</span>
+        </button>
+        <button type="button" class="btn-cv-action" onclick="printCvDirect()" title="Imprimer ou enregistrer au format PDF" style="background:#222;color:#fff;border-color:#444">
+          <span>🖨️</span> <span>Imprimer</span>
         </button>
 
         <button type="button" class="btn-cv-close" onclick="closeCvModal()" title="Fermer">✕</button>
@@ -431,9 +435,10 @@
 </div>
 
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
-<script src="script.js?v=10.0"></script>
-<script src="portfolio-auth-core.js?v=10.0"></script>
-<script src="cv-manager.js?v=10.0"></script>
-<script src="portfolio-auth-ui.js?v=10.0"></script>
-<script src="chat-crud-store.js?v=10.0"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="script.js?v=11.0"></script>
+<script src="portfolio-auth-core.js?v=11.0"></script>
+<script src="cv-manager.js?v=11.0"></script>
+<script src="portfolio-auth-ui.js?v=11.0"></script>
+<script src="chat-crud-store.js?v=11.0"></script>
 </body></html>

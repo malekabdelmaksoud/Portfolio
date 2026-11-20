@@ -522,6 +522,37 @@ function saveCvEdits() {
 }
 
 function downloadCvPdf() {
+  const element = document.getElementById("cvSheetDocument");
+  if (!element) {
+    window.print();
+    return;
+  }
+
+  if (typeof html2pdf !== "undefined") {
+    if (typeof showToast === "function") {
+      showToast("⏳ Génération et téléchargement du PDF...", "info");
+    }
+    const opt = {
+      margin: [6, 8, 6, 8],
+      filename: "CV_Melek_Abdelmaksoud.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+    html2pdf().set(opt).from(element).save().then(() => {
+      if (typeof showToast === "function") {
+        showToast("✅ Téléchargement du CV terminé !", "success");
+      }
+    }).catch(err => {
+      console.warn("html2pdf fallback to print:", err);
+      window.print();
+    });
+  } else {
+    window.print();
+  }
+}
+
+function printCvDirect() {
   window.print();
 }
 
@@ -534,3 +565,4 @@ window.cancelCvEdits = cancelCvEdits;
 window.handleCvFormSubmit = handleCvFormSubmit;
 window.saveCvEdits = saveCvEdits;
 window.downloadCvPdf = downloadCvPdf;
+window.printCvDirect = printCvDirect;

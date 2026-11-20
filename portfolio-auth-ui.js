@@ -35,6 +35,7 @@ function initAuthGate() {
       const isAdmin = user.role === "admin";
       navContainer.innerHTML = `
         <div class="user-nav-status">
+          <button type="button" class="btn-cv-quick-nav" onclick="openCvModal(event)" title="Consulter et télécharger le CV">📄 CV (PDF)</button>
           <span class="user-click-trigger" onclick="openProfileModal()" title="Voir mon profil & sécurité">
             👤 <b>${user.name}</b> ⚙️
           </span>
