@@ -124,12 +124,36 @@ function initAdminProjectTools() {
 
 // ── GitHub OAuth Login (Vercel / Cloudflare Style) ──
 function handleGitHubOAuthLogin() {
-  const overlay = document.getElementById("authGateOverlay");
-  AuthService.loginWithGitHub("malekabdelmaksoud");
-  
-  if (overlay) overlay.style.display = "none";
-  initAuthGate();
-  ProjectsManager.render();
+  const ghUser = prompt("Entrez votre nom d'utilisateur GitHub (ou laissez vide pour continuer en tant que visiteur) :", "malekabdelmaksoud");
+  if (ghUser === null) return; // User cancelled
+
+  const cleanUser = ghUser.trim().toLowerCase();
+  const isOwner = cleanUser === "malekabdelmaksoud" || cleanUser === "melekabdelmaksoud72";
+  let adminPassword = "";
+
+  if (isOwner) {
+    adminPassword = prompt("🔐 Ce compte possède les privilèges Administrateur.\nVeuillez saisir votre mot de passe Administrateur :");
+    if (!adminPassword) {
+      alert("Authentification Administrateur annulée.");
+      return;
+    }
+  }
+
+  try {
+    const loggedUser = AuthService.loginWithGitHub(cleanUser, adminPassword);
+    const overlay = document.getElementById("authGateOverlay");
+    if (overlay) overlay.style.display = "none";
+    initAuthGate();
+    ProjectsManager.render();
+
+    if (loggedUser.role === "admin") {
+      alert("👑 Bienvenue Melek Abdelmaksoud ! Mode Administrateur activé.");
+    } else {
+      alert(`👋 Bienvenue ${loggedUser.name} ! Vous êtes connecté en mode visiteur.`);
+    }
+  } catch (err) {
+    alert("❌ " + err.message);
+  }
 }
 
 // ── Vercel / Cloudflare Style GitHub Importer Modal ──

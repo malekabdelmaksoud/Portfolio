@@ -64,35 +64,28 @@ const AuthService = {
     const cleanEmail = email.trim().toLowerCase();
     let users = this.getUsers();
     
-    // Auto provision / ensure admin account exists
+    // Find registered user
     let user = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      // If admin, create or accept and set role to admin
-      if (!user) {
-        user = {
-          name: "Melek Abdelmaksoud (Admin)",
-          email: cleanEmail,
-          password: password,
-          role: "admin",
-          createdAt: new Date().toISOString()
-        };
-        users.push(user);
-        this.saveUsers(users);
-      } else {
-        // If password was default 'admin' or user entered any password, accept and update password
-        if (user.password !== password) {
-          user.password = password;
-          this.saveUsers(users);
-        }
-      }
+    // Initial provision of admin account if not existing yet
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase() && !user) {
+      user = {
+        name: "Melek Abdelmaksoud (Admin)",
+        email: cleanEmail,
+        password: "admin",
+        role: "admin",
+        createdAt: new Date().toISOString()
+      };
+      users.push(user);
+      this.saveUsers(users);
     }
 
     if (!user) {
       throw new Error("Compte introuvable. Cliquez sur 'Inscription' pour créer votre compte.");
     }
 
-    if (cleanEmail !== ADMIN_EMAIL.toLowerCase() && user.password !== password) {
+    // Strict password verification for everyone, including Admin
+    if (user.password !== password) {
       throw new Error("Mot de passe incorrect.");
     }
 
@@ -100,17 +93,40 @@ const AuthService = {
     return user;
   },
 
-  loginWithGitHub(username = "malekabdelmaksoud") {
-    const isOwner = username.toLowerCase() === "malekabdelmaksoud" || username.toLowerCase() === "melekabdelmaksoud72";
-    const user = {
-      name: isOwner ? "Melek Abdelmaksoud (Admin)" : username,
-      email: isOwner ? ADMIN_EMAIL : `${username}@users.noreply.github.com`,
-      role: isOwner ? "admin" : "user",
-      github: username,
+  loginWithGitHub(username = "visiteur", password = "") {
+    const cleanUser = username.trim().toLowerCase();
+    const isOwner = cleanUser === "malekabdelmaksoud" || cleanUser === "melekabdelmaksoud72";
+    
+    if (isOwner) {
+      const users = this.getUsers();
+      const adminAcc = users.find(u => u.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+      const expectedPass = adminAcc ? adminAcc.password : "admin";
+
+      if (password !== expectedPass) {
+        throw new Error("Mot de passe Administrateur incorrect. Accès refusé.");
+      }
+
+      const adminUser = {
+        name: "Melek Abdelmaksoud (Admin)",
+        email: ADMIN_EMAIL,
+        role: "admin",
+        github: "malekabdelmaksoud",
+        createdAt: new Date().toISOString()
+      };
+      this.createSession(adminUser);
+      return adminUser;
+    }
+
+    // Standard non-admin visitor
+    const normalUser = {
+      name: username.trim() || "Visiteur GitHub",
+      email: cleanUser ? `${cleanUser}@users.noreply.github.com` : "visiteur@github.com",
+      role: "user",
+      github: cleanUser || "guest",
       createdAt: new Date().toISOString()
     };
-    this.createSession(user);
-    return user;
+    this.createSession(normalUser);
+    return normalUser;
   },
 
   createSession(user) {
