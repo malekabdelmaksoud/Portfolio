@@ -107,7 +107,7 @@ function addAssistantVoiceControls() {
       try {
         if (assistantRecognition) { assistantRecognition.stop(); assistantRecognition = null; mic.textContent = "🎙️"; return; }
         assistantRecognition = new SpeechRecognition();
-        assistantRecognition.lang = document.documentElement.lang === "en" ? "en-US" : (document.documentElement.lang === "ar" ? "ar-TN" : "fr-FR");
+        assistantRecognition.lang = document.documentElement.lang === "en" ? "en-US" : (document.documentElement.lang === "ar" || /^ar/i.test(navigator.language || "") ? "ar-TN" : "fr-FR");
         assistantRecognition.interimResults = false;
         assistantRecognition.maxAlternatives = 1;
         assistantRecognition.onresult = event => {
