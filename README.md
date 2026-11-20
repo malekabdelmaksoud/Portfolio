@@ -1,6 +1,6 @@
 # 🌐 Melek Abdelmaksoud — Portfolio
 
-A modern, bilingual (FR/EN) personal portfolio showcasing my journey in **Web Development & Multimedia**.
+A bilingual (FR/EN) personal portfolio presenting my final-year IT studies, **Web Development** projects, and growing interest in **AI and intelligent applications**.
 
 🔗 **Live Site:** [portfolio.melekabdelmaksoud72.workers.dev](https://portfolio.melekabdelmaksoud72.workers.dev/)
 
@@ -11,9 +11,11 @@ A modern, bilingual (FR/EN) personal portfolio showcasing my journey in **Web De
 - **Bilingual** — Seamless French / English switching with persistent language preference
 - **Responsive** — Fully adapted for mobile, tablet, and desktop
 - **Modern Design** — Clean layout with smooth gradients, hover effects, and thoughtful typography
-- **Accessible** — Semantic HTML, ARIA attributes, focus-visible styles, and keyboard-friendly navigation
+- **Public by default** — Visitors can explore the portfolio without creating an account
+- **Accessible foundations** — Semantic HTML, ARIA attributes, and keyboard-friendly navigation
 - **Smooth Animations** — Fade-in sections on scroll, pulsing status dot, and interactive card hover effects
-- **Performance** — No frameworks, no dependencies — pure HTML, CSS & JS
+- **Performance** — Lightweight HTML, CSS & JavaScript
+- **Portfolio assistant** — A local FAQ helper (not a connected generative-AI service)
 
 ## 🛠️ Built With
 
@@ -33,6 +35,10 @@ A modern, bilingual (FR/EN) personal portfolio showcasing my journey in **Web De
 └── README.md       # This file
 ```
 
+## 🔐 Security note
+
+This repository is a static public portfolio. Authentication and administrator controls implemented only in browser JavaScript are not secure; the public site therefore does not use a client-side login gate or client-side admin privileges. Do not place API keys, private tokens, or passwords in frontend files. Any future private administration must use server-side authentication and authorization.
+
 ## 🚀 Getting Started
 
 1. Clone the repository:
@@ -46,12 +52,12 @@ A modern, bilingual (FR/EN) personal portfolio showcasing my journey in **Web De
 | Project | Tech | Repository |
 |---------|------|------------|
 | Elearning Platform | Java | [elearning-platform](https://github.com/malekabdelmaksoud/elearning-platform) |
-| Projet PHP | PHP · CSS | [projet-php](https://github.com/malekabdelmaksoud/projet-php) |
-| Application Laravel | Laravel · PHP | [projet-laravel](https://github.com/malekabdelmaksoud/projet-laravel) |
-| Gestion de Magasin | Java | [tp-magasin](https://github.com/malekabdelmaksoud/tp-magasin) |
+| Projet PHP | PHP · CSS | [projetphp](https://github.com/malekabdelmaksoud/projetphp) |
+| Application Laravel | Laravel · PHP | [laravel](https://github.com/malekabdelmaksoud/laravel) |
+| Gestion de Magasin | Java | [tpmagasin](https://github.com/malekabdelmaksoud/tpmagasin) |
 | TP POO | Java | [tp-poo](https://github.com/malekabdelmaksoud/tp-poo) |
 | Projet Symfony | Symfony · PHP | [projet-symfony](https://github.com/malekabdelmaksoud/projet-symfony) |
-| First App C# | C# · .NET | [first-app-csharp](https://github.com/malekabdelmaksoud/first-app-csharp) |
+| First App C# | C# · .NET | [firstApp](https://github.com/malekabdelmaksoud/firstApp) |
 
 ## 📫 Contact
 
