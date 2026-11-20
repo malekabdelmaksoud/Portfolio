@@ -409,6 +409,31 @@ function deleteProjectDirect(id) {
 // ── Profile Modal & Email OTP Password Reset Logic ──
 let activeOtpCode = null;
 
+async function dispatchSecurityEmail(targetEmail, otpCode) {
+  try {
+    fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetEmail)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        _subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
+        _template: "table",
+        _captcha: "false",
+        "Code de vérification": otpCode,
+        "Destinataire": targetEmail,
+        "Expéditeur": "Portfolio Melek Abdelmaksoud (melekabdelmaksoud72@gmail.com)",
+        "Instructions": "Voici votre code de sécurité confidentiel pour modifier votre mot de passe. Ne communiquez ce code à personne."
+      })
+    }).then(res => res.json()).then(data => {
+      console.log("FormSubmit delivery status:", data);
+    }).catch(err => console.warn("Email dispatch notice:", err));
+  } catch (e) {
+    console.warn("Security email dispatch failed:", e);
+  }
+}
+
 function openProfileModal() {
   const user = AuthService.getCurrentUser();
   if (!user) return;
@@ -446,7 +471,7 @@ function openProfileModal() {
     if (stepSendOtp) stepSendOtp.style.display = "none";
     if (stepVerifyOtp) stepVerifyOtp.style.display = "none";
   } else {
-    if (passSubtitle) passSubtitle.textContent = "🔒 Par mesure de sécurité, l'administrateur (melekabdelmaksoud72@gmail.com) doit vous envoyer un code de vérification pour changer votre mot de passe.";
+    if (passSubtitle) passSubtitle.textContent = "🔒 Par mesure de sécurité, un code de vérification est envoyé directement à votre adresse e-mail.";
     if (stepAdminDirect) stepAdminDirect.style.display = "none";
     if (stepSendOtp) stepSendOtp.style.display = "block";
     if (stepVerifyOtp) stepVerifyOtp.style.display = "none";
@@ -486,12 +511,26 @@ function sendVerificationEmail() {
   // Generate 6-digit OTP code
   activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Display simulated email delivery banner with code from admin
+  // Dispatch real email to user's inbox
+  dispatchSecurityEmail(user.email, activeOtpCode);
+  showToast(`📨 Code de sécurité expédié à : ${user.email}`, "info");
+
+  // Display security notice WITHOUT exposing the secret code in UI
   const notice = document.getElementById("profOtpNotice");
   notice.innerHTML = `
-    📧 <b>Code de vérification envoyé depuis l'administrateur :</b><br>
-    <span style="font-size:11px;color:#047857">De : <b>melekabdelmaksoud72@gmail.com</b> → À : <b>${user.email}</b></span><br>
-    Code de sécurité : <strong style="font-size:16px;color:#059669;letter-spacing:2px;display:inline-block;margin-top:4px">${activeOtpCode}</strong>
+    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px;color:#065f46">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:16px">📩</span>
+        <strong style="font-size:13px">Code de sécurité envoyé par e-mail !</strong>
+      </div>
+      <div style="font-size:12px;line-height:1.5">
+        Un e-mail contenant votre code de vérification confidentiel à 6 chiffres a été expédié à :<br>
+        <b style="color:#047857">${user.email}</b>
+      </div>
+      <div style="font-size:11px;color:#059669;margin-top:6px;border-top:1px dashed #a7f3d0;padding-top:6px">
+        🔒 Veuillez consulter votre <b>boîte de réception</b> (ou <b>Spam / Courrier indésirable</b>) et saisir le code reçu ci-dessous.
+      </div>
+    </div>
   `;
   notice.style.display = "block";
 
@@ -507,7 +546,7 @@ function handlePasswordUpdate(e) {
   const errorDiv = document.getElementById("profErrorMsg");
 
   if (enteredOtp !== activeOtpCode) {
-    errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code envoyé.";
+    errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code envoyé par e-mail.";
     errorDiv.style.display = "block";
     return;
   }
@@ -608,10 +647,25 @@ function handleForgotRequest(e) {
       }
     } else {
       forgotOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Dispatch real email to user's inbox
+      dispatchSecurityEmail(email, forgotOtpCode);
+      showToast(`📨 Code de sécurité expédié à : ${email}`, "info");
+
       banner.innerHTML = `
-        📧 <b>Code de vérification envoyé depuis l'administrateur :</b><br>
-        <span style="font-size:11px;color:#047857">De : <b>melekabdelmaksoud72@gmail.com</b> → À : <b>${email}</b></span><br>
-        Code de sécurité : <strong style="font-size:16px;color:#059669;letter-spacing:2px;display:inline-block;margin-top:4px">${forgotOtpCode}</strong>
+        <div style="background:#064e3b;border:1px solid #059669;border-radius:10px;padding:12px 14px;color:#ecfdf5;text-align:left">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:16px">📩</span>
+            <strong style="font-size:13px;color:#34d399">Code de sécurité envoyé par e-mail !</strong>
+          </div>
+          <div style="font-size:12px;line-height:1.5;color:#d1fae5">
+            Un e-mail contenant votre code confidentiel à 6 chiffres a été expédié à :<br>
+            <b style="color:#6ee7b7">${email}</b>
+          </div>
+          <div style="font-size:11px;color:#a7f3d0;margin-top:6px;border-top:1px dashed #047857;padding-top:6px">
+            🔒 Veuillez consulter votre <b>boîte de réception</b> (ou dossier <b>Spam / Courrier indésirable</b>) et saisir le code reçu ci-dessous.
+          </div>
+        </div>
       `;
       banner.style.display = "block";
       userSec.style.display = "block";
@@ -651,7 +705,7 @@ function handleForgotRequest(e) {
     const newPass = document.getElementById("forgotUserNewPass").value;
 
     if (enteredOtp !== forgotOtpCode) {
-      errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code envoyé.";
+      errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code reçu par e-mail.";
       errorDiv.style.display = "block";
       return;
     }
