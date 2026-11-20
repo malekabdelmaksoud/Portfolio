@@ -88,6 +88,9 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
 /* Vercel Style Modal & GitHub Connect */
 .vercel-theme-box{background:#000000;color:#ffffff;border:1px solid #222222;box-shadow:0 30px 80px rgba(0,0,0,.8);border-radius:18px}
 .git-platform-tabs{display:flex;gap:8px;margin-bottom:12px}
+.btn-git-connect{flex:1;padding:11px 16px;background:#0d0d0d;color:#fff;border:1px solid #2a2a2a;border-radius:8px;font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-git-connect:hover{background:#191919;border-color:#555}
+.btn-git-connect.active{background:#161616;border-color:#6957e8;box-shadow:0 0 0 1px #6957e8}
 .git-plat-btn{flex:1;padding:8px 12px;background:#111111;color:#888888;border:1px solid #222222;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;font-family:inherit}
 .git-plat-btn.active{background:#222222;color:#ffffff;border-color:#555555}
 .git-account-bar{display:flex;gap:8px;margin-bottom:12px}

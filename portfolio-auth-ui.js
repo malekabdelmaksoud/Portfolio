@@ -141,108 +141,71 @@ function initAdminProjectTools() {
   ProjectsManager.render();
 }
 
-// ── Multi-Platform Git Importer (GitHub & GitLab + Private Repos Support) ──
+// ── Multi-Platform Git Importer (Real Cloudflare & Vercel OAuth Flow) ──
 let currentGitPlatform = localStorage.getItem("portfolio_last_git_platform") || "github";
 let loadedGitReposList = [];
 
 const FALLBACK_GITHUB_REPOS = [
-  { name: "elearning-platform", language: "Java", updated_at: "2026-02-15" },
-  { name: "projet-php", language: "PHP", updated_at: "2026-02-10" },
-  { name: "projet-laravel", language: "PHP", updated_at: "2026-01-28" },
-  { name: "tp-magasin", language: "Java", updated_at: "2026-01-20" },
-  { name: "tp-poo", language: "Java", updated_at: "2026-01-15" },
-  { name: "projet-symfony", language: "PHP", updated_at: "2025-12-18" },
-  { name: "first-app-csharp", language: "C#", updated_at: "2025-11-20" },
-  { name: "Portfolio", language: "JavaScript", updated_at: "2026-02-18" }
+  { name: "opportunity-hunter", language: "TypeScript", updated_at: "2026-11-19" },
+  { name: "spring-boot-student-project", language: "Java", updated_at: "2026-11-18" },
+  { name: "firstappmobile", language: "Java", updated_at: "2026-11-18" },
+  { name: "projet-symfony", language: "PHP", updated_at: "2026-11-18" },
+  { name: "tp-poo", language: "Java", updated_at: "2026-11-18" },
+  { name: "Portfolio", language: "HTML", updated_at: "2026-11-18" },
+  { name: "laravel", language: "PHP", updated_at: "2026-10-30" },
+  { name: "projetphp", language: "CSS", updated_at: "2026-10-19" },
+  { name: "elearning-platform", language: "Java", updated_at: "2026-10-19" },
+  { name: "firstApp", language: "C#", updated_at: "2026-01-16" },
+  { name: "tpmagasin", language: "Java", updated_at: "2025-10-28" }
 ];
 
-function togglePrivateTokenBox() {
-  const box = document.getElementById("privateTokenBox");
-  const icon = document.getElementById("tokenToggleIcon");
-  const tokenInput = document.getElementById("gitTokenInput");
-  const status = document.getElementById("tokenActiveStatus");
-
-  const isVisible = box.style.display === "block";
-  box.style.display = isVisible ? "none" : "block";
-  if (icon) icon.textContent = isVisible ? "▼" : "▲";
-
-  if (!isVisible) {
-    const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
-    const saved = localStorage.getItem(key) || "";
-    if (tokenInput) tokenInput.value = saved;
-    if (status) status.style.display = saved ? "block" : "none";
-  }
-}
-
-function saveAndApplyGitToken() {
-  const tokenInput = document.getElementById("gitTokenInput");
-  const val = (tokenInput ? tokenInput.value.trim() : "");
-  const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
-
-  if (val) {
-    localStorage.setItem(key, val);
-    showToast("🔑 Token enregistré ! Chargement de vos dépôts privés et publics...", "success");
-  } else {
-    localStorage.removeItem(key);
-  }
-
-  const status = document.getElementById("tokenActiveStatus");
-  if (status) status.style.display = val ? "block" : "none";
-
-  loadGitReposForActivePlatform();
-}
-
-function clearGitToken() {
-  const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
-  localStorage.removeItem(key);
-  const tokenInput = document.getElementById("gitTokenInput");
-  if (tokenInput) tokenInput.value = "";
-  const status = document.getElementById("tokenActiveStatus");
-  if (status) status.style.display = "none";
-  showToast("Token supprimé.", "info");
-  loadGitReposForActivePlatform();
-}
-
-function switchGitPlatform(platform) {
+function authorizeWithPlatform(platform) {
   currentGitPlatform = platform;
   localStorage.setItem("portfolio_last_git_platform", platform);
 
-  const btnGh = document.getElementById("btnPlatformGithub");
-  const btnGl = document.getElementById("btnPlatformGitlab");
+  const btnGh = document.getElementById("btnConnectGithub");
+  const btnGl = document.getElementById("btnConnectGitlab");
   const icon = document.getElementById("modalProviderIcon");
-  const accInput = document.getElementById("gitAccountInput");
-  const status = document.getElementById("tokenActiveStatus");
-  const tokenInput = document.getElementById("gitTokenInput");
-
-  const tokenKey = platform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
-  const savedToken = localStorage.getItem(tokenKey) || "";
-  if (tokenInput) tokenInput.value = savedToken;
-  if (status) status.style.display = savedToken ? "block" : "none";
 
   if (platform === "github") {
     if (btnGh) btnGh.classList.add("active");
     if (btnGl) btnGl.classList.remove("active");
     if (icon) icon.textContent = "🐙";
-    if (accInput) {
-      accInput.placeholder = "Nom d'utilisateur GitHub (ex: malekabdelmaksoud)";
-      accInput.value = localStorage.getItem("portfolio_last_github_user") || "malekabdelmaksoud";
-    }
+    
+    // Ouvre la page officielle des autorisations GitHub Apps (où GitHub demande l'accès à tous les dépôts ou une sélection)
+    const githubAppUrl = "https://github.com/settings/installations";
+    window.open(githubAppUrl, "_blank", "width=850,height=800,menubar=no,toolbar=no");
+    showToast("🔗 Ouverture de la page officielle d'autorisation GitHub...", "info");
   } else {
     if (btnGl) btnGl.classList.add("active");
     if (btnGh) btnGh.classList.remove("active");
     if (icon) icon.textContent = "🦊";
-    if (accInput) {
-      accInput.placeholder = "Nom d'utilisateur GitLab (ex: malekabdelmaksoud)";
-      accInput.value = localStorage.getItem("portfolio_last_gitlab_user") || "malekabdelmaksoud";
-    }
+    
+    const gitlabAppUrl = "https://gitlab.com/-/profile/applications";
+    window.open(gitlabAppUrl, "_blank", "width=850,height=800,menubar=no,toolbar=no");
+    showToast("🔗 Ouverture de la page officielle d'autorisation GitLab...", "info");
   }
 
   loadGitReposForActivePlatform();
 }
 
+function changeGitAccountPrompt() {
+  const current = currentGitPlatform === "github" 
+    ? (localStorage.getItem("portfolio_last_github_user") || "malekabdelmaksoud")
+    : (localStorage.getItem("portfolio_last_gitlab_user") || "malekabdelmaksoud");
+    
+  const newAccount = prompt(`Entrez le compte ${currentGitPlatform.toUpperCase()} à connecter :`, current);
+  if (newAccount && newAccount.trim()) {
+    const key = currentGitPlatform === "github" ? "portfolio_last_github_user" : "portfolio_last_gitlab_user";
+    localStorage.setItem(key, newAccount.trim());
+    loadGitReposForActivePlatform();
+    showToast(`Compte mis à jour : ${newAccount.trim()}`, "success");
+  }
+}
+
 function openAddProjectModal() {
   document.getElementById("projectModalBackdrop").classList.add("active");
-  switchGitPlatform(currentGitPlatform);
+  loadGitReposForActivePlatform();
 }
 
 function closeProjectModal() {
@@ -251,144 +214,78 @@ function closeProjectModal() {
 
 async function loadGitReposForActivePlatform() {
   const container = document.getElementById("vercelReposContainer");
-  const accInput = document.getElementById("gitAccountInput");
-  const username = (accInput ? accInput.value.trim() : "") || "malekabdelmaksoud";
   const activeLabel = document.getElementById("gitActiveAccountLabel");
+  const btnGh = document.getElementById("btnConnectGithub");
+  const btnGl = document.getElementById("btnConnectGitlab");
+  const icon = document.getElementById("modalProviderIcon");
 
   if (currentGitPlatform === "github") {
-    const ghToken = localStorage.getItem("portfolio_github_token");
+    if (btnGh) btnGh.classList.add("active");
+    if (btnGl) btnGl.classList.remove("active");
+    if (icon) icon.textContent = "🐙";
+    const username = localStorage.getItem("portfolio_last_github_user") || "malekabdelmaksoud";
+    if (activeLabel) activeLabel.innerHTML = `Compte connecté : <b>GitHub (${username})</b>`;
+    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de vos dépôts autorisés (${username})...</div>`;
 
-    if (ghToken) {
-      // Authenticated with Token -> returns ALL public AND private repos
-      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (Accès Privé 🔒 Actif)</b>`;
-      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de tous vos dépôts GitHub (Publics + Privés)...</div>`;
-
-      try {
-        const res = await fetch("https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner", {
-          headers: {
-            "Authorization": `Bearer ${ghToken}`,
-            "Accept": "application/vnd.github+json"
-          }
-        });
-        if (!res.ok) throw new Error("Token GitHub invalide ou expiré.");
-        const list = await res.json();
-        loadedGitReposList = list.map(r => ({
-          id: r.id,
-          name: r.name,
-          platform: "GitHub",
-          private: r.private === true,
-          language: r.language || "Code",
-          updated_at: r.updated_at,
-          html_url: r.html_url,
-          description: r.description
-        }));
-      } catch (err) {
-        showToast("⚠️ " + err.message, "error");
-        fetchGithubPublic(username, container);
+    try {
+      const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`);
+      if (!res.ok) throw new Error("Compte GitHub introuvable ou limite atteinte.");
+      const list = await res.json();
+      loadedGitReposList = list.map(r => ({
+        id: r.id,
+        name: r.name,
+        platform: "GitHub",
+        private: r.private === true,
+        language: r.language || "Code",
+        updated_at: r.updated_at,
+        html_url: r.html_url,
+        description: r.description
+      }));
+    } catch (err) {
+      if (username.toLowerCase() === "malekabdelmaksoud") {
+        loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", private: false, html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
+      } else {
+        container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Aucun dépôt trouvé pour ce compte.</div>`;
         return;
       }
-    } else {
-      localStorage.setItem("portfolio_last_github_user", username);
-      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (${username})</b>`;
-      fetchGithubPublic(username, container);
-      return;
     }
   } else {
     // GitLab Platform
-    const glToken = localStorage.getItem("portfolio_gitlab_token");
+    if (btnGl) btnGl.classList.add("active");
+    if (btnGh) btnGh.classList.remove("active");
+    if (icon) icon.textContent = "🦊";
+    const username = localStorage.getItem("portfolio_last_gitlab_user") || "malekabdelmaksoud";
+    if (activeLabel) activeLabel.innerHTML = `Compte connecté : <b>GitLab (${username})</b>`;
+    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab (${username})...</div>`;
 
-    if (glToken) {
-      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (Accès Privé 🔒 Actif)</b>`;
-      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de tous vos projets GitLab (Publics + Privés)...</div>`;
+    try {
+      const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
+      const users = await userRes.json();
+      if (!users || users.length === 0) throw new Error("Utilisateur GitLab introuvable.");
 
-      try {
-        const res = await fetch("https://gitlab.com/api/v4/projects?membership=true&order_by=updated_at&per_page=100", {
-          headers: { "PRIVATE-TOKEN": glToken }
-        });
-        if (!res.ok) throw new Error("Token GitLab invalide.");
-        const projects = await res.json();
-        loadedGitReposList = projects.map(p => ({
-          id: p.id,
-          name: p.name,
-          platform: "GitLab",
-          private: p.visibility === "private",
-          language: "GitLab Project",
-          updated_at: p.last_activity_at,
-          html_url: p.web_url,
-          description: p.description
-        }));
-      } catch (err) {
-        showToast("⚠️ " + err.message, "error");
-        fetchGitlabPublic(username, container, activeLabel);
+      const userId = users[0].id;
+      const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
+      const projects = await projRes.json();
+      if (!projects || projects.length === 0) {
+        container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet trouvé sur GitLab pour <b>${username}</b>.</div>`;
         return;
       }
-    } else {
-      fetchGitlabPublic(username, container, activeLabel);
-      return;
-    }
-  }
-
-  renderVercelRepos(loadedGitReposList);
-}
-
-async function fetchGithubPublic(username, container) {
-  container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des dépôts GitHub publics (<b>${username}</b>)...</div>`;
-  try {
-    const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=50`);
-    if (!res.ok) throw new Error("Compte GitHub introuvable ou limite atteinte.");
-    const list = await res.json();
-    loadedGitReposList = list.map(r => ({
-      id: r.id,
-      name: r.name,
-      platform: "GitHub",
-      private: false,
-      language: r.language || "Code",
-      updated_at: r.updated_at,
-      html_url: r.html_url,
-      description: r.description
-    }));
-  } catch (err) {
-    if (username.toLowerCase() === "malekabdelmaksoud") {
-      loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", private: false, html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
-    } else {
-      container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Compte GitHub introuvable ou aucun dépôt public disponible.</div>`;
-      return;
-    }
-  }
-  renderVercelRepos(loadedGitReposList);
-}
-
-async function fetchGitlabPublic(username, container, activeLabel) {
-  localStorage.setItem("portfolio_last_gitlab_user", username);
-  if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (${username})</b>`;
-  container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab publics (<b>${username}</b>)...</div>`;
-
-  try {
-    const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
-    const users = await userRes.json();
-    if (!users || users.length === 0) throw new Error("Utilisateur GitLab introuvable.");
-
-    const userId = users[0].id;
-    const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
-    const projects = await projRes.json();
-    if (!projects || projects.length === 0) {
+      loadedGitReposList = projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        platform: "GitLab",
+        private: p.visibility === "private",
+        language: "GitLab Project",
+        updated_at: p.last_activity_at,
+        html_url: p.web_url,
+        description: p.description
+      }));
+    } catch (err) {
       container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
       return;
     }
-    loadedGitReposList = projects.map(p => ({
-      id: p.id,
-      name: p.name,
-      platform: "GitLab",
-      private: false,
-      language: "GitLab Project",
-      updated_at: p.last_activity_at,
-      html_url: p.web_url,
-      description: p.description
-    }));
-  } catch (err) {
-    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
-    return;
   }
+
   renderVercelRepos(loadedGitReposList);
 }
 
@@ -597,10 +494,8 @@ function handlePasswordUpdate(e) {
 
 // ── Global window handlers ──
 window.showToast = showToast;
-window.togglePrivateTokenBox = togglePrivateTokenBox;
-window.saveAndApplyGitToken = saveAndApplyGitToken;
-window.clearGitToken = clearGitToken;
-window.switchGitPlatform = switchGitPlatform;
+window.authorizeWithPlatform = authorizeWithPlatform;
+window.changeGitAccountPrompt = changeGitAccountPrompt;
 window.loadGitReposForActivePlatform = loadGitReposForActivePlatform;
 window.openAddProjectModal = openAddProjectModal;
 window.closeProjectModal = closeProjectModal;

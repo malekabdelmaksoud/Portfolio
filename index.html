@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=5.0">
+<link rel="stylesheet" href="style.css?v=6.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -235,50 +235,31 @@
       <button type="button" onclick="closeProjectModal()" style="background:none;border:none;color:#888;font-size:22px;cursor:pointer">✕</button>
     </div>
 
-    <!-- Platform Switcher: GitHub / GitLab -->
-    <div class="git-platform-tabs">
-      <button type="button" class="git-plat-btn active" id="btnPlatformGithub" onclick="switchGitPlatform('github')">
-        <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
-        <span>GitHub</span>
+    <!-- Platform Connect Buttons (Cloudflare & Vercel Real Auth Style) -->
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button type="button" class="btn-git-connect active" id="btnConnectGithub" onclick="authorizeWithPlatform('github')">
+        <svg height="18" viewBox="0 0 16 16" width="18" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+        <span>Connecter GitHub ↗</span>
       </button>
-      <button type="button" class="git-plat-btn" id="btnPlatformGitlab" onclick="switchGitPlatform('gitlab')">
-        <svg height="16" viewBox="0 0 16 16" width="16" fill="#fc6d26"><path d="m15.97 9.058-.006-.017L14.77 5.334a.63.63 0 0 0-.24-.316.635.635 0 0 0-.398-.073.633.633 0 0 0-.374.192.64.64 0 0 0-.15.378l-.755 2.32H3.147l-.755-2.32a.633.633 0 0 0-.15-.378.636.636 0 0 0-.374-.192.635.635 0 0 0-.398.073.63.63 0 0 0-.24.316L.036 9.04.03 9.058a2.917 2.917 0 0 0 .973 3.235l.012.008.02.015 3.89 2.914 1.905 1.442a1.88 1.88 0 0 0 2.338 0l1.905-1.442 3.91-2.929.012-.008a2.917 2.917 0 0 0 .974-3.235Z"></path></svg>
-        <span>GitLab</span>
-      </button>
-    </div>
-
-    <!-- Account Switcher Input Bar -->
-    <div class="git-account-bar">
-      <div style="flex:1">
-        <input type="text" id="gitAccountInput" placeholder="Nom d'utilisateur (ex: malekabdelmaksoud)" value="malekabdelmaksoud" class="vercel-input" style="padding:9px 12px;font-size:13px" onkeydown="if(event.key==='Enter') loadGitReposForActivePlatform()">
-      </div>
-      <button type="button" class="btn-import-v" onclick="loadGitReposForActivePlatform()" style="display:flex;align-items:center;gap:6px;padding:9px 16px">
-        <span>Charger</span> <span>↻</span>
+      <button type="button" class="btn-git-connect" id="btnConnectGitlab" onclick="authorizeWithPlatform('gitlab')">
+        <svg height="18" viewBox="0 0 16 16" width="18" fill="#fc6d26"><path d="m15.97 9.058-.006-.017L14.77 5.334a.63.63 0 0 0-.24-.316.635.635 0 0 0-.398-.073.633.633 0 0 0-.374.192.64.64 0 0 0-.15.378l-.755 2.32H3.147l-.755-2.32a.633.633 0 0 0-.15-.378.636.636 0 0 0-.374-.192.635.635 0 0 0-.398.073.63.63 0 0 0-.24.316L.036 9.04.03 9.058a2.917 2.917 0 0 0 .973 3.235l.012.008.02.015 3.89 2.914 1.905 1.442a1.88 1.88 0 0 0 2.338 0l1.905-1.442 3.91-2.929.012-.008a2.917 2.917 0 0 0 .974-3.235Z"></path></svg>
+        <span>Connecter GitLab ↗</span>
       </button>
     </div>
 
-    <!-- Private Repos Token Option -->
-    <div style="margin-bottom:12px;background:#0d0d0d;border:1px solid #1f1f1f;border-radius:8px;padding:8px 12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="togglePrivateTokenBox()">
-        <span style="font-size:12px;color:#bbb;display:flex;align-items:center;gap:6px">
-          <span>🔒</span> <b>Afficher les dépôts privés (Private Repos)</b>
-        </span>
-        <span id="tokenToggleIcon" style="font-size:11px;color:#888">▼</span>
+    <!-- Active Connected Account Status -->
+    <div style="display:flex;justify-content:space-between;align-items:center;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:9px 14px;margin-bottom:12px">
+      <div style="font-size:12px;color:#aaa;display:flex;align-items:center;gap:7px">
+        <span style="color:#10b981;font-size:11px">●</span> <span id="gitActiveAccountLabel">Compte connecté : <b>GitHub (malekabdelmaksoud)</b></span>
       </div>
-      <div id="privateTokenBox" style="display:none;margin-top:10px;border-top:1px solid #222;padding-top:8px">
-        <p style="font-size:11px;color:#888;margin:0 0 6px">Entrez un <b>Personal Access Token</b> (avec permission <code>repo</code>) pour charger vos projets privés :</p>
-        <div style="display:flex;gap:8px">
-          <input type="password" id="gitTokenInput" placeholder="Ex: ghp_xxxxxxxxxxxxxxxxxxxx" class="vercel-input" style="padding:7px 10px;font-size:12px">
-          <button type="button" class="btn-import-v" onclick="saveAndApplyGitToken()" style="padding:7px 12px;font-size:11.5px">Enregistrer</button>
-          <button type="button" class="btn" onclick="clearGitToken()" style="background:#1a1a1a;color:#ef4444;border:1px solid #333;border-radius:6px;padding:7px 10px;font-size:11px">Effacer</button>
-        </div>
-        <div id="tokenActiveStatus" style="font-size:11px;color:#10b981;margin-top:6px;display:none">✓ Token actif : Dépôts publics et privés inclus</div>
-      </div>
+      <button type="button" onclick="changeGitAccountPrompt()" style="background:none;border:none;color:#818cf8;font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:underline">
+        Changer ⚙
+      </button>
     </div>
 
     <!-- Search / Filter Repos -->
     <div style="margin-bottom:12px">
-      <input type="text" id="vercelRepoSearch" placeholder="Rechercher parmi les dépôts..." oninput="filterVercelRepos(this.value)" class="vercel-input" style="padding:9px 12px;font-size:13px">
+      <input type="text" id="vercelRepoSearch" placeholder="Rechercher parmi les dépôts autorisés..." oninput="filterVercelRepos(this.value)" class="vercel-input" style="padding:9px 12px;font-size:13px">
     </div>
 
     <!-- List of Repositories -->
@@ -354,8 +335,8 @@
 </div>
 
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
-<script src="script.js?v=5.0"></script>
-<script src="portfolio-auth-core.js?v=5.0"></script>
-<script src="portfolio-auth-ui.js?v=5.0"></script>
-<script src="chat-crud-store.js?v=5.0"></script>
+<script src="script.js?v=6.0"></script>
+<script src="portfolio-auth-core.js?v=6.0"></script>
+<script src="portfolio-auth-ui.js?v=6.0"></script>
+<script src="chat-crud-store.js?v=6.0"></script>
 </body></html>
