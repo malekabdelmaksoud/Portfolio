@@ -58,6 +58,7 @@ This repository is a static public portfolio. Authentication and administrator c
 | TP POO | Java | [tp-poo](https://github.com/malekabdelmaksoud/tp-poo) |
 | Projet Symfony | Symfony · PHP | [projet-symfony](https://github.com/malekabdelmaksoud/projet-symfony) |
 | First App C# | C# · .NET | [firstApp](https://github.com/malekabdelmaksoud/firstApp) |
+| Opportunity Hunter | TypeScript · Cloudflare Workers · MCP | [opportunity-hunter](https://github.com/malekabdelmaksoud/opportunity-hunter) |
 
 ## 📫 Contact
 
