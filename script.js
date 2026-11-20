@@ -120,7 +120,7 @@ function renderChatFromHistory() {
   aiChatMessages.innerHTML = "";
 
   if (history.length === 0) {
-    appendAiMessage("👋 Bonjour ! Je suis l'assistant intelligent de Melek. Posez-moi vos questions ou utilisez les boutons rapides.", "bot", false, null);
+    appendAiMessage("👋 Bonjour ! Je suis l'assistant du portfolio de Melek. Je réponds aux questions fréquentes sur ses projets, compétences, expériences et son CV.", "bot", false, null);
     return;
   }
 
@@ -299,6 +299,6 @@ function generateAiAnswer(rawQuery) {
     return `👩‍💻 <b>Melek Abdelmaksoud</b> est étudiante en Licence en Technologie de l'Informatique (Développement Web et Multimédia) à l'ISET de Sidi Bouzid. Passionnée par le développement full-stack, elle recherche activement un stage PFE pour mettre en œuvre ses compétences.`;
   }
 
-  return `🤖 Je peux vous renseigner sur les <b>projets</b>, les <b>compétences</b>, la <b>formation</b>, les <b>stages</b> ou vous fournir le <b>CV</b> de Melek en un clic ! Que souhaitez-vous savoir ?`;
+  return `Je peux vous renseigner sur les <b>projets</b>, les <b>compétences</b>, la <b>formation</b>, les <b>stages</b> ou vous fournir le <b>CV</b> de Melek. Cet assistant utilise une FAQ prédéfinie.`;
 }
 
