@@ -101,16 +101,18 @@ function initAuthGate() {
 
 // ── Admin Floating Controls & Project Modals ──
 function showAdminFloatingControls() {
-  if (document.getElementById("adminFloatingBar")) return;
+  const container = document.getElementById("adminProjectsActionBar");
+  if (!container) return;
 
-  const bar = document.createElement("div");
-  bar.id = "adminFloatingBar";
-  bar.className = "admin-floating-add";
-  bar.innerHTML = `
-    <span>👑 <b>Admin Mode Actif</b></span>
-    <button class="btn-admin-add" onclick="openAddProjectModal()">+ Lier Repos GitHub</button>
-  `;
-  document.body.appendChild(bar);
+  if (AuthService.isAdmin()) {
+    container.innerHTML = `
+      <button class="admin-proj-top-btn" onclick="openAddProjectModal()">
+        <span>👑</span> <span>+ Lier un Repos GitHub</span>
+      </button>
+    `;
+  } else {
+    container.innerHTML = "";
+  }
 }
 
 function initAdminProjectTools() {

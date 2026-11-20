@@ -76,9 +76,11 @@ a:focus-visible,button:focus-visible{outline:2px solid #6957e8;outline-offset:3p
 .admin-act-btn.del{background:#ef4444}
 .admin-act-btn:hover{transform:scale(1.15)}
 
-/* Admin Floating Bar for Adding Projects */
-.admin-floating-add{position:fixed;bottom:24px;left:24px;z-index:90;background:#181828;color:#fff;border-radius:30px;padding:8px 18px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.25);border:1px solid #323554}
-.btn-admin-add{background:#6957e8;color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+/* Projects Header with Admin Controls */
+.projects-section-header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:8px}
+.admin-proj-top-btn{background:linear-gradient(135deg,#6957e8,#8b5cf6);color:#fff;border:none;border-radius:24px;padding:9px 18px;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(105,87,232,.3);transition:transform .2s,box-shadow .2s}
+.admin-proj-top-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(105,87,232,.45)}
+
 
 /* Project Modal (Add/Edit) */
 .project-modal-backdrop{position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(17,19,34,.75);backdrop-filter:blur(6px);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}
