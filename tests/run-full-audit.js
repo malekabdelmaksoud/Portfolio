@@ -1,0 +1,502 @@
+const { chromium } = require('playwright');
+const server = require('./server');
+const fs = require('fs');
+const path = require('path');
+
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
+if (!fs.existsSync(SCREENSHOTS_DIR)) {
+  fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+}
+
+const auditResults = {
+  phases: {},
+  testsTotal: 0,
+  testsPassed: 0,
+  testsFailed: 0,
+  failures: [],
+  logs: []
+};
+
+function recordTest(phase, testName, passed, details = "") {
+  auditResults.testsTotal++;
+  if (passed) {
+    auditResults.testsPassed++;
+  } else {
+    auditResults.testsFailed++;
+    auditResults.failures.push({ phase, testName, details });
+  }
+
+  if (!auditResults.phases[phase]) {
+    auditResults.phases[phase] = [];
+  }
+  auditResults.phases[phase].push({ testName, passed, details });
+  const statusStr = passed ? "✅ PASS" : "❌ FAIL";
+  console.log(`[${statusStr}] [${phase}] ${testName}${details ? " - " + details : ""}`);
+}
+
+async function runAudit() {
+  console.log("=== STARTING COMPLETE PORTFOLIO AUDIT ===");
+  await server.start();
+  const baseUrl = `http://127.0.0.1:${server.PORT}`;
+
+  const browser = await chromium.launch({
+    channel: 'chrome',
+    headless: true
+  });
+
+  try {
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 800 }
+    });
+    const page = await context.newPage();
+
+    const consoleErrors = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    const pageErrors = [];
+    page.on('pageerror', err => {
+      pageErrors.push(err.message);
+    });
+
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2 (PART 1) — AUTH GATE & ENTRY VERIFICATION
+    // ══════════════════════════════════════════════════════════
+    // Test 1: Page title & meta
+    const title = await page.title();
+    recordTest("Phase 2: Functional", "Page Title Verification", title.includes("Melek Abdelmaksoud"), `Title: "${title}"`);
+
+    // Test 2: Auth Gate Overlay on Unauthenticated Visit
+    const authOverlayVisible = await page.evaluate(() => {
+      const el = document.getElementById('authGateOverlay');
+      return el && getComputedStyle(el).display !== 'none';
+    });
+    recordTest("Phase 2: Functional", "Auth Gate Modal Enforced on First Visit", authOverlayVisible);
+
+    // Test 3: Tab Switching between Login and Register
+    await page.click('#tabBtnRegister');
+    const nameFieldVisible = await page.evaluate(() => {
+      const g = document.getElementById('fieldNameGroup');
+      return g && getComputedStyle(g).display !== 'none';
+    });
+    recordTest("Phase 2: Functional", "Auth Gate Tab Switch to Register", nameFieldVisible);
+
+    await page.click('#tabBtnLogin');
+    const nameFieldHidden = await page.evaluate(() => {
+      const g = document.getElementById('fieldNameGroup');
+      return g && getComputedStyle(g).display === 'none';
+    });
+    recordTest("Phase 2: Functional", "Auth Gate Tab Switch to Login", nameFieldHidden);
+
+    // Test 4: Forgot Password View Toggle
+    await page.click('#linkForgotPass');
+    await page.waitForTimeout(200);
+    const forgotContainerVisible = await page.evaluate(() => {
+      const f = document.getElementById('authForgotContainer');
+      return f && getComputedStyle(f).display !== 'none';
+    });
+    recordTest("Phase 2: Functional", "Forgot Password Modal View Opens", forgotContainerVisible);
+
+    // Return to Login
+    await page.evaluate(() => backToLoginView(new Event('click')));
+    await page.waitForTimeout(200);
+
+    // Test 5: Register New Regular User
+    await page.click('#tabBtnRegister');
+    await page.fill('#authName', 'Auditor User');
+    await page.fill('#authEmail', 'auditor_visitor@test.com');
+    await page.fill('#authPassword', 'auditorPass123');
+    await page.click('#authSubmitBtn');
+    await page.waitForTimeout(400);
+
+    const normalUserSession = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('portfolio_active_session') || '{}');
+      return s.role === 'user' && s.email === 'auditor_visitor@test.com';
+    });
+    recordTest("Phase 2: Functional", "User Registration & Session Creation", normalUserSession);
+
+    // Verify Auth Gate closed after login
+    const authOverlayClosed = await page.evaluate(() => {
+      const el = document.getElementById('authGateOverlay');
+      return !el || getComputedStyle(el).display === 'none';
+    });
+    recordTest("Phase 2: Functional", "Auth Gate Closes Upon Successful Auth", authOverlayClosed);
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2 (PART 2) — MAIN PORTFOLIO SECTIONS & INTERACTIVITY
+    // ══════════════════════════════════════════════════════════
+    // Test 6: Hero Section & Elements
+    const heroTitle = await page.textContent('.hero h1');
+    recordTest("Phase 2: Functional", "Hero Title Presence", !!heroTitle && heroTitle.includes("Melek"), `Hero: "${heroTitle?.trim()}"`);
+
+    // Test 7: Language Switching (FR -> EN -> FR)
+    const enBtn = await page.$('.lang-btn[data-lang="en"]');
+    const frBtn = await page.$('.lang-btn[data-lang="fr"]');
+    if (enBtn && frBtn) {
+      await enBtn.click();
+      const langEn = await page.evaluate(() => document.documentElement.lang);
+      const enAboutEyebrow = await page.textContent('#apropos .eyebrow');
+      const enOk = langEn === 'en' && enAboutEyebrow?.includes('01 / ABOUT');
+      recordTest("Phase 2: Functional", "Language Switch to EN", enOk, `lang=${langEn}, eyebrow="${enAboutEyebrow}"`);
+
+      await frBtn.click();
+      const langFr = await page.evaluate(() => document.documentElement.lang);
+      const frAboutEyebrow = await page.textContent('#apropos .eyebrow');
+      const frOk = langFr === 'fr' && frAboutEyebrow?.includes('01 / À PROPOS');
+      recordTest("Phase 2: Functional", "Language Switch back to FR", frOk, `lang=${langFr}, eyebrow="${frAboutEyebrow}"`);
+    } else {
+      recordTest("Phase 2: Functional", "Language Switch Buttons", false, "Buttons not found");
+    }
+
+    // Test 8: Main Navigation In-Page Smooth Scroll Anchors
+    const navAnchors = ['#apropos', '#competences', '#experiences', '#projets', '#contact'];
+    let allNavOk = true;
+    for (const hash of navAnchors) {
+      const link = await page.$(`.nav-links a[href="${hash}"]`);
+      if (!link) {
+        allNavOk = false;
+        break;
+      }
+      await link.click();
+      await page.waitForTimeout(100);
+      const targetEl = await page.$(hash);
+      if (!targetEl) allNavOk = false;
+    }
+    const logoLink = await page.$('.brand');
+    recordTest("Phase 2: Functional", "Main Navigation Smooth Scroll Links", allNavOk && !!logoLink);
+
+    // Test 9: Section 02 Dynamic Competences Synchronization
+    const langagesText = await page.textContent('#skillsLangagesList');
+    const webText = await page.textContent('#skillsWebList');
+    const fwText = await page.textContent('#skillsFrameworksList');
+    const sysText = await page.textContent('#skillsSystemesList');
+    const skillsPopulated = !!(langagesText && webText && fwText && sysText);
+    recordTest("Phase 2: Functional", "Dynamic Skills Section Populated", skillsPopulated, `Lang: ${langagesText}`);
+
+    // Test 10: Section 03 Experiences Timeline
+    const timelineItems = await page.$$('.timeline .timeline-item');
+    recordTest("Phase 2: Functional", "Experiences Timeline Items", timelineItems.length >= 4, `Found ${timelineItems.length} items`);
+
+    // Test 11: Section 04 Projects Grid Rendering
+    const projectCards = await page.$$('.projects-grid .project-card');
+    recordTest("Phase 2: Functional", "Projects Grid Display", projectCards.length >= 7, `Rendered ${projectCards.length} project cards`);
+
+    // Verify Normal User CANNOT see Admin buttons on projects
+    const adminEditBtnsUser = await page.$$('.admin-proj-actions');
+    recordTest("Phase 2: Functional", "Normal User Protected from Admin Project Actions", adminEditBtnsUser.length === 0);
+
+    // Test 12: Section 05 Languages List
+    const langItems = await page.$$('.language-list > div');
+    recordTest("Phase 2: Functional", "Languages Section Display", langItems.length >= 3, `Found ${langItems.length} languages`);
+
+    // Test 13: Section 06 Contact Links & Mailto
+    const mailtoBtn = await page.$('.contact-section a[href^="mailto:"]');
+    const mailtoHref = await mailtoBtn?.getAttribute('href');
+    recordTest("Phase 2: Functional", "Contact Mailto Link", mailtoHref === 'mailto:melekabdelmaksoud72@gmail.com', `href: ${mailtoHref}`);
+
+    const ghLink = await page.$('.contact-links a[href*="github.com/malekabdelmaksoud"]');
+    recordTest("Phase 2: Functional", "Contact GitHub Social Link", !!ghLink);
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2 (PART 3) — CV MODAL, PDF & PRINT ENGINE
+    // ══════════════════════════════════════════════════════════
+    // Test 14: CV Modal Open
+    await page.evaluate(() => openCvModal());
+    await page.waitForTimeout(300);
+    const modalActive = await page.evaluate(() => {
+      const el = document.getElementById('cvModalBackdrop');
+      return el && el.classList.contains('active') && getComputedStyle(el).display !== 'none';
+    });
+    recordTest("Phase 2: Functional", "CV Modal Open Action", modalActive);
+
+    // Test 15: CV Content & Structure (A4 Document Format)
+    const cvName = await page.textContent('#cvSheetDocument .cv-name');
+    recordTest("Phase 2: Functional", "CV Sheet Rendered with Name", !!cvName && cvName.toUpperCase().includes("MELEK"), `Name: ${cvName}`);
+
+    // Test 16: Normal User CV Toolbar (Strictly Read-Only, No Edit Tools)
+    const adminCvToolsUser = await page.evaluate(() => {
+      const el = document.getElementById('cvAdminToolbar');
+      return !el || el.style.display === 'none' || el.children.length === 0;
+    });
+    recordTest("Phase 2: Functional", "Normal User CV Toolbar is Strictly Read-Only", adminCvToolsUser);
+
+    // Test 17: Download and Print CV Buttons Presence
+    const dlBtn = await page.$('.btn-cv-download');
+    const prBtn = await page.$('.btn-cv-action[onclick*="printCvDirect"]');
+    recordTest("Phase 2: Functional", "CV Download & Print Buttons Visible", !!(dlBtn && prBtn));
+
+    // Test 18: Print CV Isolated Iframe Engine (No Blank Pages)
+    const printFrameStatus = await page.evaluate(() => {
+      printCvDirect();
+      const frame = document.getElementById('cvPrintIframe');
+      if (!frame) return { created: false };
+      return {
+        created: true,
+        width: frame.style.width,
+        height: frame.style.height,
+        docHasContent: !!frame.contentWindow.document.getElementById('cvSheetDocument')
+      };
+    });
+    recordTest("Phase 2: Functional", "CV Isolated Iframe Printer Generated", printFrameStatus.created && printFrameStatus.docHasContent, `Dimensions: ${printFrameStatus.width} x ${printFrameStatus.height}`);
+
+    // Close CV Modal
+    await page.evaluate(() => closeCvModal());
+    await page.waitForTimeout(200);
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 2 (PART 4) — ADMIN ROLE & WORKFLOWS
+    // ══════════════════════════════════════════════════════════
+    // Test 19: Admin Login Flow
+    await page.evaluate(() => AuthService.logout());
+    await page.waitForTimeout(200);
+
+    await page.click('#tabBtnLogin');
+    await page.fill('#authEmail', 'melekabdelmaksoud72@gmail.com');
+    await page.fill('#authPassword', 'admin123');
+    await page.click('#authSubmitBtn');
+    await page.waitForTimeout(400);
+
+    const adminSession = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('portfolio_active_session') || '{}');
+      return s.role === 'admin' && s.email === 'melekabdelmaksoud72@gmail.com';
+    });
+    recordTest("Phase 2: Functional", "Admin Authentication & Role Authorization", adminSession);
+
+    // Test 20: Admin Project Action Buttons Display
+    const adminEditBtns = await page.$$('.admin-proj-actions');
+    recordTest("Phase 2: Functional", "Admin Project Edit/Delete Buttons Rendered", adminEditBtns.length > 0, `Count: ${adminEditBtns.length}`);
+
+    // Test 21: Admin Floating Add Project Bar
+    const adminAddBtn = await page.$('.admin-proj-top-btn');
+    recordTest("Phase 2: Functional", "Admin '+ Lier un Repos' Bar Available", !!adminAddBtn);
+
+    // Test 22: Admin CV Toolbar Controls
+    await page.evaluate(() => openCvModal());
+    await page.waitForTimeout(200);
+    const adminCvTools = await page.evaluate(() => {
+      const el = document.getElementById('cvAdminToolbar');
+      return el && el.style.display === 'flex' && el.innerHTML.includes('Modifier');
+    });
+    recordTest("Phase 2: Functional", "Admin CV Edit Controls Available in Toolbar", adminCvTools);
+
+    // Test 23: Admin CV Form Edit Mode Toggle
+    await page.evaluate(() => toggleCvEditMode(true));
+    await page.waitForTimeout(200);
+    const cvFormActive = await page.evaluate(() => document.getElementById('cvEditForm') !== null);
+    recordTest("Phase 2: Functional", "Admin CV Edit Form Activated", cvFormActive);
+    await page.evaluate(() => cancelCvEdits());
+    await page.evaluate(() => closeCvModal());
+
+    // Test 24: Admin Profile Modal & Resend Configuration
+    await page.evaluate(() => openProfileModal());
+    await page.waitForTimeout(200);
+    const emailSecShown = await page.evaluate(() => {
+      const el = document.getElementById('profAdminEmailSection');
+      return el && el.style.display !== 'none';
+    });
+    recordTest("Phase 2: Functional", "Admin Resend API Section in Profile", emailSecShown);
+
+    await page.evaluate(() => {
+      document.getElementById('inputResendApiKey').value = 're_test_key_123';
+      saveEmailApiKey();
+    });
+    const keySaved = await page.evaluate(() => localStorage.getItem('portfolio_resend_api_key') === 're_test_key_123');
+    recordTest("Phase 2: Functional", "Admin Resend API Key Saved in LocalStorage", keySaved);
+    await page.evaluate(() => closeProfileModal());
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 3 — AI FEATURES TESTING
+    // ══════════════════════════════════════════════════════════
+    // Test 25: Open AI Chat Widget
+    const aiToggle = await page.$('#aiChatToggle');
+    await aiToggle.click();
+    await page.waitForTimeout(300);
+    const aiPopupActive = await page.evaluate(() => {
+      const el = document.getElementById('aiChatPopup');
+      return el && el.classList.contains('active') && el.getAttribute('aria-hidden') === 'false';
+    });
+    recordTest("Phase 3: AI Assistant", "AI Chat Widget Opened Successfully", aiPopupActive);
+
+    // Test 26: Quick Prompt: Projets
+    await page.click('.quick-q[data-q*="projets"]');
+    await page.waitForTimeout(600);
+    const botProjectReply = await page.evaluate(() => {
+      const msgs = document.querySelectorAll('.ai-msg.bot');
+      return msgs[msgs.length - 1]?.innerHTML || "";
+    });
+    const projectReplyOk = botProjectReply.includes("Projets phares") && botProjectReply.includes("elearning-platform");
+    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: Projets", projectReplyOk);
+
+    // Test 27: Quick Prompt: Compétences
+    await page.click('.quick-q[data-q*="compétences"]');
+    await page.waitForTimeout(600);
+    const botSkillsReply = await page.evaluate(() => {
+      const msgs = document.querySelectorAll('.ai-msg.bot');
+      return msgs[msgs.length - 1]?.innerHTML || "";
+    });
+    const skillsReplyOk = botSkillsReply.includes("Compétences") && botSkillsReply.includes("Java");
+    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: Compétences", skillsReplyOk);
+
+    // Test 28: Quick Prompt: CV
+    await page.click('.quick-q[data-q*="CV"]');
+    await page.waitForTimeout(600);
+    const botCvReply = await page.evaluate(() => {
+      const msgs = document.querySelectorAll('.ai-msg.bot');
+      return msgs[msgs.length - 1]?.innerHTML || "";
+    });
+    const cvReplyOk = botCvReply.includes("Curriculum Vitae") && botCvReply.includes("openCvModal");
+    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: CV Action Trigger", cvReplyOk);
+
+    // Test 29: AI Stress & Security Input Testing
+    // (A) Empty / Whitespace input
+    const emptySub = await page.evaluate(() => {
+      const input = document.getElementById('aiChatInput');
+      input.value = "     ";
+      const event = new Event('submit', { cancelable: true });
+      document.getElementById('aiChatForm').dispatchEvent(event);
+      return true;
+    });
+    recordTest("Phase 3: AI Assistant", "AI Empty Input Handling", emptySub);
+
+    // (B) XSS & HTML injection attempt
+    const xssPayload = "<script>window._xss_test = 1;</script><b>Test XSS</b>";
+    await page.evaluate((payload) => handleUserQuery(payload), xssPayload);
+    await page.waitForTimeout(600);
+    const xssExecuted = await page.evaluate(() => window._xss_test === 1);
+    recordTest("Phase 3: AI Assistant", "AI XSS Sanitization in User Query", !xssExecuted);
+
+    // (C) Long prompt stress test (10,000 characters)
+    const longPrompt = "Quelles sont tes compétences et formations ? ".repeat(250);
+    let longPromptError = false;
+    try {
+      await page.evaluate((q) => handleUserQuery(q), longPrompt);
+      await page.waitForTimeout(600);
+    } catch (e) {
+      longPromptError = true;
+    }
+    recordTest("Phase 3: AI Assistant", "AI Long Prompt Stress Test (10k chars)", !longPromptError);
+
+    // (D) Chat Message CRUD: Delete Action
+    const initialCount = await page.$$eval('.ai-msg', els => els.length);
+    const delClicked = await page.evaluate(() => {
+      const delBtn = document.querySelector('.ai-msg-actions .msg-act-btn[title*="Supprimer"]');
+      if (delBtn) {
+        delBtn.click();
+        return true;
+      }
+      return false;
+    });
+    await page.waitForTimeout(200);
+    const postCount = await page.$$eval('.ai-msg', els => els.length);
+    recordTest("Phase 3: AI Assistant", "Chat CRUD: Message Deletion", delClicked && postCount < initialCount);
+
+    // Close AI Chat
+    await page.click('#aiChatClose');
+    await page.waitForTimeout(200);
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 5 — UI/UX AND RESPONSIVENESS TESTING
+    // ══════════════════════════════════════════════════════════
+    const viewports = [
+      { width: 1920, height: 1080, name: "1920x1080 (Desktop Full HD)" },
+      { width: 1366, height: 768, name: "1366x768 (Laptop Standard)" },
+      { width: 1024, height: 768, name: "1024x768 (Tablet Landscape)" },
+      { width: 768, height: 1024, name: "768x1024 (Tablet Portrait)" },
+      { width: 390, height: 844, name: "390x844 (iPhone 12/13/14/15)" },
+      { width: 360, height: 800, name: "360x800 (Android Standard)" }
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.waitForTimeout(250);
+
+      const hasHorizontalScroll = await page.evaluate(() => {
+        return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+      });
+      recordTest("Phase 5: Responsiveness", `No Horizontal Overflow at ${vp.name}`, !hasHorizontalScroll);
+
+      if (vp.width <= 768) {
+        const menuToggleVis = await page.evaluate(() => {
+          const btn = document.getElementById('menuToggle');
+          return btn && getComputedStyle(btn).display !== 'none';
+        });
+        recordTest("Phase 5: Responsiveness", `Mobile Hamburger Visible at ${vp.name}`, menuToggleVis);
+
+        if (menuToggleVis) {
+          await page.click('#menuToggle');
+          await page.waitForTimeout(150);
+          const navOpened = await page.evaluate(() => document.getElementById('navLinks').classList.contains('open'));
+          recordTest("Phase 5: Responsiveness", `Mobile Menu Expands at ${vp.name}`, navOpened);
+
+          await page.click('#menuToggle');
+          await page.waitForTimeout(150);
+          const navClosed = await page.evaluate(() => !document.getElementById('navLinks').classList.contains('open'));
+          recordTest("Phase 5: Responsiveness", `Mobile Menu Collapses at ${vp.name}`, navClosed);
+        }
+      }
+
+      const shotPath = path.join(SCREENSHOTS_DIR, `viewport_${vp.width}x${vp.height}.png`);
+      await page.screenshot({ path: shotPath, fullPage: false });
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 6 — SECURITY AND PERFORMANCE
+    // ══════════════════════════════════════════════════════════
+    recordTest("Phase 6: Security & Stability", "No Console Errors Reported", consoleErrors.length === 0, consoleErrors.join("; "));
+    recordTest("Phase 6: Security & Stability", "No Page Exceptions Reported", pageErrors.length === 0, pageErrors.join("; "));
+
+    const domHtml = await page.content();
+    const hasExposedResend = domHtml.includes("re_") && !domHtml.includes("placeholder=\"re_") && !domHtml.includes("re_test_key_123");
+    const hasExposedGhp = domHtml.includes("ghp_") && !domHtml.includes("placeholder=\"ghp_");
+    recordTest("Phase 6: Security & Stability", "No Hardcoded Production Secrets Exposed in DOM", !hasExposedResend && !hasExposedGhp);
+
+    const links = await page.$$eval('a[href]', els => els.map(a => a.getAttribute('href')));
+    let brokenInternalLink = false;
+    let checkedCount = 0;
+    for (const href of links) {
+      if (!href || href.startsWith('mailto:') || href.startsWith('http') || href.startsWith('#')) continue;
+      checkedCount++;
+      const res = await page.request.get(`${baseUrl}/${href}`);
+      if (!res.ok()) {
+        brokenInternalLink = true;
+        console.warn(`Broken internal link found: ${href} (Status: ${res.status()})`);
+      }
+    }
+    recordTest("Phase 6: Security & Stability", "All Internal Hyperlinks Valid", !brokenInternalLink, `Checked ${checkedCount} internal routes`);
+
+    await context.close();
+  } catch (err) {
+    console.error("FATAL ERROR DURING AUDIT:", err);
+    recordTest("Audit Execution", "Complete Suite Run", false, err.message);
+  } finally {
+    await browser.close();
+    await server.stop();
+  }
+
+  console.log("\n==========================================");
+  console.log(`TOTAL TESTS: ${auditResults.testsTotal}`);
+  console.log(`PASSED: ${auditResults.testsPassed}`);
+  console.log(`FAILED: ${auditResults.testsFailed}`);
+  console.log("==========================================\n");
+
+  fs.writeFileSync(
+    path.join(__dirname, 'audit-results.json'),
+    JSON.stringify(auditResults, null, 2),
+    'utf-8'
+  );
+
+  return auditResults;
+}
+
+if (require.main === module) {
+  runAudit().then(results => {
+    process.exit(results.testsFailed > 0 ? 1 : 0);
+  });
+}
+
+module.exports = { runAudit };

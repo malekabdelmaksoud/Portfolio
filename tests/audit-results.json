@@ -1,0 +1,302 @@
+{
+  "phases": {
+    "Phase 2: Functional": [
+      {
+        "testName": "Page Title Verification",
+        "passed": true,
+        "details": "Title: \"Melek Abdelmaksoud | Portfolio\""
+      },
+      {
+        "testName": "Auth Gate Modal Enforced on First Visit",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Auth Gate Tab Switch to Register",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Auth Gate Tab Switch to Login",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Forgot Password Modal View Opens",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "User Registration & Session Creation",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Auth Gate Closes Upon Successful Auth",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Hero Title Presence",
+        "passed": true,
+        "details": "Hero: \"Bonjour, je suisMelek Abdelmaksoud.\""
+      },
+      {
+        "testName": "Language Switch to EN",
+        "passed": true,
+        "details": "lang=en, eyebrow=\"01 / ABOUT\""
+      },
+      {
+        "testName": "Language Switch back to FR",
+        "passed": true,
+        "details": "lang=fr, eyebrow=\"01 / À PROPOS\""
+      },
+      {
+        "testName": "Main Navigation Smooth Scroll Links",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Dynamic Skills Section Populated",
+        "passed": true,
+        "details": "Lang: C · C# · Java · Python · JavaScript · PHP"
+      },
+      {
+        "testName": "Experiences Timeline Items",
+        "passed": true,
+        "details": "Found 4 items"
+      },
+      {
+        "testName": "Projects Grid Display",
+        "passed": true,
+        "details": "Rendered 7 project cards"
+      },
+      {
+        "testName": "Normal User Protected from Admin Project Actions",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Languages Section Display",
+        "passed": true,
+        "details": "Found 4 languages"
+      },
+      {
+        "testName": "Contact Mailto Link",
+        "passed": true,
+        "details": "href: mailto:melekabdelmaksoud72@gmail.com"
+      },
+      {
+        "testName": "Contact GitHub Social Link",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "CV Modal Open Action",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "CV Sheet Rendered with Name",
+        "passed": true,
+        "details": "Name: Melek Abdelmaksoud"
+      },
+      {
+        "testName": "Normal User CV Toolbar is Strictly Read-Only",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "CV Download & Print Buttons Visible",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "CV Isolated Iframe Printer Generated",
+        "passed": true,
+        "details": "Dimensions: 210mm x 297mm"
+      },
+      {
+        "testName": "Admin Authentication & Role Authorization",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Admin Project Edit/Delete Buttons Rendered",
+        "passed": true,
+        "details": "Count: 7"
+      },
+      {
+        "testName": "Admin '+ Lier un Repos' Bar Available",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Admin CV Edit Controls Available in Toolbar",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Admin CV Edit Form Activated",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Admin Resend API Section in Profile",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Admin Resend API Key Saved in LocalStorage",
+        "passed": true,
+        "details": ""
+      }
+    ],
+    "Phase 3: AI Assistant": [
+      {
+        "testName": "AI Chat Widget Opened Successfully",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI Quick Prompt: Projets",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI Quick Prompt: Compétences",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI Quick Prompt: CV Action Trigger",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI Empty Input Handling",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI XSS Sanitization in User Query",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "AI Long Prompt Stress Test (10k chars)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Chat CRUD: Message Deletion",
+        "passed": true,
+        "details": ""
+      }
+    ],
+    "Phase 5: Responsiveness": [
+      {
+        "testName": "No Horizontal Overflow at 1920x1080 (Desktop Full HD)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Horizontal Overflow at 1366x768 (Laptop Standard)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Horizontal Overflow at 1024x768 (Tablet Landscape)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Horizontal Overflow at 768x1024 (Tablet Portrait)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Hamburger Visible at 768x1024 (Tablet Portrait)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Expands at 768x1024 (Tablet Portrait)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Collapses at 768x1024 (Tablet Portrait)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Horizontal Overflow at 390x844 (iPhone 12/13/14/15)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Hamburger Visible at 390x844 (iPhone 12/13/14/15)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Expands at 390x844 (iPhone 12/13/14/15)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Collapses at 390x844 (iPhone 12/13/14/15)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Horizontal Overflow at 360x800 (Android Standard)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Hamburger Visible at 360x800 (Android Standard)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Expands at 360x800 (Android Standard)",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "Mobile Menu Collapses at 360x800 (Android Standard)",
+        "passed": true,
+        "details": ""
+      }
+    ],
+    "Phase 6: Security & Stability": [
+      {
+        "testName": "No Console Errors Reported",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Page Exceptions Reported",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "No Hardcoded Production Secrets Exposed in DOM",
+        "passed": true,
+        "details": ""
+      },
+      {
+        "testName": "All Internal Hyperlinks Valid",
+        "passed": true,
+        "details": "Checked 0 internal routes"
+      }
+    ]
+  },
+  "testsTotal": 57,
+  "testsPassed": 57,
+  "testsFailed": 0,
+  "failures": [],
+  "logs": []
+}

@@ -1,4 +1,7 @@
-# OS files
+# Dependencies & Test artifacts
+node_modules/
+tests/screenshots/
+
 .DS_Store
 Thumbs.db
 desktop.ini
