@@ -213,8 +213,28 @@ const ProjectsManager = {
 
   getAll() {
     try {
+      const defaults = this.getDefaultProjects();
       const saved = localStorage.getItem("portfolio_curated_projects");
-      return saved ? JSON.parse(saved) : this.getDefaultProjects();
+      if (!saved) return defaults;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return defaults;
+
+      // Preserve visitor-side custom descriptions while migrating known legacy links.
+      const defaultsById = new Map(defaults.map(project => [project.id, project]));
+      const migrated = parsed.map(project => {
+        const fallback = defaultsById.get(project.id);
+        return fallback ? { ...project, github: fallback.github } : project;
+      });
+
+      // Keep the new Cloudflare MCP project visible for existing visitors with cached data.
+      const opportunityHunter = defaults.find(project => project.id === "p_8");
+      if (opportunityHunter && !migrated.some(project =>
+        String(project.name || "").toLowerCase() === "opportunity hunter" ||
+        project.id === "p_8"
+      )) {
+        migrated.push(opportunityHunter);
+      }
+      return migrated;
     } catch (e) {
       return this.getDefaultProjects();
     }
