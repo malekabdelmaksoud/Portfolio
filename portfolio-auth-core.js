@@ -12,14 +12,7 @@ const ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com";
 const AuthService = {
   getUsers() {
     try {
-      return JSON.parse(localStorage.getItem("portfolio_registered_users")) || [
-        {
-          email: ADMIN_EMAIL,
-          password: "admin", // mot de passe par défaut
-          name: "Melek Abdelmaksoud (Admin)",
-          role: "admin"
-        }
-      ];
+      return JSON.parse(localStorage.getItem("portfolio_registered_users")) || [];
     } catch (e) {
       return [];
     }
@@ -65,9 +58,9 @@ const AuthService = {
     let users = this.getUsers();
     let user = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    // Admin account: Always accept and authorize the owner Melek Abdelmaksoud
-    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      if (!user) {
+    // No client-side administrator login: browser storage cannot securely authenticate an owner.
+
+    if (!user) {
         user = {
           name: "Melek Abdelmaksoud (Admin)",
           email: cleanEmail,
@@ -172,8 +165,8 @@ const AuthService = {
   },
 
   isAdmin() {
-    const user = this.getCurrentUser();
-    return user && user.role === "admin";
+    // Never trust a role stored in localStorage for privileged actions.
+    return false;
   }
 };
 
@@ -193,21 +186,21 @@ const ProjectsManager = {
         name: "projet-php",
         type: "PHP · CSS · WEB",
         description: "Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur.",
-        github: "https://github.com/malekabdelmaksoud/projet-php"
+        github: "https://github.com/malekabdelmaksoud/projetphp"
       },
       {
         id: "p_3",
         name: "projet-laravel",
         type: "PHP · LARAVEL · FRAMEWORK",
         description: "Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification.",
-        github: "https://github.com/malekabdelmaksoud/projet-laravel"
+        github: "https://github.com/malekabdelmaksoud/laravel"
       },
       {
         id: "p_4",
         name: "tp-magasin",
         type: "JAVA · GESTION",
         description: "Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente.",
-        github: "https://github.com/malekabdelmaksoud/tp-magasin"
+        github: "https://github.com/malekabdelmaksoud/tpmagasin"
       },
       {
         id: "p_5",
@@ -228,7 +221,7 @@ const ProjectsManager = {
         name: "first-app-csharp",
         type: "C# · APPLICATION",
         description: "Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.",
-        github: "https://github.com/malekabdelmaksoud/first-app-csharp"
+        github: "https://github.com/malekabdelmaksoud/firstApp"
       }
     ];
   },
