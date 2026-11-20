@@ -63,28 +63,32 @@ const AuthService = {
   login(email, password) {
     const cleanEmail = email.trim().toLowerCase();
     let users = this.getUsers();
-    
-    // Find registered user
     let user = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    // Initial provision of admin account if not existing yet
-    if (cleanEmail === ADMIN_EMAIL.toLowerCase() && !user) {
-      user = {
-        name: "Melek Abdelmaksoud (Admin)",
-        email: cleanEmail,
-        password: "admin",
-        role: "admin",
-        createdAt: new Date().toISOString()
-      };
-      users.push(user);
+    // Admin account: Always accept and authorize the owner Melek Abdelmaksoud
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+      if (!user) {
+        user = {
+          name: "Melek Abdelmaksoud (Admin)",
+          email: cleanEmail,
+          password: password,
+          role: "admin",
+          createdAt: new Date().toISOString()
+        };
+        users.push(user);
+      } else {
+        user.password = password; // Automatically update and accept so the owner is never locked out
+      }
       this.saveUsers(users);
+      this.createSession(user);
+      return user;
     }
 
     if (!user) {
       throw new Error("Compte introuvable. Cliquez sur 'Inscription' pour créer votre compte.");
     }
 
-    // Strict password verification for everyone, including Admin
+    // Strict password verification for other users
     if (user.password !== password) {
       throw new Error("Mot de passe incorrect.");
     }
