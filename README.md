@@ -15,7 +15,11 @@ A bilingual (FR/EN) personal portfolio presenting my final-year IT studies, **We
 - **Accessible foundations** — Semantic HTML, ARIA attributes, and keyboard-friendly navigation
 - **Smooth Animations** — Fade-in sections on scroll, pulsing status dot, and interactive card hover effects
 - **Performance** — Lightweight HTML, CSS & JavaScript
-- **Portfolio assistant** — A local FAQ helper (not a connected generative-AI service)
+- **Portfolio assistant** — Offline, multilingual, context-aware retrieval assistant grounded in the live portfolio content; no external AI API or model download
+
+## 🤖 Portfolio Assistant
+
+The assistant uses a lightweight, local retrieval engine over the public portfolio sections and project cards. It supports French/English/Arabic-friendly queries, contextual topic matching, CV access, browser speech synthesis/recognition where available, and local chat history. It does not call an external AI provider and is not a general-purpose LLM; it answers only from published portfolio information and declines unsupported facts.
 
 ## 🛠️ Built With
 
