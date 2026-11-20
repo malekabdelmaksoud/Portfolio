@@ -90,33 +90,11 @@ const AuthService = {
     return user;
   },
 
-  loginWithGitHub(username = "visiteur", password = "") {
+  loginWithGitHub(username = "visiteur") {
+    // Public identity labels are not authentication and never grant admin privileges.
     const cleanUser = username.trim().toLowerCase();
-    const isOwner = cleanUser === "malekabdelmaksoud" || cleanUser === "melekabdelmaksoud72";
-    
-    if (isOwner) {
-      const users = this.getUsers();
-      const adminAcc = users.find(u => u.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
-      const expectedPass = adminAcc ? adminAcc.password : "admin";
-
-      if (password !== expectedPass) {
-        throw new Error("Mot de passe Administrateur incorrect. Accès refusé.");
-      }
-
-      const adminUser = {
-        name: "Melek Abdelmaksoud (Admin)",
-        email: ADMIN_EMAIL,
-        role: "admin",
-        github: "malekabdelmaksoud",
-        createdAt: new Date().toISOString()
-      };
-      this.createSession(adminUser);
-      return adminUser;
-    }
-
-    // Standard non-admin visitor
     const normalUser = {
-      name: username.trim() || "Visiteur GitHub",
+      name: username.trim() || "Visiteur",
       email: cleanUser ? `${cleanUser}@users.noreply.github.com` : "visiteur@github.com",
       role: "user",
       github: cleanUser || "guest",
