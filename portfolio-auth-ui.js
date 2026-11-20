@@ -141,7 +141,7 @@ function initAdminProjectTools() {
   ProjectsManager.render();
 }
 
-// ── Multi-Platform Git Importer (GitHub & GitLab) ──
+// ── Multi-Platform Git Importer (GitHub & GitLab + Private Repos Support) ──
 let currentGitPlatform = localStorage.getItem("portfolio_last_git_platform") || "github";
 let loadedGitReposList = [];
 
@@ -156,6 +156,53 @@ const FALLBACK_GITHUB_REPOS = [
   { name: "Portfolio", language: "JavaScript", updated_at: "2026-02-18" }
 ];
 
+function togglePrivateTokenBox() {
+  const box = document.getElementById("privateTokenBox");
+  const icon = document.getElementById("tokenToggleIcon");
+  const tokenInput = document.getElementById("gitTokenInput");
+  const status = document.getElementById("tokenActiveStatus");
+
+  const isVisible = box.style.display === "block";
+  box.style.display = isVisible ? "none" : "block";
+  if (icon) icon.textContent = isVisible ? "▼" : "▲";
+
+  if (!isVisible) {
+    const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
+    const saved = localStorage.getItem(key) || "";
+    if (tokenInput) tokenInput.value = saved;
+    if (status) status.style.display = saved ? "block" : "none";
+  }
+}
+
+function saveAndApplyGitToken() {
+  const tokenInput = document.getElementById("gitTokenInput");
+  const val = (tokenInput ? tokenInput.value.trim() : "");
+  const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
+
+  if (val) {
+    localStorage.setItem(key, val);
+    showToast("🔑 Token enregistré ! Chargement de vos dépôts privés et publics...", "success");
+  } else {
+    localStorage.removeItem(key);
+  }
+
+  const status = document.getElementById("tokenActiveStatus");
+  if (status) status.style.display = val ? "block" : "none";
+
+  loadGitReposForActivePlatform();
+}
+
+function clearGitToken() {
+  const key = currentGitPlatform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
+  localStorage.removeItem(key);
+  const tokenInput = document.getElementById("gitTokenInput");
+  if (tokenInput) tokenInput.value = "";
+  const status = document.getElementById("tokenActiveStatus");
+  if (status) status.style.display = "none";
+  showToast("Token supprimé.", "info");
+  loadGitReposForActivePlatform();
+}
+
 function switchGitPlatform(platform) {
   currentGitPlatform = platform;
   localStorage.setItem("portfolio_last_git_platform", platform);
@@ -164,6 +211,13 @@ function switchGitPlatform(platform) {
   const btnGl = document.getElementById("btnPlatformGitlab");
   const icon = document.getElementById("modalProviderIcon");
   const accInput = document.getElementById("gitAccountInput");
+  const status = document.getElementById("tokenActiveStatus");
+  const tokenInput = document.getElementById("gitTokenInput");
+
+  const tokenKey = platform === "github" ? "portfolio_github_token" : "portfolio_gitlab_token";
+  const savedToken = localStorage.getItem(tokenKey) || "";
+  if (tokenInput) tokenInput.value = savedToken;
+  if (status) status.style.display = savedToken ? "block" : "none";
 
   if (platform === "github") {
     if (btnGh) btnGh.classList.add("active");
@@ -202,66 +256,139 @@ async function loadGitReposForActivePlatform() {
   const activeLabel = document.getElementById("gitActiveAccountLabel");
 
   if (currentGitPlatform === "github") {
-    localStorage.setItem("portfolio_last_github_user", username);
-    if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (${username})</b>`;
-    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des dépôts GitHub (<b>${username}</b>)...</div>`;
+    const ghToken = localStorage.getItem("portfolio_github_token");
 
-    try {
-      const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=50`);
-      if (!res.ok) throw new Error("Compte GitHub introuvable ou limite d'API atteinte.");
-      const list = await res.json();
-      loadedGitReposList = list.map(r => ({
-        id: r.id,
-        name: r.name,
-        platform: "GitHub",
-        language: r.language || "Code",
-        updated_at: r.updated_at,
-        html_url: r.html_url,
-        description: r.description
-      }));
-    } catch (err) {
-      console.warn("GitHub fetch error:", err);
-      if (username.toLowerCase() === "malekabdelmaksoud") {
-        loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
-      } else {
-        container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Compte GitHub introuvable ou aucun dépôt public disponible.</div>`;
+    if (ghToken) {
+      // Authenticated with Token -> returns ALL public AND private repos
+      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (Accès Privé 🔒 Actif)</b>`;
+      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de tous vos dépôts GitHub (Publics + Privés)...</div>`;
+
+      try {
+        const res = await fetch("https://api.github.com/user/repos?sort=updated&per_page=100&affiliation=owner", {
+          headers: {
+            "Authorization": `Bearer ${ghToken}`,
+            "Accept": "application/vnd.github+json"
+          }
+        });
+        if (!res.ok) throw new Error("Token GitHub invalide ou expiré.");
+        const list = await res.json();
+        loadedGitReposList = list.map(r => ({
+          id: r.id,
+          name: r.name,
+          platform: "GitHub",
+          private: r.private === true,
+          language: r.language || "Code",
+          updated_at: r.updated_at,
+          html_url: r.html_url,
+          description: r.description
+        }));
+      } catch (err) {
+        showToast("⚠️ " + err.message, "error");
+        fetchGithubPublic(username, container);
         return;
       }
+    } else {
+      localStorage.setItem("portfolio_last_github_user", username);
+      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitHub (${username})</b>`;
+      fetchGithubPublic(username, container);
+      return;
     }
   } else {
     // GitLab Platform
-    localStorage.setItem("portfolio_last_gitlab_user", username);
-    if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (${username})</b>`;
-    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab (<b>${username}</b>)...</div>`;
+    const glToken = localStorage.getItem("portfolio_gitlab_token");
 
-    try {
-      const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
-      const users = await userRes.json();
-      if (!users || users.length === 0) throw new Error("Utilisateur GitLab introuvable.");
+    if (glToken) {
+      if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (Accès Privé 🔒 Actif)</b>`;
+      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de tous vos projets GitLab (Publics + Privés)...</div>`;
 
-      const userId = users[0].id;
-      const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
-      const projects = await projRes.json();
-      if (!projects || projects.length === 0) {
-        container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+      try {
+        const res = await fetch("https://gitlab.com/api/v4/projects?membership=true&order_by=updated_at&per_page=100", {
+          headers: { "PRIVATE-TOKEN": glToken }
+        });
+        if (!res.ok) throw new Error("Token GitLab invalide.");
+        const projects = await res.json();
+        loadedGitReposList = projects.map(p => ({
+          id: p.id,
+          name: p.name,
+          platform: "GitLab",
+          private: p.visibility === "private",
+          language: "GitLab Project",
+          updated_at: p.last_activity_at,
+          html_url: p.web_url,
+          description: p.description
+        }));
+      } catch (err) {
+        showToast("⚠️ " + err.message, "error");
+        fetchGitlabPublic(username, container, activeLabel);
         return;
       }
-      loadedGitReposList = projects.map(p => ({
-        id: p.id,
-        name: p.name,
-        platform: "GitLab",
-        language: "GitLab Project",
-        updated_at: p.last_activity_at,
-        html_url: p.web_url,
-        description: p.description
-      }));
-    } catch (err) {
-      console.warn("GitLab fetch error:", err);
-      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+    } else {
+      fetchGitlabPublic(username, container, activeLabel);
       return;
     }
   }
 
+  renderVercelRepos(loadedGitReposList);
+}
+
+async function fetchGithubPublic(username, container) {
+  container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des dépôts GitHub publics (<b>${username}</b>)...</div>`;
+  try {
+    const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=50`);
+    if (!res.ok) throw new Error("Compte GitHub introuvable ou limite atteinte.");
+    const list = await res.json();
+    loadedGitReposList = list.map(r => ({
+      id: r.id,
+      name: r.name,
+      platform: "GitHub",
+      private: false,
+      language: r.language || "Code",
+      updated_at: r.updated_at,
+      html_url: r.html_url,
+      description: r.description
+    }));
+  } catch (err) {
+    if (username.toLowerCase() === "malekabdelmaksoud") {
+      loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", private: false, html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
+    } else {
+      container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Compte GitHub introuvable ou aucun dépôt public disponible.</div>`;
+      return;
+    }
+  }
+  renderVercelRepos(loadedGitReposList);
+}
+
+async function fetchGitlabPublic(username, container, activeLabel) {
+  localStorage.setItem("portfolio_last_gitlab_user", username);
+  if (activeLabel) activeLabel.innerHTML = `Compte actif : <b>GitLab (${username})</b>`;
+  container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab publics (<b>${username}</b>)...</div>`;
+
+  try {
+    const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
+    const users = await userRes.json();
+    if (!users || users.length === 0) throw new Error("Utilisateur GitLab introuvable.");
+
+    const userId = users[0].id;
+    const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
+    const projects = await projRes.json();
+    if (!projects || projects.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+      return;
+    }
+    loadedGitReposList = projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      platform: "GitLab",
+      private: false,
+      language: "GitLab Project",
+      updated_at: p.last_activity_at,
+      html_url: p.web_url,
+      description: p.description
+    }));
+  } catch (err) {
+    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+    return;
+  }
   renderVercelRepos(loadedGitReposList);
 }
 
@@ -278,6 +405,9 @@ function renderVercelRepos(repos) {
     const isAdded = existingIds.includes(r.name.toLowerCase());
     const lang = r.language || 'Code';
     const platIcon = r.platform === 'GitLab' ? '🦊 GitLab' : '🐙 GitHub';
+    const privBadge = r.private 
+      ? '<span style="background:rgba(234,179,8,0.15);color:#eab308;border:1px solid rgba(234,179,8,0.3);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-left:6px">🔒 Privé</span>' 
+      : '';
 
     return `
       <div class="repo-card-vercel">
@@ -285,13 +415,14 @@ function renderVercelRepos(repos) {
           <strong>
             <span>📦</span> ${r.name}
             <span style="font-size:10.5px;color:#888;font-weight:500;margin-left:6px">${platIcon}</span>
+            ${privBadge}
           </strong>
           <span>${lang} • Mis à jour le ${new Date(r.updated_at).toLocaleDateString()}</span>
         </div>
         <div>
           ${isAdded 
             ? '<span style="color:#10b981;font-size:11.5px;font-weight:700">✓ Déjà sur le site</span>' 
-            : `<button class="btn-import-v" onclick="importGitRepoDirect('${r.name.replace(/'/g, "\\'")}', '${r.platform}', '${r.html_url}', '${lang}', '${(r.description || '').replace(/'/g, "\\'")}')">Importer ⚡</button>`
+            : `<button class="btn-import-v" onclick="importGitRepoDirect('${r.name.replace(/'/g, "\\'")}', '${r.platform}', '${r.html_url}', '${lang}', '${(r.description || '').replace(/'/g, "\\'")}', ${r.private === true})">Importer ⚡</button>`
           }
         </div>
       </div>
@@ -305,20 +436,22 @@ function filterVercelRepos(val) {
   renderVercelRepos(filtered);
 }
 
-async function importGitRepoDirect(name, platform, htmlUrl, lang, rawDesc) {
+async function importGitRepoDirect(name, platform, htmlUrl, lang, rawDesc, isPrivate = false) {
   const container = document.getElementById("vercelReposContainer");
   const originalHtml = container.innerHTML;
   container.innerHTML = `<div style="text-align:center;padding:30px;color:#fff">⚡ Analyse de <b>${name}</b> (${platform}) & génération automatique...</div>`;
 
   try {
     let cleanLang = lang || "Logiciel";
-    let autoType = `${cleanLang.toUpperCase()} · ${platform.toUpperCase()}`;
-    if (cleanLang === "PHP") autoType = "PHP · FRAMEWORK & WEB";
-    if (cleanLang === "Java") autoType = "JAVA · APPLICATION";
-    if (cleanLang === "C#") autoType = "C# · .NET APPLICATION";
-    if (cleanLang === "TypeScript" || cleanLang === "JavaScript") autoType = "FULL STACK · APPLICATION";
+    let autoType = `${cleanLang.toUpperCase()} · ${isPrivate ? 'PROJET PRIVÉ' : platform.toUpperCase()}`;
+    if (cleanLang === "PHP") autoType = isPrivate ? "PHP · PROJET PRIVÉ" : "PHP · FRAMEWORK & WEB";
+    if (cleanLang === "Java") autoType = isPrivate ? "JAVA · PROJET PRIVÉ" : "JAVA · APPLICATION";
+    if (cleanLang === "C#") autoType = isPrivate ? "C# · PROJET PRIVÉ" : "C# · .NET APPLICATION";
+    if (cleanLang === "TypeScript" || cleanLang === "JavaScript") autoType = isPrivate ? "FULL STACK · PROJET PRIVÉ" : "FULL STACK · APPLICATION";
 
-    let autoDesc = rawDesc && rawDesc.trim() ? rawDesc.trim() : `Projet officiel hébergé sur ${platform} (${name}). Développé principalement avec ${cleanLang}, structuré selon les standards modernes d'architecture logicielle.`;
+    let autoDesc = rawDesc && rawDesc.trim() 
+      ? rawDesc.trim() 
+      : `Projet ${isPrivate ? 'privé' : 'officiel'} hébergé sur ${platform} (${name}). Développé principalement avec ${cleanLang}, structuré selon les standards modernes d'architecture logicielle.`;
 
     const newProj = {
       id: "p_" + Date.now(),
@@ -330,7 +463,7 @@ async function importGitRepoDirect(name, platform, htmlUrl, lang, rawDesc) {
 
     ProjectsManager.add(newProj);
     closeProjectModal();
-    showToast(`🎉 Le projet "${name}" (${platform}) a été importé avec succès !`, "success");
+    showToast(`🎉 Le projet "${name}" ${isPrivate ? '(Privé 🔒)' : ''} a été importé avec succès !`, "success");
   } catch (err) {
     showToast("Erreur lors de l'importation : " + err.message, "error");
     container.innerHTML = originalHtml;
@@ -464,6 +597,9 @@ function handlePasswordUpdate(e) {
 
 // ── Global window handlers ──
 window.showToast = showToast;
+window.togglePrivateTokenBox = togglePrivateTokenBox;
+window.saveAndApplyGitToken = saveAndApplyGitToken;
+window.clearGitToken = clearGitToken;
 window.switchGitPlatform = switchGitPlatform;
 window.loadGitReposForActivePlatform = loadGitReposForActivePlatform;
 window.openAddProjectModal = openAddProjectModal;

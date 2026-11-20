@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=4.0">
+<link rel="stylesheet" href="style.css?v=5.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -257,6 +257,25 @@
       </button>
     </div>
 
+    <!-- Private Repos Token Option -->
+    <div style="margin-bottom:12px;background:#0d0d0d;border:1px solid #1f1f1f;border-radius:8px;padding:8px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="togglePrivateTokenBox()">
+        <span style="font-size:12px;color:#bbb;display:flex;align-items:center;gap:6px">
+          <span>🔒</span> <b>Afficher les dépôts privés (Private Repos)</b>
+        </span>
+        <span id="tokenToggleIcon" style="font-size:11px;color:#888">▼</span>
+      </div>
+      <div id="privateTokenBox" style="display:none;margin-top:10px;border-top:1px solid #222;padding-top:8px">
+        <p style="font-size:11px;color:#888;margin:0 0 6px">Entrez un <b>Personal Access Token</b> (avec permission <code>repo</code>) pour charger vos projets privés :</p>
+        <div style="display:flex;gap:8px">
+          <input type="password" id="gitTokenInput" placeholder="Ex: ghp_xxxxxxxxxxxxxxxxxxxx" class="vercel-input" style="padding:7px 10px;font-size:12px">
+          <button type="button" class="btn-import-v" onclick="saveAndApplyGitToken()" style="padding:7px 12px;font-size:11.5px">Enregistrer</button>
+          <button type="button" class="btn" onclick="clearGitToken()" style="background:#1a1a1a;color:#ef4444;border:1px solid #333;border-radius:6px;padding:7px 10px;font-size:11px">Effacer</button>
+        </div>
+        <div id="tokenActiveStatus" style="font-size:11px;color:#10b981;margin-top:6px;display:none">✓ Token actif : Dépôts publics et privés inclus</div>
+      </div>
+    </div>
+
     <!-- Search / Filter Repos -->
     <div style="margin-bottom:12px">
       <input type="text" id="vercelRepoSearch" placeholder="Rechercher parmi les dépôts..." oninput="filterVercelRepos(this.value)" class="vercel-input" style="padding:9px 12px;font-size:13px">
@@ -335,8 +354,8 @@
 </div>
 
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
-<script src="script.js?v=4.0"></script>
-<script src="portfolio-auth-core.js?v=4.0"></script>
-<script src="portfolio-auth-ui.js?v=4.0"></script>
-<script src="chat-crud-store.js?v=4.0"></script>
+<script src="script.js?v=5.0"></script>
+<script src="portfolio-auth-core.js?v=5.0"></script>
+<script src="portfolio-auth-ui.js?v=5.0"></script>
+<script src="chat-crud-store.js?v=5.0"></script>
 </body></html>
