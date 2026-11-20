@@ -125,7 +125,8 @@ function renderChatFromHistory() {
   }
 
   history.forEach(item => {
-    appendAiMessage(item.text, item.role, true, item.id);
+    // User content is always rendered as text; only trusted assistant markup is interpreted.
+    appendAiMessage(item.text, item.role, item.role === "bot", item.id);
   });
 }
 
@@ -234,71 +235,8 @@ function handleUserQuery(query) {
 }
 
 function generateAiAnswer(rawQuery) {
-  const q = rawQuery.toLowerCase();
-
-  if (q.includes("cv") || q.includes("curriculum") || q.includes("télécharger") || q.includes("download") || q.includes("resume")) {
-    return `📄 <b>Curriculum Vitae de Melek Abdelmaksoud :</b><br>
-    Le CV est généré en temps réel avec ses derniers projets et compétences techniques.<br>
-    <button type="button" onclick="openCvModal(event)" style="margin-top:8px;padding:8px 14px;background:#6957e8;color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer">👀 Consulter et Télécharger le CV (PDF) ↗</button>`;
+  if (window.PortfolioAssistant && typeof window.PortfolioAssistant.answer === "function") {
+    return window.PortfolioAssistant.answer(rawQuery);
   }
-
-  if (q.includes("projet") || q.includes("project") || q.includes("réalisation") || q.includes("travaux")) {
-    if (typeof ProjectsManager !== "undefined") {
-      const list = ProjectsManager.getAll();
-      const topProjects = list.slice(0, 6).map(p => `• <b>${p.name}</b> (${p.type}) : ${p.description}`).join("<br>");
-      return `🚀 <b>Projets phares de Melek Abdelmaksoud :</b><br>
-      ${topProjects}<br>
-      🔗 Consultez tous les dépôts sur <a href="https://github.com/malekabdelmaksoud" target="_blank">son profil GitHub ↗</a>.`;
-    }
-    return `🚀 <b>Projets phares de Melek Abdelmaksoud :</b><br>
-    • <b>Elearning Platform</b> (Java) : Gestion des cours et suivi des apprenants.<br>
-    • <b>Projet PHP</b> (PHP, CSS) : Application web dynamique côté serveur.<br>
-    • <b>Application Laravel</b> (Laravel, PHP) : Architecture MVC, migrations et auth.<br>
-    • <b>Gestion de Magasin</b> (Java) : Stocks, inventaire et ventes.<br>
-    • <b>Projet Symfony</b> (Symfony, PHP) : Routage Twig et Doctrine ORM.<br>
-    • <b>Première Application C#</b> (C#, .NET) : Interfaces desktop.<br>
-    🔗 Consultez les dépôts sur <a href="https://github.com/malekabdelmaksoud" target="_blank">son profil GitHub ↗</a>.`;
-  }
-
-  if (q.includes("compétence") || q.includes("skill") || q.includes("technologie") || q.includes("langage") || q.includes("stack")) {
-    const langages = document.getElementById("skillsLangagesList") ? document.getElementById("skillsLangagesList").textContent : "C · C# · Java · Python · JavaScript · PHP";
-    const web = document.getElementById("skillsWebList") ? document.getElementById("skillsWebList").textContent : "HTML · CSS · Angular";
-    const fw = document.getElementById("skillsFrameworksList") ? document.getElementById("skillsFrameworksList").textContent : "Laravel · Symfony · Spring Boot · .NET · Android Studio";
-    const sys = document.getElementById("skillsSystemesList") ? document.getElementById("skillsSystemesList").textContent : "Maintenance informatique · Câblage réseau · OCS Inventory";
-    return `🛠️ <b>Compétences techniques :</b><br>
-    • <b>Langages :</b> ${langages}<br>
-    • <b>Web :</b> ${web}<br>
-    • <b>Frameworks & outils :</b> ${fw}<br>
-    • <b>Systèmes & réseaux :</b> ${sys}<br>
-    • <b>Soft skills :</b> Travail en équipe, autonomie, leadership, adaptabilité.`;
-  }
-
-  if (q.includes("stage") || q.includes("expérience") || q.includes("experience") || q.includes("travail") || q.includes("hopital")) {
-    return `💼 <b>Expériences et stages :</b><br>
-    • <b>Hôpital Hédi Chaker (2026) :</b> Configuration application de soins, DMI et OCS Inventory.<br>
-    • <b>ACS (2026) :</b> Stage développement web.<br>
-    • <b>Netsys Com Support (2025) :</b> Câblage réseau et équipements.<br>
-    • <b>CISEN (2025) :</b> Maintenance matérielle et logicielle des ordinateurs.`;
-  }
-
-  if (q.includes("formation") || q.includes("étude") || q.includes("diplome") || q.includes("diplôme") || q.includes("iset")) {
-    return `🎓 <b>Formation académique :</b><br>
-    • <b>Licence en Technologie de l'Informatique</b> (Développement Web & Multimédia) — <i>ISET de Sidi Bouzid (2024 – Présent)</i><br>
-    • <b>Baccalauréat Sciences Expérimentales</b> — <i>Lycée Tayeb Mhiri, Sfax (2023 – 2024)</i>`;
-  }
-
-  if (q.includes("contact") || q.includes("email") || q.includes("mail") || q.includes("téléphone") || q.includes("linkedin") || q.includes("joindre")) {
-    return `📬 <b>Coordonnées de Melek :</b><br>
-    • <b>Email :</b> <a href="mailto:melekabdelmaksoud72@gmail.com">melekabdelmaksoud72@gmail.com</a><br>
-    • <b>LinkedIn :</b> <a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank">Profil LinkedIn ↗</a><br>
-    • <b>GitHub :</b> <a href="https://github.com/malekabdelmaksoud" target="_blank">github.com/malekabdelmaksoud ↗</a><br>
-    • <b>Localisation :</b> Sfax, Tunisie`;
-  }
-
-  if (q.includes("qui") || q.includes("présentation") || q.includes("about") || q.includes("melek")) {
-    return `👩‍💻 <b>Melek Abdelmaksoud</b> est étudiante en Licence en Technologie de l'Informatique (Développement Web et Multimédia) à l'ISET de Sidi Bouzid. Passionnée par le développement full-stack, elle recherche activement un stage PFE pour mettre en œuvre ses compétences.`;
-  }
-
-  return `Je peux vous renseigner sur les <b>projets</b>, les <b>compétences</b>, la <b>formation</b>, les <b>stages</b> ou vous fournir le <b>CV</b> de Melek. Cet assistant utilise une FAQ prédéfinie.`;
+  return "L'assistant est en cours de chargement. Réessayez dans un instant.";
 }
-
