@@ -124,3 +124,33 @@ test('portfolio FAQ assistant answers a project question', async () => {
     assert.match(await page.locator('#aiChatMessages').innerText(), /Projets/);
   } finally { await page.close(); }
 });
+
+
+test('portfolio assistant handles Arabic questions using published content', async () => {
+  const page = await openPage();
+  try {
+    const result = await page.evaluate(() => window.PortfolioAssistant.answer('شنوة المشاريع اللي عملتهم؟'));
+    assert.match(result, /Projets|projets|GitHub/i);
+    assert.match(result, /elearning|Laravel|PHP/i);
+  } finally { await page.close(); }
+});
+
+test('portfolio assistant refuses unsupported personal facts instead of inventing', async () => {
+  const page = await openPage();
+  try {
+    const result = await page.evaluate(() => window.PortfolioAssistant.answer('Quel est le salaire préféré de Melek et son numéro de passeport ?'));
+    assert.match(result, /pas trouvé|pas.*fiable|contact/i);
+  } finally { await page.close(); }
+});
+
+test('portfolio assistant escapes untrusted text and exposes no remote model endpoint', async () => {
+  const page = await openPage();
+  try {
+    const result = await page.evaluate(() => window.PortfolioAssistant.answer('<img src=x onerror=alert(1)>'));
+    assert.doesNotMatch(result, /<img/i);
+    assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant.answer), 'function');
+    const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
+    assert.ok(scripts.some(src => src.includes('ai-engine.js')));
+    assert.ok(!scripts.some(src => /openai|anthropic|ollama|api\.|huggingface/i.test(src)));
+  } finally { await page.close(); }
+});
