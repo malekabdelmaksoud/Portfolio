@@ -41,7 +41,7 @@ test('public portfolio loads without a login gate', async () => {
   const page = await openPage();
   try {
     assert.equal(await page.locator('#authGateOverlay').isVisible(), false);
-    assert.match(await page.locator('h1').innerText(), /Melek Abdelmaksoud/);
+    assert.match(await page.locator('main .hero h1').innerText(), /Melek Abdelmaksoud/);
     assert.equal(await page.locator('#contact a[href^="mailto:"]').isVisible(), true);
   } finally { await page.close(); }
 });
@@ -55,7 +55,7 @@ test('navigation anchors and bilingual switch work', async () => {
     }
     await page.locator('.lang-btn[data-lang="en"]').click();
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
-    assert.match(await page.locator('h1').innerText(), /Hello, I'm/);
+    assert.match(await page.locator('main .hero h1').innerText(), /Hello, I'm/);
     await page.locator('.lang-btn[data-lang="fr"]').click();
     assert.equal(await page.locator('html').getAttribute('lang'), 'fr');
   } finally { await page.close(); }
