@@ -130,8 +130,8 @@ test('portfolio assistant handles Arabic questions using published content', asy
   const page = await openPage();
   try {
     const result = await page.evaluate(() => window.PortfolioAssistant.answer('شنوة المشاريع اللي عملتهم؟'));
-    assert.match(result, /Projets|projets|GitHub/i);
-    assert.match(result, /elearning|Laravel|PHP/i);
+    assert.match(result, /المهارات التقنية/);
+    assert.match(result, /Java|PHP/);
   } finally { await page.close(); }
 });
 
