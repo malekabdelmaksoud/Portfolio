@@ -200,6 +200,13 @@ const ProjectsManager = {
         type: "C# · APPLICATION",
         description: "Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.",
         github: "https://github.com/malekabdelmaksoud/firstApp"
+      },
+      {
+        id: "p_8",
+        name: "Opportunity Hunter",
+        type: "TYPESCRIPT · CLOUDFLARE WORKERS · MCP",
+        description: "Serveur MCP sur Cloudflare Workers pour rechercher des offres publiques de stage, PFE, alternance et postes junior.",
+        github: "https://github.com/malekabdelmaksoud/opportunity-hunter"
       }
     ];
   },
