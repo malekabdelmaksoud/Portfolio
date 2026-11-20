@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=7.0">
+<link rel="stylesheet" href="style.css?v=8.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -155,34 +155,90 @@
       <svg height="28" viewBox="0 0 76 65" fill="#ffffff"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"></path></svg>
     </div>
 
-    <h2 class="vercel-auth-title" id="authMainTitle">Log in to Portfolio</h2>
-    <p class="vercel-auth-subtitle" id="authMainSubtitle">Connectez-vous pour explorer le portfolio et les fonctionnalités.</p>
+    <!-- 1. LOGIN / REGISTER VIEW -->
+    <div id="authMainContainer">
+      <h2 class="vercel-auth-title" id="authMainTitle">Log in to Portfolio</h2>
+      <p class="vercel-auth-subtitle" id="authMainSubtitle">Connectez-vous pour explorer le portfolio et les fonctionnalités.</p>
 
-    <!-- Switch Mode (Connexion / Inscription) -->
-    <div class="vercel-auth-mode-switch">
-      <button type="button" class="v-switch-btn active" id="tabBtnLogin">Connexion</button>
-      <button type="button" class="v-switch-btn" id="tabBtnRegister">Inscription</button>
+      <!-- Switch Mode (Connexion / Inscription) -->
+      <div class="vercel-auth-mode-switch">
+        <button type="button" class="v-switch-btn active" id="tabBtnLogin">Connexion</button>
+        <button type="button" class="v-switch-btn" id="tabBtnRegister">Inscription</button>
+      </div>
+
+      <form id="authMainForm" style="margin-top:14px">
+        <div id="fieldNameGroup" style="display:none;margin-bottom:12px;text-align:left">
+          <input type="text" id="authName" class="vercel-input" placeholder="Nom complet (Ex: Mohamed Ali)">
+        </div>
+
+        <div style="margin-bottom:12px;text-align:left">
+          <input type="email" id="authEmail" class="vercel-input" placeholder="Email Address" required autocomplete="email">
+        </div>
+
+        <div style="margin-bottom:14px;text-align:left">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:12px;color:#888">Mot de passe</span>
+            <a href="#" id="linkForgotPass" onclick="openForgotView(event)" style="font-size:11.5px;color:#818cf8;text-decoration:none">Mot de passe oublié ?</a>
+          </div>
+          <input type="password" id="authPassword" class="vercel-input" placeholder="Mot de passe" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="vercel-btn-primary" id="authSubmitBtn">
+          Se connecter
+        </button>
+
+        <div class="auth-error-msg" id="authErrorMsg"></div>
+      </form>
     </div>
 
-    <form id="authMainForm" style="margin-top:14px">
-      <div id="fieldNameGroup" style="display:none;margin-bottom:12px;text-align:left">
-        <input type="text" id="authName" class="vercel-input" placeholder="Nom complet (Ex: Mohamed Ali)">
-      </div>
+    <!-- 2. FORGOT PASSWORD VIEW (ACCESSIBLE FROM LOGIN PAGE) -->
+    <div id="authForgotContainer" style="display:none">
+      <h2 class="vercel-auth-title">Mot de passe oublié</h2>
+      <p class="vercel-auth-subtitle">Réinitialisez l'accès à votre compte en toute sécurité.</p>
 
-      <div style="margin-bottom:12px;text-align:left">
-        <input type="email" id="authEmail" class="vercel-input" placeholder="Email Address" required autocomplete="email">
-      </div>
+      <form id="authForgotForm" onsubmit="handleForgotRequest(event)" style="margin-top:14px">
+        <div style="margin-bottom:12px;text-align:left">
+          <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Adresse e-mail du compte</label>
+          <input type="email" id="forgotInputEmail" class="vercel-input" placeholder="nom@exemple.com" required autocomplete="email">
+        </div>
 
-      <div style="margin-bottom:14px;text-align:left">
-        <input type="password" id="authPassword" class="vercel-input" placeholder="Mot de passe" required autocomplete="current-password">
-      </div>
+        <!-- Banner for OTP / Admin Security Notice -->
+        <div class="verification-banner" id="forgotBannerNotice" style="display:none;text-align:left"></div>
 
-      <button type="submit" class="vercel-btn-primary" id="authSubmitBtn">
-        Se connecter
-      </button>
+        <!-- Admin Direct Reset Step -->
+        <div id="forgotAdminSection" style="display:none;margin-bottom:14px;text-align:left">
+          <div style="background:#111;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#10b981">
+            👑 <b>Compte Administrateur détecté :</b> Vous pouvez saisir directement votre nouveau mot de passe.
+          </div>
+          <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Nouveau mot de passe Administrateur</label>
+          <input type="password" id="forgotAdminNewPass" class="vercel-input" placeholder="Nouveau mot de passe">
+        </div>
 
-      <div class="auth-error-msg" id="authErrorMsg"></div>
-    </form>
+        <!-- Regular User OTP + New Password Step -->
+        <div id="forgotUserSection" style="display:none;margin-bottom:14px;text-align:left">
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Code de vérification (reçu par e-mail)</label>
+            <input type="text" id="forgotUserOtpCode" class="vercel-input" placeholder="Ex: 582491">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Nouveau mot de passe</label>
+            <input type="password" id="forgotUserNewPass" class="vercel-input" placeholder="Nouveau mot de passe">
+          </div>
+        </div>
+
+        <button type="submit" class="vercel-btn-primary" id="forgotSubmitBtn">
+          Continuer
+        </button>
+
+        <div class="auth-error-msg" id="forgotErrorMsg"></div>
+
+        <div style="margin-top:16px;border-top:1px solid #222;padding-top:12px">
+          <a href="#" onclick="backToLoginView(event)" style="font-size:12px;color:#888;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+            ← Retour à la connexion
+          </a>
+        </div>
+      </form>
+    </div>
 
   </div>
 </div>
@@ -292,21 +348,32 @@
       <div style="margin-top:6px"><span id="profRoleBadge" class="role-badge">ROLE</span></div>
     </div>
 
-    <!-- Password Modification with Verification Email -->
+    <!-- Password Modification (Admin Direct vs User Email OTP) -->
     <div style="border-top:1px solid #f1f5f9;padding-top:16px;text-align:left">
       <strong style="font-size:13px;display:block;margin-bottom:4px;color:#1e293b">Modifier mon mot de passe</strong>
-      <p style="font-size:11.5px;color:#64748b;margin-bottom:10px">Par mesure de sécurité, un e-mail avec code de vérification est envoyé à votre adresse.</p>
+      <p style="font-size:11.5px;color:#64748b;margin-bottom:10px" id="profPassSubtitle">Par mesure de sécurité, un e-mail avec code de vérification est envoyé à votre adresse.</p>
 
       <div class="verification-banner" id="profOtpNotice" style="display:none"></div>
 
-      <!-- Step 1: Request Code -->
+      <!-- Admin Direct Change (Admin changes password directly without waiting for OTP) -->
+      <form id="stepAdminDirectPass" onsubmit="handleAdminPasswordDirectUpdate(event)" style="display:none">
+        <div class="auth-form-group">
+          <label>Nouveau mot de passe Administrateur</label>
+          <input type="password" id="inputAdminDirectPassword" placeholder="Nouveau mot de passe" required>
+        </div>
+        <button type="submit" class="auth-submit-btn" style="background:#000;color:#fff;margin-top:4px">
+          ⚡ Enregistrer le nouveau mot de passe
+        </button>
+      </form>
+
+      <!-- Regular User: Step 1 Request Code -->
       <div id="stepSendOtp">
         <button type="button" class="btn btn-primary" onclick="sendVerificationEmail()" style="width:100%;justify-content:center;padding:10px">
           📨 Envoyer l'e-mail de vérification
         </button>
       </div>
 
-      <!-- Step 2: Enter Code & New Password -->
+      <!-- Regular User: Step 2 Enter Code & New Password -->
       <form id="stepVerifyOtp" onsubmit="handlePasswordUpdate(event)" style="display:none">
         <div class="auth-form-group">
           <label>Code de vérification (reçu par e-mail)</label>
@@ -335,8 +402,8 @@
 </div>
 
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
-<script src="script.js?v=7.0"></script>
-<script src="portfolio-auth-core.js?v=7.0"></script>
-<script src="portfolio-auth-ui.js?v=7.0"></script>
-<script src="chat-crud-store.js?v=7.0"></script>
+<script src="script.js?v=8.0"></script>
+<script src="portfolio-auth-core.js?v=8.0"></script>
+<script src="portfolio-auth-ui.js?v=8.0"></script>
+<script src="chat-crud-store.js?v=8.0"></script>
 </body></html>

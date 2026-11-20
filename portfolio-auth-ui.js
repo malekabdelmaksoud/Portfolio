@@ -425,19 +425,58 @@ function openProfileModal() {
     ghSection.style.display = user.role === "admin" ? "block" : "none";
   }
 
-  // Reset password form state
-  document.getElementById("stepSendOtp").style.display = "block";
-  document.getElementById("stepVerifyOtp").style.display = "none";
-  document.getElementById("profOtpNotice").style.display = "none";
-  document.getElementById("profErrorMsg").style.display = "none";
-  document.getElementById("inputOtpCode").value = "";
-  document.getElementById("inputNewPassword").value = "";
+  // Admin directly changes password without waiting for OTP; Regular user needs Admin-sent OTP
+  const isAdmin = user.role === "admin";
+  const passSubtitle = document.getElementById("profPassSubtitle");
+  const stepAdminDirect = document.getElementById("stepAdminDirectPass");
+  const stepSendOtp = document.getElementById("stepSendOtp");
+  const stepVerifyOtp = document.getElementById("stepVerifyOtp");
+  const notice = document.getElementById("profOtpNotice");
+  const errorDiv = document.getElementById("profErrorMsg");
+
+  if (notice) notice.style.display = "none";
+  if (errorDiv) errorDiv.style.display = "none";
+  if (document.getElementById("inputOtpCode")) document.getElementById("inputOtpCode").value = "";
+  if (document.getElementById("inputNewPassword")) document.getElementById("inputNewPassword").value = "";
+  if (document.getElementById("inputAdminDirectPassword")) document.getElementById("inputAdminDirectPassword").value = "";
+
+  if (isAdmin) {
+    if (passSubtitle) passSubtitle.textContent = "👑 Compte Administrateur : Vous pouvez changer votre mot de passe directement sans code de vérification.";
+    if (stepAdminDirect) stepAdminDirect.style.display = "block";
+    if (stepSendOtp) stepSendOtp.style.display = "none";
+    if (stepVerifyOtp) stepVerifyOtp.style.display = "none";
+  } else {
+    if (passSubtitle) passSubtitle.textContent = "🔒 Par mesure de sécurité, l'administrateur (melekabdelmaksoud72@gmail.com) doit vous envoyer un code de vérification pour changer votre mot de passe.";
+    if (stepAdminDirect) stepAdminDirect.style.display = "none";
+    if (stepSendOtp) stepSendOtp.style.display = "block";
+    if (stepVerifyOtp) stepVerifyOtp.style.display = "none";
+  }
 
   document.getElementById("profileModalBackdrop").classList.add("active");
 }
 
 function closeProfileModal() {
   document.getElementById("profileModalBackdrop").classList.remove("active");
+}
+
+function handleAdminPasswordDirectUpdate(e) {
+  e.preventDefault();
+  const newPass = document.getElementById("inputAdminDirectPassword").value;
+  const errorDiv = document.getElementById("profErrorMsg");
+
+  if (!newPass || newPass.length < 4) {
+    errorDiv.textContent = "Le mot de passe doit comporter au moins 4 caractères.";
+    errorDiv.style.display = "block";
+    return;
+  }
+
+  const user = AuthService.getCurrentUser();
+  if (user) {
+    AuthService.updatePassword(user.email, newPass);
+  }
+
+  showToast("👑 Mot de passe Administrateur mis à jour avec succès !", "success");
+  closeProfileModal();
 }
 
 function sendVerificationEmail() {
@@ -447,11 +486,12 @@ function sendVerificationEmail() {
   // Generate 6-digit OTP code
   activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Display simulated email delivery banner with code
+  // Display simulated email delivery banner with code from admin
   const notice = document.getElementById("profOtpNotice");
   notice.innerHTML = `
-    📧 <b>E-mail de sécurité envoyé à :</b> ${user.email}<br>
-    Votre code de vérification est : <strong style="font-size:15px;color:#059669;letter-spacing:1px">${activeOtpCode}</strong>
+    📧 <b>Code de vérification envoyé depuis l'administrateur :</b><br>
+    <span style="font-size:11px;color:#047857">De : <b>melekabdelmaksoud72@gmail.com</b> → À : <b>${user.email}</b></span><br>
+    Code de sécurité : <strong style="font-size:16px;color:#059669;letter-spacing:2px;display:inline-block;margin-top:4px">${activeOtpCode}</strong>
   `;
   notice.style.display = "block";
 
@@ -480,16 +520,159 @@ function handlePasswordUpdate(e) {
 
   // Update password in AuthService storage
   const user = AuthService.getCurrentUser();
-  const users = AuthService.getUsers();
-  const target = users.find(u => u.email.toLowerCase() === user.email.toLowerCase());
-  
-  if (target) {
-    target.password = newPass;
-    AuthService.saveUsers(users);
+  if (user) {
+    AuthService.updatePassword(user.email, newPass);
   }
 
   showToast("✅ Mot de passe mis à jour avec succès !", "success");
   closeProfileModal();
+}
+
+// ── Forgot Password Flow (from Login Gate) ──
+let forgotOtpCode = null;
+let forgotTargetEmail = null;
+
+function openForgotView(e) {
+  if (e) e.preventDefault();
+  const mainCont = document.getElementById("authMainContainer");
+  const forgotCont = document.getElementById("authForgotContainer");
+  const emailInput = document.getElementById("authEmail");
+  const forgotEmailInput = document.getElementById("forgotInputEmail");
+
+  if (emailInput && forgotEmailInput && emailInput.value.trim()) {
+    forgotEmailInput.value = emailInput.value.trim();
+  }
+
+  // Reset forgot view state
+  const banner = document.getElementById("forgotBannerNotice");
+  const adminSec = document.getElementById("forgotAdminSection");
+  const userSec = document.getElementById("forgotUserSection");
+  const errorDiv = document.getElementById("forgotErrorMsg");
+  const submitBtn = document.getElementById("forgotSubmitBtn");
+
+  if (banner) banner.style.display = "none";
+  if (adminSec) adminSec.style.display = "none";
+  if (userSec) userSec.style.display = "none";
+  if (errorDiv) errorDiv.style.display = "none";
+  if (submitBtn) submitBtn.textContent = "Continuer";
+
+  forgotOtpCode = null;
+  forgotTargetEmail = null;
+
+  if (mainCont) mainCont.style.display = "none";
+  if (forgotCont) forgotCont.style.display = "block";
+}
+
+function backToLoginView(e) {
+  if (e) e.preventDefault();
+  const mainCont = document.getElementById("authMainContainer");
+  const forgotCont = document.getElementById("authForgotContainer");
+  if (forgotCont) forgotCont.style.display = "none";
+  if (mainCont) mainCont.style.display = "block";
+}
+
+function handleForgotRequest(e) {
+  e.preventDefault();
+  const email = document.getElementById("forgotInputEmail").value.trim().toLowerCase();
+  const errorDiv = document.getElementById("forgotErrorMsg");
+  const banner = document.getElementById("forgotBannerNotice");
+  const adminSec = document.getElementById("forgotAdminSection");
+  const userSec = document.getElementById("forgotUserSection");
+  const submitBtn = document.getElementById("forgotSubmitBtn");
+
+  errorDiv.style.display = "none";
+
+  const isAdmin = email === ADMIN_EMAIL.toLowerCase() || email === "malekabdelmaksoud";
+  const users = AuthService.getUsers();
+  const account = users.find(u => u.email.toLowerCase() === email);
+
+  if (!isAdmin && !account) {
+    errorDiv.textContent = "Aucun compte trouvé avec cet e-mail. Veuillez vérifier l'adresse ou vous inscrire.";
+    errorDiv.style.display = "block";
+    return;
+  }
+
+  forgotTargetEmail = email;
+
+  // Step 1: Detect user vs admin
+  if (adminSec.style.display !== "block" && userSec.style.display !== "block") {
+    if (isAdmin) {
+      adminSec.style.display = "block";
+      userSec.style.display = "none";
+      banner.style.display = "none";
+      submitBtn.textContent = "⚡ Enregistrer le nouveau mot de passe";
+      const passField = document.getElementById("forgotAdminNewPass");
+      if (passField) {
+        passField.value = "";
+        passField.focus();
+      }
+    } else {
+      forgotOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      banner.innerHTML = `
+        📧 <b>Code de vérification envoyé depuis l'administrateur :</b><br>
+        <span style="font-size:11px;color:#047857">De : <b>melekabdelmaksoud72@gmail.com</b> → À : <b>${email}</b></span><br>
+        Code de sécurité : <strong style="font-size:16px;color:#059669;letter-spacing:2px;display:inline-block;margin-top:4px">${forgotOtpCode}</strong>
+      `;
+      banner.style.display = "block";
+      userSec.style.display = "block";
+      adminSec.style.display = "none";
+      submitBtn.textContent = "Confirmer et réinitialiser";
+      const otpField = document.getElementById("forgotUserOtpCode");
+      if (otpField) {
+        otpField.value = "";
+        otpField.focus();
+      }
+    }
+    return;
+  }
+
+  // Step 2: Process Reset
+  if (isAdmin && adminSec.style.display === "block") {
+    const newPass = document.getElementById("forgotAdminNewPass").value;
+    if (!newPass || newPass.length < 4) {
+      errorDiv.textContent = "Le mot de passe doit comporter au moins 4 caractères.";
+      errorDiv.style.display = "block";
+      return;
+    }
+    AuthService.updatePassword(ADMIN_EMAIL, newPass);
+    showToast("👑 Mot de passe Administrateur réinitialisé avec succès !", "success");
+    
+    // Auto fill login & back
+    backToLoginView();
+    const loginEmail = document.getElementById("authEmail");
+    const loginPass = document.getElementById("authPassword");
+    if (loginEmail) loginEmail.value = ADMIN_EMAIL;
+    if (loginPass) loginPass.value = newPass;
+    return;
+  }
+
+  if (!isAdmin && userSec.style.display === "block") {
+    const enteredOtp = document.getElementById("forgotUserOtpCode").value.trim();
+    const newPass = document.getElementById("forgotUserNewPass").value;
+
+    if (enteredOtp !== forgotOtpCode) {
+      errorDiv.textContent = "Code de vérification incorrect. Veuillez vérifier le code envoyé.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    if (!newPass || newPass.length < 4) {
+      errorDiv.textContent = "Le mot de passe doit comporter au moins 4 caractères.";
+      errorDiv.style.display = "block";
+      return;
+    }
+
+    AuthService.updatePassword(forgotTargetEmail, newPass);
+    showToast("✅ Mot de passe réinitialisé avec succès ! Connectez-vous.", "success");
+
+    // Auto fill login & back
+    backToLoginView();
+    const loginEmail = document.getElementById("authEmail");
+    const loginPass = document.getElementById("authPassword");
+    if (loginEmail) loginEmail.value = forgotTargetEmail;
+    if (loginPass) loginPass.value = newPass;
+    return;
+  }
 }
 
 // ── Global window handlers ──
@@ -510,4 +693,8 @@ window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 window.sendVerificationEmail = sendVerificationEmail;
 window.handlePasswordUpdate = handlePasswordUpdate;
+window.handleAdminPasswordDirectUpdate = handleAdminPasswordDirectUpdate;
+window.openForgotView = openForgotView;
+window.backToLoginView = backToLoginView;
+window.handleForgotRequest = handleForgotRequest;
 

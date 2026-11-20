@@ -148,6 +148,29 @@ const AuthService = {
     location.reload();
   },
 
+  updatePassword(email, newPassword) {
+    const cleanEmail = email.trim().toLowerCase();
+    const users = this.getUsers();
+    let target = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!target) {
+      if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+        target = {
+          email: ADMIN_EMAIL,
+          password: newPassword,
+          name: "Melek Abdelmaksoud (Admin)",
+          role: "admin"
+        };
+        users.push(target);
+      } else {
+        throw new Error("Compte introuvable avec cette adresse e-mail.");
+      }
+    } else {
+      target.password = newPassword;
+    }
+    this.saveUsers(users);
+    return true;
+  },
+
   isAdmin() {
     const user = this.getCurrentUser();
     return user && user.role === "admin";
