@@ -237,7 +237,9 @@ function generateAiAnswer(rawQuery) {
   const q = rawQuery.toLowerCase();
 
   if (q.includes("cv") || q.includes("curriculum") || q.includes("télécharger") || q.includes("download") || q.includes("resume")) {
-    return '📄 Le CV complet est disponible sur demande via e-mail ou sur le profil <a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank">LinkedIn de Melek ↗</a>.';
+    return `📄 <b>Curriculum Vitae de Melek Abdelmaksoud :</b><br>
+    Le CV est généré en temps réel avec ses derniers projets et compétences techniques.<br>
+    <button type="button" onclick="openCvModal(event)" style="margin-top:8px;padding:8px 14px;background:#6957e8;color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer">👀 Consulter et Télécharger le CV (PDF) ↗</button>`;
   }
 
   if (q.includes("projet") || q.includes("project") || q.includes("réalisation") || q.includes("travaux")) {

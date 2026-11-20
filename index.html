@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8.0">
+<link rel="stylesheet" href="style.css?v=9.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -43,6 +43,7 @@
 <a href="#competences" data-fr="Compétences" data-en="Skills">Compétences</a>
 <a href="#experiences" data-fr="Expériences" data-en="Experience">Expériences</a>
 <a href="#projets" data-fr="Projets" data-en="Projects">Projets</a>
+<a href="#" onclick="openCvModal(event)" style="display:inline-flex;align-items:center;gap:4px;color:#6957e8;font-weight:700" title="Consulter le CV généré en direct"><span>📄</span> <span data-fr="CV" data-en="Resume">CV</span></a>
 <a href="#contact" class="nav-cta" data-fr="Contact" data-en="Contact">Contact</a>
 <div class="lang-switch" aria-label="Language selector">
 <button type="button" class="lang-btn active" data-lang="fr" aria-pressed="true">FR</button>
@@ -58,7 +59,7 @@
 <h1><span data-fr="Bonjour, je suis" data-en="Hello, I'm">Bonjour, je suis</span><br><span>Melek Abdelmaksoud.</span></h1>
 <h2 data-fr="Étudiante en Technologie de l'Informatique — Développement Web & Multimédia" data-en="IT student — Web Development & Multimedia">Étudiante en Technologie de l'Informatique — Développement Web & Multimédia</h2>
 <p class="hero-text" data-fr="Je m'intéresse au développement d'applications web et à la création de solutions numériques utiles. Je développe mes compétences à travers mes études, mes stages et mes projets." data-en="I am interested in web application development and creating useful digital solutions. I build my skills through my studies, internships, and projects.">Je m'intéresse au développement d'applications web et à la création de solutions numériques utiles. Je développe mes compétences à travers mes études, mes stages et mes projets.</p>
-<div class="hero-actions"><a class="button primary" href="#projets"><span data-fr="Découvrir mes projets" data-en="Explore my projects">Découvrir mes projets</span> ↗</a><a class="button secondary" href="#contact" data-fr="Me contacter" data-en="Contact me">Me contacter</a></div>
+<div class="hero-actions"><a class="button primary" href="#projets"><span data-fr="Découvrir mes projets" data-en="Explore my projects">Découvrir mes projets</span> ↗</a><a class="button secondary" href="#" onclick="openCvModal(event)"><span>📄</span> <span data-fr="Voir mon CV" data-en="View my Resume">Voir mon CV</span></a><a class="button secondary" href="#contact" data-fr="Me contacter" data-en="Contact me">Me contacter</a></div>
 <div class="hero-meta"><span>📍 Sfax, Tunisie</span><a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a><a href="https://github.com/malekabdelmaksoud" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
 </div>
 <div class="hero-card"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="monogram">MA</div><p class="hero-card-label" data-fr="EN APPRENTISSAGE CONTINU" data-en="ALWAYS LEARNING">EN APPRENTISSAGE CONTINU</p><div class="mini-tags" id="heroMiniTags"><span>Java</span><span>PHP</span><span>Laravel</span><span>C#</span><span>Web</span></div></div>
@@ -401,9 +402,38 @@
   </div>
 </div>
 
+<!-- CV Live Modal & Generator (View, Admin Edit & PDF Download) -->
+<div class="cv-modal-backdrop" id="cvModalBackdrop">
+  <div class="cv-modal-window">
+    <div class="cv-top-toolbar no-print">
+      <div class="cv-toolbar-title">
+        <span>📄</span> <span>Curriculum Vitae — Melek Abdelmaksoud</span>
+      </div>
+
+      <div class="cv-toolbar-actions">
+        <!-- Admin-Only Tools (Edit / Sync / Reset) -->
+        <div id="cvAdminToolbar" style="display:none;align-items:center;gap:6px"></div>
+
+        <!-- Download for Everyone (Admin & Regular Users) -->
+        <button type="button" class="btn-cv-download" onclick="downloadCvPdf()">
+          <span>🖨️</span> <span>Télécharger en PDF</span>
+        </button>
+
+        <button type="button" class="btn-cv-close" onclick="closeCvModal()" title="Fermer">✕</button>
+      </div>
+    </div>
+
+    <!-- Scrollable CV Paper -->
+    <div class="cv-printable-area" id="cvPrintableArea">
+      <!-- Injected by CvManager.render() -->
+    </div>
+  </div>
+</div>
+
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
-<script src="script.js?v=8.0"></script>
-<script src="portfolio-auth-core.js?v=8.0"></script>
-<script src="portfolio-auth-ui.js?v=8.0"></script>
-<script src="chat-crud-store.js?v=8.0"></script>
+<script src="script.js?v=9.0"></script>
+<script src="portfolio-auth-core.js?v=9.0"></script>
+<script src="cv-manager.js?v=9.0"></script>
+<script src="portfolio-auth-ui.js?v=9.0"></script>
+<script src="chat-crud-store.js?v=9.0"></script>
 </body></html>

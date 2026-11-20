@@ -245,6 +245,9 @@ const ProjectsManager = {
   saveAll(list) {
     localStorage.setItem("portfolio_curated_projects", JSON.stringify(list));
     this.render();
+    if (typeof CvManager !== "undefined" && typeof CvManager.syncFromProjects === "function") {
+      CvManager.syncFromProjects();
+    }
   },
 
   add(proj) {
