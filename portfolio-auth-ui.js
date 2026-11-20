@@ -33,6 +33,7 @@ function initAuthGate() {
   try {
     localStorage.removeItem("portfolio_registered_users");
     localStorage.removeItem("portfolio_active_session");
+    localStorage.removeItem("portfolio_resend_api_key");
   } catch (error) {
     console.warn("Could not clear legacy portfolio session data.", error);
   }
@@ -419,108 +420,14 @@ function deleteProjectDirect(id) {
 // ── Profile Modal & Email OTP Password Reset Logic ──
 let activeOtpCode = null;
 
-async function dispatchSecurityEmail(targetEmail, otpCode) {
-  const apiKey = (localStorage.getItem("portfolio_resend_api_key") || "").trim();
-
-  if (!apiKey) {
-    console.warn(`[Sécurité] Clé API d'envoi d'e-mails manquante. Aucun e-mail n'a été envoyé.`);
-    return { success: false, reason: "no_api_key" };
-  }
-
-  // 1. Brevo Transactional Email API (free 300 emails/day to ANY email address)
-  if (apiKey.startsWith("xkeysib-") || apiKey.length > 50) {
-    try {
-      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "api-key": apiKey,
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          sender: { name: "Portfolio Melek Abdelmaksoud", email: "melekabdelmaksoud72@gmail.com" },
-          to: [{ email: targetEmail }],
-          subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
-          htmlContent: `
-            <div style="font-family:sans-serif;padding:24px;color:#1e293b;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;max-width:500px;margin:auto">
-              <h2 style="color:#6957e8;margin-top:0">Portfolio Melek Abdelmaksoud</h2>
-              <p style="font-size:14px;color:#334155">Bonjour,</p>
-              <p style="font-size:14px;color:#334155">Voici votre code de sécurité confidentiel pour mettre à jour votre mot de passe :</p>
-              <div style="text-align:center;margin:24px 0">
-                <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#10b981;padding:12px 24px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;display:inline-block">
-                  ${otpCode}
-                </span>
-              </div>
-              <p style="font-size:12px;color:#64748b">Ce code expire dans 15 minutes. Ne communiquez jamais ce code à un tiers.</p>
-            </div>
-          `
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        console.log("Brevo email sent successfully:", data);
-        return { success: true, provider: "brevo", data };
-      } else {
-        console.warn("Brevo API error:", data);
-        return { success: false, provider: "brevo", error: data };
-      }
-    } catch (e) {
-      console.warn("Brevo email failed:", e);
-      return { success: false, error: e.message };
-    }
-  }
-
-  // 2. Resend API
-  if (apiKey.startsWith("re_")) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: "Portfolio Melek <onboarding@resend.dev>",
-          to: [targetEmail],
-          subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
-          html: `
-            <div style="font-family:sans-serif;padding:24px;color:#1e293b;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;max-width:500px;margin:auto">
-              <h2 style="color:#6957e8;margin-top:0">Portfolio Melek Abdelmaksoud</h2>
-              <p style="font-size:14px;color:#334155">Bonjour,</p>
-              <p style="font-size:14px;color:#334155">Voici votre code de vérification confidentiel pour mettre à jour votre mot de passe :</p>
-              <div style="text-align:center;margin:24px 0">
-                <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#10b981;padding:12px 24px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;display:inline-block">
-                  ${otpCode}
-                </span>
-              </div>
-              <p style="font-size:12px;color:#64748b">Ce code expire dans 15 minutes. Ne communiquez jamais ce code à un tiers.</p>
-            </div>
-          `
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        console.log("Resend email sent:", data);
-        return { success: true, provider: "resend" };
-      } else {
-        console.warn("Resend API error:", data);
-        return { success: false, error: data };
-      }
-    } catch (e) {
-      console.warn("Resend email failed:", e);
-      return { success: false, error: e.message };
-    }
-  }
-
-  return { success: false, reason: "invalid_key_format" };
+async function dispatchSecurityEmail() {
+  // Public static portfolios must never send credentials directly from the browser.
+  return { success: false, reason: "server_side_email_auth_required" };
 }
 
 function saveEmailApiKey() {
-  const input = document.getElementById("inputResendApiKey");
-  if (!input) return;
-  const key = input.value.trim();
-  localStorage.setItem("portfolio_resend_api_key", key);
-  showToast(key ? "✅ Clé API d'envoi d'e-mails enregistrée avec succès !" : "ℹ️ Clé API supprimée.", "success");
+  try { localStorage.removeItem("portfolio_resend_api_key"); } catch (error) {}
+  showToast("La configuration e-mail côté navigateur est désactivée. Utilisez un service côté serveur.", "info");
 }
 
 function openProfileModal() {
