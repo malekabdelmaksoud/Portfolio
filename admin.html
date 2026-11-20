@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin · Melek Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css?v=1">
+</head>
+<body>
+<div class="admin-shell">
+<aside class="sidebar">
+  <a class="brand" href="/">MA<span>.</span><small>STUDIO</small></a>
+  <p class="side-label">WORKSPACE</p>
+  <nav id="adminNav">
+    <button class="nav-item active" data-panel="overview">▦ <span>Vue générale</span></button>
+    <button class="nav-item" data-panel="profile">◉ <span>Profil & accueil</span></button>
+    <button class="nav-item" data-panel="projects">▣ <span>Projets</span></button>
+    <button class="nav-item" data-panel="skills">⌘ <span>Compétences</span></button>
+    <button class="nav-item" data-panel="experience">↗ <span>Expériences & études</span></button>
+    <button class="nav-item" data-panel="contact">✉ <span>Contact</span></button>
+    <button class="nav-item" data-panel="assistant">✧ <span>Base de connaissances IA</span></button>
+  </nav>
+  <div class="sidebar-bottom"><span class="online-dot"></span> Espace privé · Cloudflare Access<a href="/">← Voir le portfolio</a></div>
+</aside>
+<main class="main">
+  <header class="topbar"><div><span class="crumb">PORTFOLIO / ADMINISTRATION</span><h1 id="panelTitle">Vue générale</h1></div><div class="top-actions"><span class="save-state" id="saveState">Non publié</span><button class="btn-secondary" id="previewBtn">Aperçu ↗</button><button class="btn-primary" id="publishBtn">Publier les changements</button></div></header>
+  <div id="notice" class="notice" role="status"></div>
+  <section class="panel active" id="panel-overview">
+    <div class="welcome"><div><span class="eyebrow">VOTRE ESPACE DE TRAVAIL</span><h2>Bonjour Melek<span>.</span></h2><p>Gérez votre présence professionnelle depuis un seul endroit.</p></div><div class="welcome-mark">MA</div></div>
+    <div class="stats"><article><span>PROJETS</span><strong id="statProjects">—</strong><small>Présentés sur le portfolio</small></article><article><span>COMPÉTENCES</span><strong id="statSkills">—</strong><small>Technologies et outils</small></article><article><span>ÉTAT DU CONTENU</span><strong id="statStatus">Brouillon</strong><small id="statUpdated">Modifications locales</small></article></div>
+    <div class="overview-grid"><article class="surface"><span class="eyebrow">GESTION RAPIDE</span><h3>Votre portfolio, vos règles.</h3><p>Modifiez vos projets, votre présentation et vos compétences. Les changements sont enregistrés dans la base de données et publiés sur le site.</p><button class="text-link" data-go="projects">Gérer les projets →</button></article><article class="surface assistant-card"><span class="eyebrow">ASSISTANT IA</span><h3>Des informations toujours à jour.</h3><p>L'assistant utilise le contenu publié pour répondre aux visiteurs. Après chaque publication, ses informations sont actualisées automatiquement.</p><button class="text-link" data-go="assistant">Gérer les informations IA →</button></article></div>
+  </section>
+  <section class="panel" id="panel-profile"><div class="section-head"><div><span class="eyebrow">IDENTITÉ PROFESSIONNELLE</span><h2>Profil & accueil</h2><p>Le premier message que les visiteurs découvrent.</p></div></div><div class="surface form-grid" id="profileFields"></div></section>
+  <section class="panel" id="panel-projects"><div class="section-head"><div><span class="eyebrow">PORTFOLIO</span><h2>Vos projets</h2><p>Ajoutez, modifiez ou retirez les réalisations présentées.</p></div><button class="btn-primary" id="addProjectBtn">＋ Ajouter un projet</button></div><div id="projectList" class="project-list"></div></section>
+  <section class="panel" id="panel-skills"><div class="section-head"><div><span class="eyebrow">EXPERTISE</span><h2>Compétences</h2><p>Présentez les langages, outils et domaines pratiqués.</p></div></div><div class="surface form-grid" id="skillFields"></div></section>
+  <section class="panel" id="panel-experience"><div class="section-head"><div><span class="eyebrow">PARCOURS</span><h2>Expériences & études</h2><p>Gérez les expériences et formations affichées sur votre page.</p></div></div><div class="surface"><label for="experienceJson">Expériences (JSON)</label><textarea id="experienceJson" class="code-field" rows="9" spellcheck="false"></textarea><p class="hint">Format : tableau d'objets avec date, title, company et description.</p></div><div class="surface"><label for="educationJson">Formations (JSON)</label><textarea id="educationJson" class="code-field" rows="7" spellcheck="false"></textarea><p class="hint">Format : tableau d'objets avec date, title, institution et description.</p></div></section>
+  <section class="panel" id="panel-contact"><div class="section-head"><div><span class="eyebrow">COORDONNÉES</span><h2>Contact</h2><p>Gardez vos liens professionnels à jour.</p></div></div><div class="surface form-grid" id="contactFields"></div></section>
+  <section class="panel" id="panel-assistant"><div class="section-head"><div><span class="eyebrow">INTELLIGENCE ARTIFICIELLE</span><h2>Base de connaissances</h2><p>Les données publiées ici servent de référence à l'assistant IA.</p></div></div><div class="surface"><div class="info-callout">✧ <div><strong>Réponses ancrées dans vos informations</strong><p>L'assistant peut discuter librement, mais ne doit jamais inventer votre parcours, vos compétences ou vos réalisations. Vérifiez les informations avant publication.</p></div></div><label for="aiExtra">Informations complémentaires fiables</label><textarea id="aiExtra" rows="10" placeholder="Ajoutez ici les précisions professionnelles que vous souhaitez que l'assistant connaisse."></textarea></div></section>
+</main>
+</div>
+<script src="admin.js?v=1"></script>
+</body></html>
