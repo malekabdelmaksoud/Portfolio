@@ -121,6 +121,20 @@
       const selected = /tous|all|liste|list|princip|main|quels|which/.test(n) ? projects : (specific.length ? specific.slice(0, 3).map(x=>x.item) : projects.slice(0, 3));
       return "🚀 <b>Projets de Melek</b>" + bullets(selected.map(item => item.text.slice(0, 330))) + '<p>Les dépôts sont disponibles sur <a href="https://github.com/malekabdelmaksoud" target="_blank" rel="noopener noreferrer">son profil GitHub ↗</a>.</p>';
     }
+    if (intent === "skills" && /[\u0600-\u06ff]/.test(query)) {
+      const groups = [
+        ["لغات البرمجة", "#skillsLangagesList"],
+        ["تطوير الويب", "#skillsWebList"],
+        ["الأطر والأدوات", "#skillsFrameworksList"],
+        ["الأنظمة والشبكات", "#skillsSystemesList"]
+      ];
+      const items = groups.map(([label, selector]) => {
+        const value = document.querySelector(selector)?.innerText || "";
+        return value ? label + ": " + value : "";
+      }).filter(Boolean);
+      return "🛠️ <b>المهارات التقنية</b>" + bullets(items) +
+        "<p>الموقع يوضح اللي المستوى يتحسّن بالممارسة؛ ذكر تقنية في القائمة ما يعنيش بالضرورة إتقانها بمستوى خبير.</p>";
+    }
     if (intent === "skills") {
       const source = doc("skills")?.text || "";
       return "🛠️ <b>Compétences mentionnées dans le portfolio</b><p>" + safe(source.slice(0, 1150)) + "</p><p>Le portfolio précise que le niveau évolue avec la pratique : les technologies listées ne signifient pas nécessairement une maîtrise experte.</p>";
