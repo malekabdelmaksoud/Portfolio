@@ -152,6 +152,10 @@
     const clean = String(query || "").trim().slice(0, 1200);
     if (!clean) return "Écrivez une question pour commencer.";
     const docs = collectDocs();
+    const normalizedQuestion = normalize(clean);
+    if (/passeport|passport|numero de carte|carte d.identite|cin|mot de passe|password|adresse personnelle|private address|salaire exact|salary expectation/.test(normalizedQuestion)) {
+      return "Je ne peux pas fournir de données personnelles privées ou d'informations qui ne sont pas publiées dans le portfolio. Pour une question professionnelle, contactez Melek via son e-mail ou LinkedIn.";
+    }
     const intent = intentOf(clean);
     const direct = answerFor(intent, docs, clean);
     if (direct) return direct;
