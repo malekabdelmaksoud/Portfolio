@@ -66,9 +66,26 @@ test('project repository links use existing repository names', async () => {
   try {
     const links = await page.locator('#projets .project-card a[href*="github.com"]').evaluateAll(els => els.map(a => a.href));
     assert.ok(links.length >= 7, 'expected at least 7 project links');
-    for (const repo of ['elearning-platform','projetphp','laravel','tpmagasin','tp-poo','projet-symfony','firstApp']) {
+    for (const repo of ['elearning-platform','projetphp','laravel','tpmagasin','tp-poo','projet-symfony','firstApp','opportunity-hunter']) {
       assert.ok(links.some(url => url.endsWith('/' + repo)), 'missing GitHub link for ' + repo);
     }
+  } finally { await page.close(); }
+});
+
+test('legacy saved projects are migrated without losing the new MCP project', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  try {
+    await page.addInitScript(() => {
+      localStorage.setItem('portfolio_curated_projects', JSON.stringify([
+        { id: 'p_2', name: 'projet-php', type: 'PHP · CSS', description: 'Saved project', github: 'https://github.com/malekabdelmaksoud/projet-php' },
+        { id: 'p_3', name: 'projet-laravel', type: 'Laravel', description: 'Saved Laravel project', github: 'https://github.com/malekabdelmaksoud/projet-laravel' }
+      ]));
+    });
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    const links = await page.locator('#projets .project-card a[href*="github.com"]').evaluateAll(els => els.map(a => a.href));
+    assert.ok(links.some(url => url.endsWith('/projetphp')));
+    assert.ok(links.some(url => url.endsWith('/laravel')));
+    assert.ok(links.some(url => url.endsWith('/opportunity-hunter')));
   } finally { await page.close(); }
 });
 
