@@ -39,6 +39,10 @@ function setLanguage(language) {
     ? (language === "fr" ? "Fermer le menu" : "Close menu")
     : (language === "fr" ? "Ouvrir le menu" : "Open menu"));
   try { localStorage.setItem("portfolio-language", language); } catch (e) {}
+
+  if (typeof ProjectsManager !== "undefined" && typeof ProjectsManager.updateSkills === "function") {
+    ProjectsManager.updateSkills();
+  }
 }
 document.querySelectorAll(".lang-btn").forEach(button => {
   button.addEventListener("click", () => setLanguage(button.dataset.lang));
@@ -237,6 +241,13 @@ function generateAiAnswer(rawQuery) {
   }
 
   if (q.includes("projet") || q.includes("project") || q.includes("réalisation") || q.includes("travaux")) {
+    if (typeof ProjectsManager !== "undefined") {
+      const list = ProjectsManager.getAll();
+      const topProjects = list.slice(0, 6).map(p => `• <b>${p.name}</b> (${p.type}) : ${p.description}`).join("<br>");
+      return `🚀 <b>Projets phares de Melek Abdelmaksoud :</b><br>
+      ${topProjects}<br>
+      🔗 Consultez tous les dépôts sur <a href="https://github.com/malekabdelmaksoud" target="_blank">son profil GitHub ↗</a>.`;
+    }
     return `🚀 <b>Projets phares de Melek Abdelmaksoud :</b><br>
     • <b>Elearning Platform</b> (Java) : Gestion des cours et suivi des apprenants.<br>
     • <b>Projet PHP</b> (PHP, CSS) : Application web dynamique côté serveur.<br>
@@ -248,10 +259,15 @@ function generateAiAnswer(rawQuery) {
   }
 
   if (q.includes("compétence") || q.includes("skill") || q.includes("technologie") || q.includes("langage") || q.includes("stack")) {
+    const langages = document.getElementById("skillsLangagesList") ? document.getElementById("skillsLangagesList").textContent : "C · C# · Java · Python · JavaScript · PHP";
+    const web = document.getElementById("skillsWebList") ? document.getElementById("skillsWebList").textContent : "HTML · CSS · Angular";
+    const fw = document.getElementById("skillsFrameworksList") ? document.getElementById("skillsFrameworksList").textContent : "Laravel · Symfony · Spring Boot · .NET · Android Studio";
+    const sys = document.getElementById("skillsSystemesList") ? document.getElementById("skillsSystemesList").textContent : "Maintenance informatique · Câblage réseau · OCS Inventory";
     return `🛠️ <b>Compétences techniques :</b><br>
-    • <b>Langages :</b> Java, PHP, C, C#, Python, JavaScript<br>
-    • <b>Web & Frameworks :</b> HTML5, CSS3, Laravel, Symfony, Spring Boot, Angular<br>
-    • <b>Outils & Systèmes :</b> Git/GitHub, OCS Inventory, Maintenance & Câblage réseau<br>
+    • <b>Langages :</b> ${langages}<br>
+    • <b>Web :</b> ${web}<br>
+    • <b>Frameworks & outils :</b> ${fw}<br>
+    • <b>Systèmes & réseaux :</b> ${sys}<br>
     • <b>Soft skills :</b> Travail en équipe, autonomie, leadership, adaptabilité.`;
   }
 

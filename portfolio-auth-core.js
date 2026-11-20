@@ -289,12 +289,162 @@ const ProjectsManager = {
     };
   },
 
+  updateSkills(projects) {
+    if (!projects || !Array.isArray(projects)) {
+      projects = this.getAll();
+    }
+
+    // Foundational baseline skills (learned at ISET & previous courses)
+    const baseLanguages = ["C", "C#", "Java", "Python", "JavaScript", "PHP"];
+    const baseWeb = ["HTML", "CSS", "Angular"];
+    const baseFrameworks = ["Laravel", "Symfony", "Spring Boot", ".NET", "Android Studio"];
+    const baseSystemesFr = ["Maintenance informatique", "Câblage réseau", "OCS Inventory"];
+    const baseSystemesEn = ["IT support", "Network cabling", "OCS Inventory"];
+
+    const dynamicLanguages = new Set(baseLanguages);
+    const dynamicWeb = new Set(baseWeb);
+    const dynamicFrameworks = new Set(baseFrameworks);
+    const extraSystemes = new Set();
+
+    // Specific rules for matching tech across project names, types, descriptions & repos
+    const langRules = [
+      { regex: /\btypescript\b|\bts\b/i, name: "TypeScript" },
+      { regex: /\bjavascript\b|\bjs\b/i, name: "JavaScript" },
+      { regex: /\bc#\b|\bcsharp\b|\bc-sharp\b/i, name: "C#" },
+      { regex: /\bc\+\+\b|\bcpp\b/i, name: "C++" },
+      { regex: /\bjava\b(?!\s*script)/i, name: "Java" },
+      { regex: /\bpython\b/i, name: "Python" },
+      { regex: /\bphp\b/i, name: "PHP" },
+      { regex: /\bkotlin\b/i, name: "Kotlin" },
+      { regex: /\bswift\b/i, name: "Swift" },
+      { regex: /\bdart\b/i, name: "Dart" },
+      { regex: /\bgo\b|\bgolang\b/i, name: "Go" },
+      { regex: /\brust\b/i, name: "Rust" },
+      { regex: /\bsql\b|\bpl\/sql\b/i, name: "SQL" },
+      { regex: /\bc\b/i, name: "C" }
+    ];
+
+    const webRules = [
+      { regex: /\bhtml5?\b/i, name: "HTML" },
+      { regex: /\bcss3?\b|\bsass\b|\bscss\b/i, name: "CSS" },
+      { regex: /\bangular\b/i, name: "Angular" },
+      { regex: /\breact(?:\.js)?\b/i, name: "React" },
+      { regex: /\bvue(?:\.js)?\b/i, name: "Vue.js" },
+      { regex: /\bnext(?:\.js)?\b/i, name: "Next.js" },
+      { regex: /\bsvelte\b/i, name: "Svelte" },
+      { regex: /\btailwind(?:\s*css)?\b/i, name: "Tailwind CSS" },
+      { regex: /\bbootstrap\b/i, name: "Bootstrap" },
+      { regex: /\brest(?:ful)?\s*api\b|\bapi\s*rest\b/i, name: "REST API" },
+      { regex: /\bgraphql\b/i, name: "GraphQL" },
+      { regex: /\bwordpress\b/i, name: "WordPress" }
+    ];
+
+    const frameworkRules = [
+      { regex: /\blaravel\b/i, name: "Laravel" },
+      { regex: /\bsymfony\b/i, name: "Symfony" },
+      { regex: /\bspring(?:\s*boot)?\b/i, name: "Spring Boot" },
+      { regex: /\.net|\bdotnet\b|\basp\.net\b/i, name: ".NET" },
+      { regex: /\bandroid(?:\s*studio)?\b/i, name: "Android Studio" },
+      { regex: /\bflutter\b/i, name: "Flutter" },
+      { regex: /\bnode(?:\.js)?\b/i, name: "Node.js" },
+      { regex: /\bexpress(?:\.js)?\b/i, name: "Express.js" },
+      { regex: /\bdjango\b/i, name: "Django" },
+      { regex: /\bflask\b/i, name: "Flask" },
+      { regex: /\bfastapi\b/i, name: "FastAPI" },
+      { regex: /\bdocker\b/i, name: "Docker" },
+      { regex: /\bgit\b|\bgithub\b|\bgitlab\b/i, name: "Git / GitHub" },
+      { regex: /\bmysql\b|\bmariadb\b/i, name: "MySQL" },
+      { regex: /\bpostgres(?:ql)?\b/i, name: "PostgreSQL" },
+      { regex: /\bmongodb\b/i, name: "MongoDB" },
+      { regex: /\bsqlite\b/i, name: "SQLite" },
+      { regex: /\bdoctrine\b/i, name: "Doctrine" },
+      { regex: /\bhibernate\b/i, name: "Hibernate" }
+    ];
+
+    const sysRules = [
+      { regex: /\blinux\b|\bubuntu\b|\bdebian\b/i, name: "Linux" },
+      { regex: /\bcloudflare\b/i, name: "Cloudflare" },
+      { regex: /\bnginx\b|\bapache\b/i, name: "Nginx / Apache" }
+    ];
+
+    // Scan all projects
+    projects.forEach(p => {
+      const fullText = `${p.name || ""} ${p.type || ""} ${p.description || ""} ${p.github || ""}`.toLowerCase();
+
+      langRules.forEach(r => {
+        if (r.regex.test(fullText)) dynamicLanguages.add(r.name);
+      });
+
+      webRules.forEach(r => {
+        if (r.regex.test(fullText)) dynamicWeb.add(r.name);
+      });
+
+      frameworkRules.forEach(r => {
+        if (r.regex.test(fullText)) dynamicFrameworks.add(r.name);
+      });
+
+      sysRules.forEach(r => {
+        if (r.regex.test(fullText)) extraSystemes.add(r.name);
+      });
+    });
+
+    // Update Section 02 / COMPÉTENCES DOM elements in real-time
+    const elLang = document.getElementById("skillsLangagesList");
+    if (elLang) {
+      elLang.textContent = Array.from(dynamicLanguages).join(" · ");
+    }
+
+    const elWeb = document.getElementById("skillsWebList");
+    if (elWeb) {
+      elWeb.textContent = Array.from(dynamicWeb).join(" · ");
+    }
+
+    const elFw = document.getElementById("skillsFrameworksList");
+    if (elFw) {
+      elFw.textContent = Array.from(dynamicFrameworks).join(" · ");
+    }
+
+    const elSys = document.getElementById("skillsSystemesList");
+    if (elSys) {
+      const extraList = Array.from(extraSystemes);
+      const frList = [...baseSystemesFr, ...extraList].join(" · ");
+      const enList = [...baseSystemesEn, ...extraList].join(" · ");
+      elSys.setAttribute("data-fr", frList);
+      elSys.setAttribute("data-en", enList);
+      
+      const currentLang = document.documentElement.lang || "fr";
+      elSys.textContent = currentLang === "en" ? enList : frList;
+    }
+
+    // Update Hero mini-tags to reflect the top tech stack dynamically
+    const heroMiniTags = document.getElementById("heroMiniTags");
+    if (heroMiniTags) {
+      const highlights = [];
+      if (dynamicLanguages.has("Java")) highlights.push("Java");
+      if (dynamicLanguages.has("PHP")) highlights.push("PHP");
+      if (dynamicFrameworks.has("Laravel")) highlights.push("Laravel");
+      if (dynamicLanguages.has("C#")) highlights.push("C#");
+      if (dynamicLanguages.has("TypeScript")) highlights.push("TypeScript");
+      if (dynamicFrameworks.has("Spring Boot")) highlights.push("Spring Boot");
+      if (dynamicLanguages.has("Python")) highlights.push("Python");
+      if (dynamicWeb.has("Angular")) highlights.push("Angular");
+      if (dynamicWeb.has("React")) highlights.push("React");
+      highlights.push("Web");
+
+      const top5 = highlights.slice(0, 5);
+      heroMiniTags.innerHTML = top5.map(t => `<span>${t}</span>`).join("");
+    }
+  },
+
   render() {
     const grid = document.querySelector(".projects-grid");
     if (!grid) return;
 
     const projects = this.getAll();
     const isAdmin = AuthService.isAdmin();
+
+    // Automatically synchronize section 02 (COMPÉTENCES) with current projects!
+    this.updateSkills(projects);
 
     const symbols = ["⌘", "‹/›", "◆", "☰", "♦", "♪", "▶", "⚡", "★", "✦"];
     const visualClasses = ["visual-one", "visual-two", "visual-three", "visual-four", "visual-five", "visual-six", "visual-seven"];
