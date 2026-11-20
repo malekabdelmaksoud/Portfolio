@@ -24,7 +24,7 @@ def load_bytes(path: Path) -> torch.Tensor:
                 continue
             if row.get("license") not in {"owned", "permitted", "public-domain"}:
                 raise ValueError(f"Line {line_number} needs an allowed license field")
-            chunks.append(text.encode("utf-8") + b"\\n")
+            chunks.append(text.encode("utf-8") + b"\n")
     if not chunks:
         raise ValueError("Training corpus is empty")
     return torch.tensor(list(b"".join(chunks)), dtype=torch.long)
