@@ -147,89 +147,123 @@
   </form>
 </div>
 
-<!-- Auth Gate Modal (Enforces Login / Register) -->
+<!-- Auth Gate Modal (Enforces Login / Register - Vercel & Cloudflare Dark Style) -->
 <div class="auth-gate-overlay" id="authGateOverlay" style="display:none">
   <div class="auth-gate-box">
-    <div class="auth-logo">MA<span>.</span></div>
-    <p class="auth-subtitle">Veuillez vous connecter pour accéder au portfolio et aux fonctionnalités.</p>
-
-    <div class="auth-tabs">
-      <button type="button" class="auth-tab active" id="tabBtnLogin">Connexion</button>
-      <button type="button" class="auth-tab" id="tabBtnRegister">Inscription</button>
+    
+    <div style="display:flex;justify-content:center;margin-bottom:16px">
+      <svg height="28" viewBox="0 0 76 65" fill="#ffffff"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"></path></svg>
     </div>
 
-    <form id="authMainForm">
-      <div class="auth-form-group" id="fieldNameGroup" style="display:none">
-        <label>Nom complet</label>
-        <input type="text" id="authName" placeholder="Ex: Mohamed Ali">
+    <h2 class="vercel-auth-title" id="authMainTitle">Log in to Portfolio</h2>
+    <p class="vercel-auth-subtitle" id="authMainSubtitle">Connectez-vous pour explorer le portfolio et les fonctionnalités.</p>
+
+    <!-- Switch Mode (Connexion / Inscription) -->
+    <div class="vercel-auth-mode-switch">
+      <button type="button" class="v-switch-btn active" id="tabBtnLogin">Connexion</button>
+      <button type="button" class="v-switch-btn" id="tabBtnRegister">Inscription</button>
+    </div>
+
+    <form id="authMainForm" style="margin-top:14px">
+      <div id="fieldNameGroup" style="display:none;margin-bottom:12px;text-align:left">
+        <input type="text" id="authName" class="vercel-input" placeholder="Nom complet (Ex: Mohamed Ali)">
       </div>
 
-      <div class="auth-form-group">
-        <label>Adresse e-mail</label>
-        <input type="email" id="authEmail" placeholder="votre-email@domaine.com" required autocomplete="email">
+      <div style="margin-bottom:12px;text-align:left">
+        <input type="email" id="authEmail" class="vercel-input" placeholder="Email Address" required autocomplete="email">
       </div>
 
-      <div class="auth-form-group">
-        <label>Mot de passe</label>
-        <input type="password" id="authPassword" placeholder="••••••••" required autocomplete="current-password">
+      <div style="margin-bottom:14px;text-align:left">
+        <input type="password" id="authPassword" class="vercel-input" placeholder="Mot de passe" required autocomplete="current-password">
       </div>
 
-      <button type="submit" class="auth-submit-btn" id="authSubmitBtn">Se connecter</button>
+      <button type="submit" class="vercel-btn-primary" id="authSubmitBtn">
+        Continue with Email
+      </button>
+
       <div class="auth-error-msg" id="authErrorMsg"></div>
+    </form>
+
+    <!-- Divider -->
+    <div class="vercel-auth-divider">
+      <span>OU</span>
+    </div>
+
+    <!-- Continue with GitHub (Style Vercel / Cloudflare with Last Used badge) -->
+    <button type="button" class="vercel-btn-github" onclick="handleGitHubOAuthLogin()">
+      <svg height="20" viewBox="0 0 16 16" width="20" fill="#ffffff"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+      <span>Continue with GitHub</span>
+      <span class="vercel-badge-last-used">Last Used</span>
+    </button>
+
+  </div>
+</div>
+
+<!-- Edit Project Modal (Admin Only) -->
+<div class="project-modal-backdrop" id="editProjectModalBackdrop">
+  <div class="project-modal-box vercel-theme-box" style="max-width:520px;padding:28px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid #222;padding-bottom:12px">
+      <h3 style="font:700 16px 'Space Grotesk';color:#fff;margin:0">✏️ Modifier le Projet</h3>
+      <button type="button" onclick="closeEditProjectModal()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <form id="editProjectForm" onsubmit="handleEditProjectSave(event)">
+      <input type="hidden" id="editProjId">
+      <div style="margin-bottom:12px;text-align:left">
+        <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Nom du projet</label>
+        <input type="text" id="editProjName" class="vercel-input" required>
+      </div>
+      <div style="margin-bottom:12px;text-align:left">
+        <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Catégorie / Langages</label>
+        <input type="text" id="editProjType" class="vercel-input" required>
+      </div>
+      <div style="margin-bottom:12px;text-align:left">
+        <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Description</label>
+        <textarea id="editProjDesc" class="vercel-input" rows="4" style="resize:vertical" required></textarea>
+      </div>
+      <div style="margin-bottom:16px;text-align:left">
+        <label style="display:block;font-size:11px;color:#888;text-transform:uppercase;margin-bottom:4px">Lien GitHub</label>
+        <input type="url" id="editProjGithub" class="vercel-input" required>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button type="button" onclick="closeEditProjectModal()" class="btn" style="background:#1a1a1a;color:#ccc;border:1px solid #333;border-radius:6px">Annuler</button>
+        <button type="submit" class="btn-import-v">Enregistrer les modifications</button>
+      </div>
     </form>
   </div>
 </div>
 
-<!-- Project Modal (Add / Edit GitHub Project) -->
+<!-- Project Modal (Vercel / Cloudflare Style GitHub Importer) -->
 <div class="project-modal-backdrop" id="projectModalBackdrop">
-  <div class="project-modal-box">
-    <div class="proj-modal-head">
-      <h3 id="projectModalTitle">Lier un Dépôt GitHub</h3>
-      <button type="button" onclick="closeProjectModal()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+  <div class="project-modal-box vercel-theme-box" style="max-width:580px;padding:32px">
+    
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #222;padding-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg height="24" viewBox="0 0 16 16" width="24" fill="#ffffff"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+        <div>
+          <h3 style="font:700 17px 'Space Grotesk';color:#fff;margin:0">Importer depuis GitHub</h3>
+          <p style="font-size:12px;color:#888;margin-top:2px">Sélectionnez un dépôt pour l'ajouter automatiquement au portfolio.</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeProjectModal()" style="background:none;border:none;color:#888;font-size:22px;cursor:pointer">✕</button>
     </div>
 
-    <form onsubmit="saveProjectFromModal(event)">
-      <input type="hidden" id="projEditId">
+    <!-- Search / Filter Repos -->
+    <div style="margin-bottom:14px">
+      <input type="text" id="vercelRepoSearch" placeholder="Rechercher parmi vos dépôts GitHub..." oninput="filterVercelRepos(this.value)" style="width:100%;padding:10px 14px;background:#0d0d0d;border:1px solid #2a2a2a;color:#fff;border-radius:8px;font-size:13px;outline:none">
+    </div>
 
-      <div class="auth-form-group" id="githubFetchGroup">
-        <label>Sélectionner un dépôt GitHub de votre compte (comme Cloudflare)</label>
-        <select id="githubRepoSelect" onchange="onSelectGithubRepoChange(this.value)" style="width:100%;padding:10px;border:1.5px solid #6957e8;border-radius:10px;font-family:inherit;font-size:13px;background:#f5f3ff;color:#1e1b4b;font-weight:600;margin-bottom:10px">
-          <option value="">Chargement de vos dépôts GitHub...</option>
-        </select>
-
-        <label style="font-size:10px;color:#64748b">Ou saisir manuellement un nom / URL :</label>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="repoInput" placeholder="Ex: mon-projet ou https://github.com/malekabdelmaksoud/mon-projet">
-          <button type="button" class="btn btn-primary" onclick="handleFetchGitHubAuto()" style="white-space:nowrap;padding:8px 12px">⚡ Auto Remplir</button>
-        </div>
-        <div id="repoFetchSpinner" style="display:none;font-size:11.5px;color:#6957e8;margin-top:4px">⏳ Récupération des informations et génération de la description...</div>
+    <!-- List of Repositories -->
+    <div class="repo-grid-vercel" id="vercelReposContainer">
+      <div style="text-align:center;padding:30px;color:#777;font-size:13px">
+        ⏳ Connexion à votre compte GitHub (malekabdelmaksoud)...
       </div>
+    </div>
 
-      <div class="auth-form-group">
-        <label>Nom du Projet</label>
-        <input type="text" id="projName" placeholder="Nom du projet" required>
-      </div>
+    <div style="border-top:1px solid #1f1f1f;margin-top:18px;padding-top:14px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:11px;color:#666">Compte lié : <b>github.com/malekabdelmaksoud</b></span>
+      <button type="button" class="btn" style="background:#1a1a1a;color:#ccc;border:1px solid #333;border-radius:6px" onclick="closeProjectModal()">Fermer</button>
+    </div>
 
-      <div class="auth-form-group">
-        <label>Catégorie / Langages</label>
-        <input type="text" id="projType" placeholder="Ex: JAVA · APPLICATION">
-      </div>
-
-      <div class="auth-form-group">
-        <label>Description du Projet (Générée automatiquement)</label>
-        <textarea id="projDesc" rows="3" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:12.5px" required></textarea>
-      </div>
-
-      <div class="auth-form-group">
-        <label>Lien GitHub</label>
-        <input type="url" id="projGithub" placeholder="https://github.com/malekabdelmaksoud/mon-projet">
-      </div>
-
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-        <button type="button" class="btn" style="background:#f1f5f9;color:#475569" onclick="closeProjectModal()">Annuler</button>
-        <button type="submit" class="btn btn-primary">Enregistrer le Projet</button>
-      </div>
-    </form>
   </div>
 </div>
 

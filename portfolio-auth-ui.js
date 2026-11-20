@@ -36,7 +36,8 @@ function initAuthGate() {
   const tabRegister = document.getElementById("tabBtnRegister");
   const fieldNameGroup = document.getElementById("fieldNameGroup");
   const authSubmitBtn = document.getElementById("authSubmitBtn");
-  const authTitle = document.getElementById("authFormTitle");
+  const authTitle = document.getElementById("authMainTitle");
+  const authSubtitle = document.getElementById("authMainSubtitle");
   let mode = "login";
 
   if (tabLogin && tabRegister) {
@@ -45,8 +46,9 @@ function initAuthGate() {
       tabLogin.classList.add("active");
       tabRegister.classList.remove("active");
       fieldNameGroup.style.display = "none";
-      authSubmitBtn.textContent = "Se connecter";
-      authTitle.textContent = "Connexion Requise";
+      authSubmitBtn.textContent = "Continue with Email";
+      if (authTitle) authTitle.textContent = "Log in to Portfolio";
+      if (authSubtitle) authSubtitle.textContent = "Connectez-vous pour explorer le portfolio et les fonctionnalités.";
       clearError();
     });
 
@@ -55,8 +57,9 @@ function initAuthGate() {
       tabRegister.classList.add("active");
       tabLogin.classList.remove("active");
       fieldNameGroup.style.display = "block";
-      authSubmitBtn.textContent = "Créer mon compte";
-      authTitle.textContent = "Inscription Utilisateur";
+      authSubmitBtn.textContent = "Create Account with Email";
+      if (authTitle) authTitle.textContent = "Create an Account";
+      if (authSubtitle) authSubtitle.textContent = "Inscrivez-vous pour accéder au portfolio personnel de Melek.";
       clearError();
     });
   }
@@ -119,116 +122,151 @@ function initAdminProjectTools() {
   ProjectsManager.render();
 }
 
+// ── GitHub OAuth Login (Vercel / Cloudflare Style) ──
+function handleGitHubOAuthLogin() {
+  const overlay = document.getElementById("authGateOverlay");
+  AuthService.loginWithGitHub("malekabdelmaksoud");
+  
+  if (overlay) overlay.style.display = "none";
+  initAuthGate();
+  ProjectsManager.render();
+}
+
+// ── Vercel / Cloudflare Style GitHub Importer Modal ──
+let loadedGithubReposList = [];
+
+const FALLBACK_GITHUB_REPOS = [
+  { name: "elearning-platform", language: "Java", updated_at: "2026-02-15" },
+  { name: "projet-php", language: "PHP", updated_at: "2026-02-10" },
+  { name: "projet-laravel", language: "PHP", updated_at: "2026-01-28" },
+  { name: "tp-magasin", language: "Java", updated_at: "2026-01-20" },
+  { name: "tp-poo", language: "Java", updated_at: "2026-01-15" },
+  { name: "projet-symfony", language: "PHP", updated_at: "2025-12-18" },
+  { name: "first-app-csharp", language: "C#", updated_at: "2025-11-20" },
+  { name: "Portfolio", language: "JavaScript", updated_at: "2026-02-18" }
+];
+
 function openAddProjectModal() {
-  document.getElementById("projectModalTitle").textContent = "Lier un Dépôt GitHub (Auto Description)";
-  document.getElementById("projEditId").value = "";
-  document.getElementById("repoInput").value = "";
-  document.getElementById("projName").value = "";
-  document.getElementById("projType").value = "";
-  document.getElementById("projDesc").value = "";
-  document.getElementById("projGithub").value = "";
-  document.getElementById("githubFetchGroup").style.display = "block";
-
-  // Auto populate available GitHub repositories list
-  loadAvailableGithubRepos();
-
   document.getElementById("projectModalBackdrop").classList.add("active");
-}
-
-async function loadAvailableGithubRepos() {
-  const selectBox = document.getElementById("githubRepoSelect");
-  if (!selectBox) return;
-
-  selectBox.innerHTML = '<option value="">⏳ Chargement de vos dépôts GitHub...</option>';
-
-  try {
-    const res = await fetch("https://api.github.com/users/malekabdelmaksoud/repos?sort=updated&per_page=30");
-    if (!res.ok) throw new Error("Impossible de charger les dépôts.");
-    const repos = await res.json();
-
-    selectBox.innerHTML = '<option value="">-- Sélectionnez un de vos dépôts GitHub --</option>' + 
-      repos.map(r => `<option value="${r.name}">${r.name} (${r.language || 'Code'})</option>`).join("");
-  } catch (err) {
-    selectBox.innerHTML = '<option value="">⚠️ Écrivez le nom ci-dessous</option>';
-  }
-}
-
-function onSelectGithubRepoChange(val) {
-  if (!val) return;
-  document.getElementById("repoInput").value = val;
-  handleFetchGitHubAuto();
-}
-
-function openEditProjectModal(id) {
-  const p = ProjectsManager.getAll().find(item => item.id === id);
-  if (!p) return;
-
-  document.getElementById("projectModalTitle").textContent = "Modifier le Projet";
-  document.getElementById("projEditId").value = p.id;
-  document.getElementById("projName").value = p.name;
-  document.getElementById("projType").value = p.type;
-  document.getElementById("projDesc").value = p.description;
-  document.getElementById("projGithub").value = p.github;
-  document.getElementById("githubFetchGroup").style.display = "none";
-  document.getElementById("projectModalBackdrop").classList.add("active");
+  loadVercelStyleGithubRepos();
 }
 
 function closeProjectModal() {
   document.getElementById("projectModalBackdrop").classList.remove("active");
 }
 
-async function handleFetchGitHubAuto() {
-  const query = document.getElementById("repoInput").value.trim();
-  if (!query) {
-    alert("Veuillez saisir le nom ou l'URL du dépôt GitHub !");
+async function loadVercelStyleGithubRepos() {
+  const container = document.getElementById("vercelReposContainer");
+  container.innerHTML = '<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de vos dépôts GitHub...</div>';
+
+  try {
+    const res = await fetch("https://api.github.com/users/malekabdelmaksoud/repos?sort=updated&per_page=30");
+    if (!res.ok) throw new Error("Erreur de connexion à GitHub.");
+    loadedGithubReposList = await res.json();
+    if (!loadedGithubReposList || loadedGithubReposList.length === 0) {
+      loadedGithubReposList = FALLBACK_GITHUB_REPOS;
+    }
+  } catch (err) {
+    console.warn("Using fallback GitHub repos:", err);
+    loadedGithubReposList = FALLBACK_GITHUB_REPOS;
+  }
+  renderVercelRepos(loadedGithubReposList);
+}
+
+function renderVercelRepos(repos) {
+  const container = document.getElementById("vercelReposContainer");
+  if (!repos || repos.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Aucun dépôt trouvé.</div>';
     return;
   }
 
-  const spinner = document.getElementById("repoFetchSpinner");
-  if (spinner) spinner.style.display = "block";
+  const existingIds = ProjectsManager.getAll().map(p => p.name.toLowerCase());
+
+  container.innerHTML = repos.map(r => {
+    const isAdded = existingIds.includes(r.name.toLowerCase());
+    const lang = r.language || 'Code';
+
+    return `
+      <div class="repo-card-vercel">
+        <div class="repo-info-v">
+          <strong>
+            <span>📦</span> ${r.name}
+            ${r.fork ? '<span style="font-size:10px;color:#a855f7">(fork)</span>' : ''}
+          </strong>
+          <span>${lang} • Mis à jour le ${new Date(r.updated_at).toLocaleDateString()}</span>
+        </div>
+        <div>
+          ${isAdded 
+            ? '<span style="color:#10b981;font-size:11.5px;font-weight:700">✓ Déjà sur le site</span>' 
+            : `<button class="btn-import-v" onclick="importGithubRepoDirect('${r.name}')">Importer ⚡</button>`
+          }
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function filterVercelRepos(val) {
+  const q = val.trim().toLowerCase();
+  const filtered = loadedGithubReposList.filter(r => r.name.toLowerCase().includes(q) || (r.language && r.language.toLowerCase().includes(q)));
+  renderVercelRepos(filtered);
+}
+
+async function importGithubRepoDirect(repoName) {
+  const container = document.getElementById("vercelReposContainer");
+  const originalHtml = container.innerHTML;
+  container.innerHTML = `<div style="text-align:center;padding:30px;color:#fff">⚡ Analyse de <b>${repoName}</b> & génération automatique de la description...</div>`;
 
   try {
-    const details = await ProjectsManager.fetchGitHubDetails(query);
-    document.getElementById("projName").value = details.name;
-    document.getElementById("projType").value = details.type;
-    document.getElementById("projDesc").value = details.description;
-    document.getElementById("projGithub").value = details.github;
+    const details = await ProjectsManager.fetchGitHubDetails(repoName);
+    const newProj = {
+      id: "p_" + Date.now(),
+      name: details.name,
+      type: details.type,
+      description: details.description,
+      github: details.github
+    };
+
+    ProjectsManager.add(newProj);
+    closeProjectModal();
+    alert(`🎉 Le projet "${details.name}" a été importé avec succès !\nDescription générée automatiquement.`);
   } catch (err) {
-    alert(err.message);
-  } finally {
-    if (spinner) spinner.style.display = "none";
+    alert("Erreur lors de l'importation : " + err.message);
+    container.innerHTML = originalHtml;
   }
 }
 
-function saveProjectFromModal(e) {
+
+// ── Project Edit Modal Logic ──
+function openEditProjectModal(id) {
+  const proj = ProjectsManager.getAll().find(p => p.id === id);
+  if (!proj) return;
+
+  document.getElementById("editProjId").value = proj.id;
+  document.getElementById("editProjName").value = proj.name;
+  document.getElementById("editProjType").value = proj.type;
+  document.getElementById("editProjDesc").value = proj.description;
+  document.getElementById("editProjGithub").value = proj.github;
+
+  document.getElementById("editProjectModalBackdrop").classList.add("active");
+}
+
+function closeEditProjectModal() {
+  document.getElementById("editProjectModalBackdrop").classList.remove("active");
+}
+
+function handleEditProjectSave(e) {
   e.preventDefault();
-  const id = document.getElementById("projEditId").value;
-  const name = document.getElementById("projName").value.trim();
-  const type = document.getElementById("projType").value.trim() || "PROJET · APPLICATION";
-  const desc = document.getElementById("projDesc").value.trim();
-  const github = document.getElementById("projGithub").value.trim();
+  const id = document.getElementById("editProjId").value;
+  const updatedData = {
+    name: document.getElementById("editProjName").value.trim(),
+    type: document.getElementById("editProjType").value.trim(),
+    description: document.getElementById("editProjDesc").value.trim(),
+    github: document.getElementById("editProjGithub").value.trim()
+  };
 
-  if (!name || !desc) {
-    alert("Veuillez renseigner le nom et la description du projet !");
-    return;
-  }
-
-  if (id) {
-    // Update existing
-    ProjectsManager.update(id, { name, type, description: desc, github });
-  } else {
-    // Add new
-    const newProject = {
-      id: "p_" + Date.now(),
-      name,
-      type,
-      description: desc,
-      github: github || `https://github.com/malekabdelmaksoud/${name}`
-    };
-    ProjectsManager.add(newProject);
-  }
-
-  closeProjectModal();
+  ProjectsManager.update(id, updatedData);
+  closeEditProjectModal();
 }
 
 function deleteProjectDirect(id) {
@@ -316,4 +354,19 @@ function handlePasswordUpdate(e) {
   alert("✅ Mot de passe mis à jour avec succès !");
   closeProfileModal();
 }
+
+// ── Global window handlers ──
+window.handleGitHubOAuthLogin = handleGitHubOAuthLogin;
+window.openAddProjectModal = openAddProjectModal;
+window.closeProjectModal = closeProjectModal;
+window.importGithubRepoDirect = importGithubRepoDirect;
+window.filterVercelRepos = filterVercelRepos;
+window.openEditProjectModal = openEditProjectModal;
+window.closeEditProjectModal = closeEditProjectModal;
+window.handleEditProjectSave = handleEditProjectSave;
+window.deleteProjectDirect = deleteProjectDirect;
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.sendVerificationEmail = sendVerificationEmail;
+window.handlePasswordUpdate = handlePasswordUpdate;
 

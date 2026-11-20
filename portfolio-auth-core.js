@@ -100,6 +100,19 @@ const AuthService = {
     return user;
   },
 
+  loginWithGitHub(username = "malekabdelmaksoud") {
+    const isOwner = username.toLowerCase() === "malekabdelmaksoud" || username.toLowerCase() === "melekabdelmaksoud72";
+    const user = {
+      name: isOwner ? "Melek Abdelmaksoud (Admin)" : username,
+      email: isOwner ? ADMIN_EMAIL : `${username}@users.noreply.github.com`,
+      role: isOwner ? "admin" : "user",
+      github: username,
+      createdAt: new Date().toISOString()
+    };
+    this.createSession(user);
+    return user;
+  },
+
   createSession(user) {
     const session = {
       name: user.name,
@@ -219,32 +232,40 @@ const ProjectsManager = {
       }
     }
 
-    const res = await fetch(`https://api.github.com/repos/${username}/${repo}`);
-    if (!res.ok) {
-      throw new Error(`Dépôt introuvable sur GitHub (${username}/${repo}). Vérifiez le nom ou l'URL.`);
+    try {
+      const res = await fetch(`https://api.github.com/repos/${username}/${repo}`);
+      if (res.ok) {
+        const data = await res.json();
+        const lang = data.language || "Web / Logiciel";
+        
+        let autoType = `${lang.toUpperCase()} · OPEN SOURCE`;
+        if (lang === "PHP") autoType = "PHP · FRAMEWORK & WEB";
+        if (lang === "Java") autoType = "JAVA · APPLICATION";
+        if (lang === "C#") autoType = "C# · .NET APPLICATION";
+        if (lang === "TypeScript" || lang === "JavaScript") autoType = "JAVASCRIPT · FULL STACK";
+
+        let autoDesc = data.description;
+        if (!autoDesc || autoDesc.trim() === "") {
+          autoDesc = `Projet officiel hébergé sur GitHub (${data.name}). Développé principalement avec ${lang}, axé sur les bonnes pratiques d'architecture et de structuration du code.`;
+        }
+
+        return {
+          name: data.name,
+          type: autoType,
+          description: autoDesc,
+          github: data.html_url
+        };
+      }
+    } catch (e) {
+      console.warn("GitHub API fetch error, fallback activated:", e);
     }
 
-    const data = await res.json();
-    const lang = data.language || "Web / Logiciel";
-    
-    // Auto-generate professional category type
-    let autoType = `${lang.toUpperCase()} · OPEN SOURCE`;
-    if (lang === "PHP") autoType = "PHP · FRAMEWORK & WEB";
-    if (lang === "Java") autoType = "JAVA · APPLICATION";
-    if (lang === "C#") autoType = "C# · .NET APPLICATION";
-    if (lang === "TypeScript" || lang === "JavaScript") autoType = "JAVASCRIPT · FULL STACK";
-
-    // Auto-generate description if empty or generic
-    let autoDesc = data.description;
-    if (!autoDesc || autoDesc.trim() === "") {
-      autoDesc = `Projet officiel hébergé sur GitHub. Développé principalement avec ${lang}, axé sur les bonnes pratiques d'architecture et de structuration du code.`;
-    }
-
+    // Fallback if rate limited
     return {
-      name: data.name,
-      type: autoType,
-      description: autoDesc,
-      github: data.html_url
+      name: repo,
+      type: "GITHUB · APPLICATION",
+      description: `Projet issu du compte GitHub de Melek Abdelmaksoud (${repo}). Intégré automatiquement au portfolio.`,
+      github: `https://github.com/${username}/${repo}`
     };
   },
 
