@@ -168,20 +168,38 @@ function appendAiMessage(text, role, isHtml = false, msgId = null) {
 }
 
 function editChatMessage(id, contentSpan) {
-  const currentText = contentSpan.textContent;
-  const newText = prompt("Modifier votre message :", currentText);
-  if (newText !== null && newText.trim() !== "" && newText !== currentText) {
-    ChatStore.updateMessage(id, newText.trim());
-    renderChatFromHistory();
-    // Re-trigger answer for edited prompt
-    const typing = appendAiMessage("Mise à jour de la réponse...", "bot");
-    setTimeout(() => {
-      typing.remove();
-      const answer = generateAiAnswer(newText.trim());
-      const botMsg = ChatStore.addMessage("bot", answer);
-      appendAiMessage(answer, "bot", true, botMsg.id);
-    }, 350);
-  }
+  if (contentSpan.isContentEditable) return;
+  contentSpan.contentEditable = "true";
+  contentSpan.focus();
+  contentSpan.style.outline = "1.5px solid #6957e8";
+  contentSpan.style.borderRadius = "4px";
+  contentSpan.style.padding = "2px 4px";
+  contentSpan.style.background = "rgba(105,87,232,0.06)";
+
+  const finishEdit = () => {
+    contentSpan.contentEditable = "false";
+    contentSpan.style.outline = "none";
+    contentSpan.style.background = "none";
+    const newText = contentSpan.textContent.trim();
+    if (newText) {
+      ChatStore.updateMessage(id, newText);
+      const typing = appendAiMessage("Mise à jour de la réponse...", "bot");
+      setTimeout(() => {
+        typing.remove();
+        const answer = generateAiAnswer(newText);
+        const botMsg = ChatStore.addMessage("bot", answer);
+        appendAiMessage(answer, "bot", true, botMsg.id);
+      }, 350);
+    }
+  };
+
+  contentSpan.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      contentSpan.blur();
+    }
+  };
+  contentSpan.onblur = finishEdit;
 }
 
 function deleteChatMessage(id, msgElement) {

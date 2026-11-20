@@ -1,3 +1,21 @@
+// ── Modern In-App Toast Notification (Zero browser alert() popups) ──
+function showToast(message, type = "success") {
+  let toast = document.getElementById("portfolioToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "portfolioToast";
+    document.body.appendChild(toast);
+  }
+  toast.className = `portfolio-toast ${type} show`;
+  const icon = type === "error" ? "⚠️" : (type === "info" ? "ℹ️" : "✅");
+  toast.innerHTML = `<span style="font-size:16px">${icon}</span> <span>${message}</span>`;
+
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3500);
+}
+
 // ── UI Integration for Auth Gate & Admin Project Modals ──
 document.addEventListener("DOMContentLoaded", () => {
   initAuthGate();
@@ -46,7 +64,7 @@ function initAuthGate() {
       tabLogin.classList.add("active");
       tabRegister.classList.remove("active");
       fieldNameGroup.style.display = "none";
-      authSubmitBtn.textContent = "Continue with Email";
+      authSubmitBtn.textContent = "Se connecter";
       if (authTitle) authTitle.textContent = "Log in to Portfolio";
       if (authSubtitle) authSubtitle.textContent = "Connectez-vous pour explorer le portfolio et les fonctionnalités.";
       clearError();
@@ -57,8 +75,8 @@ function initAuthGate() {
       tabRegister.classList.add("active");
       tabLogin.classList.remove("active");
       fieldNameGroup.style.display = "block";
-      authSubmitBtn.textContent = "Create Account with Email";
-      if (authTitle) authTitle.textContent = "Create an Account";
+      authSubmitBtn.textContent = "Créer mon compte";
+      if (authTitle) authTitle.textContent = "Créer un compte";
       if (authSubtitle) authSubtitle.textContent = "Inscrivez-vous pour accéder au portfolio personnel de Melek.";
       clearError();
     });
@@ -87,6 +105,7 @@ function initAuthGate() {
         // Rerender nav and admin tools directly
         initAuthGate();
         ProjectsManager.render();
+        showToast(loggedUser.role === "admin" ? "👑 Bienvenue Melek Abdelmaksoud (Admin) !" : `👋 Bienvenue ${loggedUser.name} !`, "success");
       } catch (err) {
         if (errorDiv) {
           errorDiv.textContent = err.message;
@@ -120,40 +139,6 @@ function showAdminFloatingControls() {
 
 function initAdminProjectTools() {
   ProjectsManager.render();
-}
-
-// ── GitHub OAuth Login (Vercel / Cloudflare Style) ──
-function handleGitHubOAuthLogin() {
-  const ghUser = prompt("Entrez votre nom d'utilisateur GitHub (ou laissez vide pour continuer en tant que visiteur) :", "malekabdelmaksoud");
-  if (ghUser === null) return; // User cancelled
-
-  const cleanUser = ghUser.trim().toLowerCase();
-  const isOwner = cleanUser === "malekabdelmaksoud" || cleanUser === "melekabdelmaksoud72";
-  let adminPassword = "";
-
-  if (isOwner) {
-    adminPassword = prompt("🔐 Ce compte possède les privilèges Administrateur.\nVeuillez saisir votre mot de passe Administrateur :");
-    if (!adminPassword) {
-      alert("Authentification Administrateur annulée.");
-      return;
-    }
-  }
-
-  try {
-    const loggedUser = AuthService.loginWithGitHub(cleanUser, adminPassword);
-    const overlay = document.getElementById("authGateOverlay");
-    if (overlay) overlay.style.display = "none";
-    initAuthGate();
-    ProjectsManager.render();
-
-    if (loggedUser.role === "admin") {
-      alert("👑 Bienvenue Melek Abdelmaksoud ! Mode Administrateur activé.");
-    } else {
-      alert(`👋 Bienvenue ${loggedUser.name} ! Vous êtes connecté en mode visiteur.`);
-    }
-  } catch (err) {
-    alert("❌ " + err.message);
-  }
 }
 
 // ── Vercel / Cloudflare Style GitHub Importer Modal ──
@@ -253,9 +238,9 @@ async function importGithubRepoDirect(repoName) {
 
     ProjectsManager.add(newProj);
     closeProjectModal();
-    alert(`🎉 Le projet "${details.name}" a été importé avec succès !\nDescription générée automatiquement.`);
+    showToast(`🎉 Le projet "${details.name}" a été importé avec succès !`, "success");
   } catch (err) {
-    alert("Erreur lors de l'importation : " + err.message);
+    showToast("Erreur lors de l'importation : " + err.message, "error");
     container.innerHTML = originalHtml;
   }
 }
@@ -291,12 +276,12 @@ function handleEditProjectSave(e) {
 
   ProjectsManager.update(id, updatedData);
   closeEditProjectModal();
+  showToast("💾 Projet mis à jour avec succès !", "success");
 }
 
 function deleteProjectDirect(id) {
-  if (confirm("Voulez-vous vraiment supprimer ce projet du portfolio ?")) {
-    ProjectsManager.delete(id);
-  }
+  ProjectsManager.delete(id);
+  showToast("🗑️ Projet supprimé du portfolio.", "info");
 }
 
 // ── Profile Modal & Email OTP Password Reset Logic ──
@@ -311,6 +296,12 @@ function openProfileModal() {
   document.getElementById("profRoleBadge").textContent = user.role.toUpperCase();
   document.getElementById("profRoleBadge").className = `role-badge ${user.role}`;
   document.getElementById("profAvatar").textContent = user.name.charAt(0).toUpperCase();
+
+  // Show Admin GitHub section only for admin
+  const ghSection = document.getElementById("profAdminGithubSection");
+  if (ghSection) {
+    ghSection.style.display = user.role === "admin" ? "block" : "none";
+  }
 
   // Reset password form state
   document.getElementById("stepSendOtp").style.display = "block";
@@ -334,7 +325,7 @@ function sendVerificationEmail() {
   // Generate 6-digit OTP code
   activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Display simulated email delivery alert & banner with code
+  // Display simulated email delivery banner with code
   const notice = document.getElementById("profOtpNotice");
   notice.innerHTML = `
     📧 <b>E-mail de sécurité envoyé à :</b> ${user.email}<br>
@@ -375,12 +366,12 @@ function handlePasswordUpdate(e) {
     AuthService.saveUsers(users);
   }
 
-  alert("✅ Mot de passe mis à jour avec succès !");
+  showToast("✅ Mot de passe mis à jour avec succès !", "success");
   closeProfileModal();
 }
 
 // ── Global window handlers ──
-window.handleGitHubOAuthLogin = handleGitHubOAuthLogin;
+window.showToast = showToast;
 window.openAddProjectModal = openAddProjectModal;
 window.closeProjectModal = closeProjectModal;
 window.importGithubRepoDirect = importGithubRepoDirect;
