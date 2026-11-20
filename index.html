@@ -192,7 +192,12 @@
       <input type="hidden" id="projEditId">
 
       <div class="auth-form-group" id="githubFetchGroup">
-        <label>Lien ou Nom du Dépôt GitHub</label>
+        <label>Sélectionner un dépôt GitHub de votre compte (comme Cloudflare)</label>
+        <select id="githubRepoSelect" onchange="onSelectGithubRepoChange(this.value)" style="width:100%;padding:10px;border:1.5px solid #6957e8;border-radius:10px;font-family:inherit;font-size:13px;background:#f5f3ff;color:#1e1b4b;font-weight:600;margin-bottom:10px">
+          <option value="">Chargement de vos dépôts GitHub...</option>
+        </select>
+
+        <label style="font-size:10px;color:#64748b">Ou saisir manuellement un nom / URL :</label>
         <div style="display:flex;gap:6px">
           <input type="text" id="repoInput" placeholder="Ex: mon-projet ou https://github.com/malekabdelmaksoud/mon-projet">
           <button type="button" class="btn btn-primary" onclick="handleFetchGitHubAuto()" style="white-space:nowrap;padding:8px 12px">⚡ Auto Remplir</button>

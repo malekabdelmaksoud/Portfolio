@@ -128,7 +128,35 @@ function openAddProjectModal() {
   document.getElementById("projDesc").value = "";
   document.getElementById("projGithub").value = "";
   document.getElementById("githubFetchGroup").style.display = "block";
+
+  // Auto populate available GitHub repositories list
+  loadAvailableGithubRepos();
+
   document.getElementById("projectModalBackdrop").classList.add("active");
+}
+
+async function loadAvailableGithubRepos() {
+  const selectBox = document.getElementById("githubRepoSelect");
+  if (!selectBox) return;
+
+  selectBox.innerHTML = '<option value="">⏳ Chargement de vos dépôts GitHub...</option>';
+
+  try {
+    const res = await fetch("https://api.github.com/users/malekabdelmaksoud/repos?sort=updated&per_page=30");
+    if (!res.ok) throw new Error("Impossible de charger les dépôts.");
+    const repos = await res.json();
+
+    selectBox.innerHTML = '<option value="">-- Sélectionnez un de vos dépôts GitHub --</option>' + 
+      repos.map(r => `<option value="${r.name}">${r.name} (${r.language || 'Code'})</option>`).join("");
+  } catch (err) {
+    selectBox.innerHTML = '<option value="">⚠️ Écrivez le nom ci-dessous</option>';
+  }
+}
+
+function onSelectGithubRepoChange(val) {
+  if (!val) return;
+  document.getElementById("repoInput").value = val;
+  handleFetchGitHubAuto();
 }
 
 function openEditProjectModal(id) {
