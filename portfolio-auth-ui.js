@@ -69,12 +69,19 @@ function initAuthGate() {
       const errorDiv = document.getElementById("authErrorMsg");
 
       try {
+        let loggedUser;
         if (mode === "login") {
-          AuthService.login(email, password);
+          loggedUser = AuthService.login(email, password);
         } else {
-          AuthService.register(name, email, password);
+          loggedUser = AuthService.register(name, email, password);
         }
-        location.reload();
+        
+        // Hide overlay smoothly immediately
+        if (overlay) overlay.style.display = "none";
+        
+        // Rerender nav and admin tools directly
+        initAuthGate();
+        ProjectsManager.render();
       } catch (err) {
         if (errorDiv) {
           errorDiv.textContent = err.message;

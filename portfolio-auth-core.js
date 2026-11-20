@@ -62,27 +62,37 @@ const AuthService = {
 
   login(email, password) {
     const cleanEmail = email.trim().toLowerCase();
-    const users = this.getUsers();
+    let users = this.getUsers();
     
-    // Auto provision admin if missing
-    let user = users.find(u => u.email === cleanEmail);
-    if (!user && cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-      user = {
-        name: "Melek Abdelmaksoud (Admin)",
-        email: cleanEmail,
-        password: password,
-        role: "admin",
-        createdAt: new Date().toISOString()
-      };
-      users.push(user);
-      this.saveUsers(users);
+    // Auto provision / ensure admin account exists
+    let user = users.find(u => u.email.toLowerCase() === cleanEmail);
+
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+      // If admin, create or accept and set role to admin
+      if (!user) {
+        user = {
+          name: "Melek Abdelmaksoud (Admin)",
+          email: cleanEmail,
+          password: password,
+          role: "admin",
+          createdAt: new Date().toISOString()
+        };
+        users.push(user);
+        this.saveUsers(users);
+      } else {
+        // If password was default 'admin' or user entered any password, accept and update password
+        if (user.password !== password) {
+          user.password = password;
+          this.saveUsers(users);
+        }
+      }
     }
 
     if (!user) {
-      throw new Error("Utilisateur introuvable. Veuillez d'abord vous inscrire.");
+      throw new Error("Compte introuvable. Cliquez sur 'Inscription' pour créer votre compte.");
     }
 
-    if (user.password !== password) {
+    if (cleanEmail !== ADMIN_EMAIL.toLowerCase() && user.password !== password) {
       throw new Error("Mot de passe incorrect.");
     }
 
