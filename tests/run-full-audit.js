@@ -451,9 +451,10 @@ async function runAudit() {
     recordTest("Phase 6: Security & Stability", "No Page Exceptions Reported", pageErrors.length === 0, pageErrors.join("; "));
 
     const domHtml = await page.content();
-    const hasExposedResend = domHtml.includes("re_") && !domHtml.includes("placeholder=\"re_") && !domHtml.includes("re_test_key_123");
-    const hasExposedGhp = domHtml.includes("ghp_") && !domHtml.includes("placeholder=\"ghp_");
-    recordTest("Phase 6: Security & Stability", "No Hardcoded Production Secrets Exposed in DOM", !hasExposedResend && !hasExposedGhp);
+    const hasExposedResend = /re_[a-zA-Z0-9]{20,}/.test(domHtml);
+    const hasExposedBrevo = /xkeysib-[a-zA-Z0-9]{40,}/.test(domHtml);
+    const hasExposedGhp = /ghp_[a-zA-Z0-9]{20,}/.test(domHtml);
+    recordTest("Phase 6: Security & Stability", "No Hardcoded Production Secrets Exposed in DOM", !hasExposedResend && !hasExposedBrevo && !hasExposedGhp);
 
     const links = await page.$$eval('a[href]', els => els.map(a => a.getAttribute('href')));
     let brokenInternalLink = false;

@@ -402,10 +402,10 @@
 
     <!-- Admin Email / Security Service Section -->
     <div id="profAdminEmailSection" style="display:none;border-top:1px solid #f1f5f9;margin-top:16px;padding-top:14px;text-align:left">
-      <strong style="font-size:13px;display:block;margin-bottom:4px;color:#1e293b">✉️ Configuration d'envoi d'e-mails sécurisés (Resend API)</strong>
-      <p style="font-size:11.5px;color:#64748b;margin-bottom:8px">Pour délivrer les vrais codes de sécurité directement dans la boîte mail des utilisateurs :</p>
+      <strong style="font-size:13px;display:block;margin-bottom:4px;color:#1e293b">✉️ Configuration d'envoi d'e-mails réels (Brevo / Resend API)</strong>
+      <p style="font-size:11.5px;color:#64748b;margin-bottom:8px">Pour envoyer les vrais codes de sécurité dans les boîtes de réception (Ex: Brevo gratuit 300 e-mails/jour ou Resend) :</p>
       <div style="display:flex;gap:8px">
-        <input type="password" id="inputResendApiKey" placeholder="re_123456789..." style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#f8fafc">
+        <input type="password" id="inputResendApiKey" placeholder="Clé API Brevo (xkeysib-...) ou Resend (re_...)" style="flex:1;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;background:#f8fafc">
         <button type="button" class="btn btn-primary" style="padding:8px 12px;font-size:12px" onclick="saveEmailApiKey()">Enregistrer</button>
       </div>
     </div>
@@ -449,6 +449,6 @@
 <script src="script.js?v=12.0"></script>
 <script src="portfolio-auth-core.js?v=12.0"></script>
 <script src="cv-manager.js?v=13.0"></script>
-<script src="portfolio-auth-ui.js?v=12.0"></script>
+<script src="portfolio-auth-ui.js?v=13.0"></script>
 <script src="chat-crud-store.js?v=12.0"></script>
 </body></html>

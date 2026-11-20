@@ -411,14 +411,63 @@ function deleteProjectDirect(id) {
 let activeOtpCode = null;
 
 async function dispatchSecurityEmail(targetEmail, otpCode) {
-  const resendKey = localStorage.getItem("portfolio_resend_api_key");
+  const apiKey = (localStorage.getItem("portfolio_resend_api_key") || "").trim();
 
-  if (resendKey) {
+  if (!apiKey) {
+    console.warn(`[Sécurité] Clé API d'envoi d'e-mails manquante. Aucun e-mail n'a été envoyé.`);
+    return { success: false, reason: "no_api_key" };
+  }
+
+  // 1. Brevo Transactional Email API (free 300 emails/day to ANY email address)
+  if (apiKey.startsWith("xkeysib-") || apiKey.length > 50) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          sender: { name: "Portfolio Melek Abdelmaksoud", email: "melekabdelmaksoud72@gmail.com" },
+          to: [{ email: targetEmail }],
+          subject: `🔐 Code de sécurité Portfolio : ${otpCode}`,
+          htmlContent: `
+            <div style="font-family:sans-serif;padding:24px;color:#1e293b;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;max-width:500px;margin:auto">
+              <h2 style="color:#6957e8;margin-top:0">Portfolio Melek Abdelmaksoud</h2>
+              <p style="font-size:14px;color:#334155">Bonjour,</p>
+              <p style="font-size:14px;color:#334155">Voici votre code de sécurité confidentiel pour mettre à jour votre mot de passe :</p>
+              <div style="text-align:center;margin:24px 0">
+                <span style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#10b981;padding:12px 24px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;display:inline-block">
+                  ${otpCode}
+                </span>
+              </div>
+              <p style="font-size:12px;color:#64748b">Ce code expire dans 15 minutes. Ne communiquez jamais ce code à un tiers.</p>
+            </div>
+          `
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        console.log("Brevo email sent successfully:", data);
+        return { success: true, provider: "brevo", data };
+      } else {
+        console.warn("Brevo API error:", data);
+        return { success: false, provider: "brevo", error: data };
+      }
+    } catch (e) {
+      console.warn("Brevo email failed:", e);
+      return { success: false, error: e.message };
+    }
+  }
+
+  // 2. Resend API
+  if (apiKey.startsWith("re_")) {
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${resendKey}`,
+          "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -441,16 +490,20 @@ async function dispatchSecurityEmail(targetEmail, otpCode) {
         })
       });
       const data = await res.json();
-      console.log("Resend email sent:", data);
-      return { success: true, provider: "resend" };
+      if (res.ok) {
+        console.log("Resend email sent:", data);
+        return { success: true, provider: "resend" };
+      } else {
+        console.warn("Resend API error:", data);
+        return { success: false, error: data };
+      }
     } catch (e) {
       console.warn("Resend email failed:", e);
+      return { success: false, error: e.message };
     }
   }
 
-  // Secure local logging
-  console.log(`[Sécurité] Code de vérification généré pour ${targetEmail}`);
-  return { success: false, reason: "no_api_key" };
+  return { success: false, reason: "invalid_key_format" };
 }
 
 function saveEmailApiKey() {
@@ -458,16 +511,7 @@ function saveEmailApiKey() {
   if (!input) return;
   const key = input.value.trim();
   localStorage.setItem("portfolio_resend_api_key", key);
-  showToast(key ? "✅ Clé API Resend enregistrée avec succès !" : "ℹ️ Clé API supprimée.", "success");
-}
-
-function revealTestOtp(bannerId, code) {
-  const el = document.getElementById(bannerId);
-  if (!el) return;
-  const codeBox = el.querySelector(".test-code-reveal");
-  if (codeBox) {
-    codeBox.style.display = "block";
-  }
+  showToast(key ? "✅ Clé API d'envoi d'e-mails enregistrée avec succès !" : "ℹ️ Clé API supprimée.", "success");
 }
 
 function openProfileModal() {
@@ -547,36 +591,48 @@ function handleAdminPasswordDirectUpdate(e) {
   closeProfileModal();
 }
 
-function sendVerificationEmail() {
+async function sendVerificationEmail() {
   const user = AuthService.getCurrentUser();
   if (!user) return;
 
   // Generate 6-digit OTP code
   activeOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Dispatch real email to user's inbox
-  dispatchSecurityEmail(user.email, activeOtpCode);
-  showToast(`📨 Code de sécurité envoyé pour : ${user.email}`, "info");
+  showToast(`⏳ Envoi du code de sécurité à ${user.email}...`, "info");
+  const result = await dispatchSecurityEmail(user.email, activeOtpCode);
 
-  // Display security notice WITHOUT exposing the secret code by default
   const notice = document.getElementById("profOtpNotice");
-  notice.innerHTML = `
-    <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px;color:#065f46">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:16px">📩</span>
-        <strong style="font-size:13px">Code de sécurité envoyé par e-mail !</strong>
+  if (result.success) {
+    showToast(`📨 Code de sécurité envoyé à : ${user.email}`, "success");
+    notice.innerHTML = `
+      <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px;color:#065f46">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:16px">📩</span>
+          <strong style="font-size:13px">Code de sécurité envoyé par e-mail !</strong>
+        </div>
+        <div style="font-size:12px;line-height:1.5">
+          Un e-mail contenant votre code de vérification confidentiel à 6 chiffres a été expédié à :<br>
+          <b style="color:#047857">${user.email}</b>
+        </div>
+        <div style="font-size:11px;color:#059669;margin-top:6px;border-top:1px dashed #a7f3d0;padding-top:6px">
+          🔒 Veuillez vérifier votre <b>boîte de réception</b> ou dossier <b>Spam</b> et saisir le code reçu ci-dessous.
+        </div>
       </div>
-      <div style="font-size:12px;line-height:1.5">
-        Un e-mail contenant votre code de vérification confidentiel à 6 chiffres a été expédié à :<br>
-        <b style="color:#047857">${user.email}</b>
+    `;
+  } else {
+    showToast(`⚠️ Service d'e-mail non connecté`, "error");
+    notice.innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px 14px;color:#991b1b">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:16px">⚠️</span>
+          <strong style="font-size:13px">Clé d'envoi d'e-mails non configurée</strong>
+        </div>
+        <div style="font-size:11.5px;line-height:1.5">
+          L'envoi automatique d'e-mails réels vers <b>${user.email}</b> nécessite d'enregistrer une clé d'envoi gratuite (Brevo ou Resend) dans la section d'administration ci-dessous.
+        </div>
       </div>
-      <div style="font-size:11px;color:#059669;margin-top:6px;border-top:1px dashed #a7f3d0;padding-top:6px">
-        🔒 Veuillez vérifier votre <b>boîte de réception</b> ou dossier <b>Spam</b>.
-        <span style="font-size:10.5px;color:#065f46;cursor:pointer;text-decoration:underline;margin-left:8px" onclick="this.nextElementSibling.style.display='inline-block'">[Afficher le code si e-mail non reçu]</span>
-        <strong style="display:none;background:#d1fae5;padding:2px 6px;border-radius:4px;margin-left:4px;font-size:13px;letter-spacing:1px">${activeOtpCode}</strong>
-      </div>
-    </div>
-  `;
+    `;
+  }
   notice.style.display = "block";
 
   // Advance to step 2
@@ -655,7 +711,7 @@ function backToLoginView(e) {
   if (mainCont) mainCont.style.display = "block";
 }
 
-function handleForgotRequest(e) {
+async function handleForgotRequest(e) {
   e.preventDefault();
   const email = document.getElementById("forgotInputEmail").value.trim().toLowerCase();
   const errorDiv = document.getElementById("forgotErrorMsg");
@@ -693,27 +749,41 @@ function handleForgotRequest(e) {
     } else {
       forgotOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-      // Dispatch real email to user's inbox
-      dispatchSecurityEmail(email, forgotOtpCode);
-      showToast(`📨 Code de sécurité expédié à : ${email}`, "info");
+      showToast(`⏳ Envoi du code de sécurité à ${email}...`, "info");
+      const result = await dispatchSecurityEmail(email, forgotOtpCode);
 
-      banner.innerHTML = `
-        <div style="background:#064e3b;border:1px solid #059669;border-radius:10px;padding:12px 14px;color:#ecfdf5;text-align:left">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span style="font-size:16px">📩</span>
-            <strong style="font-size:13px;color:#34d399">Code de sécurité envoyé par e-mail !</strong>
+      if (result.success) {
+        showToast(`📨 Code de sécurité envoyé à : ${email}`, "success");
+        banner.innerHTML = `
+          <div style="background:#064e3b;border:1px solid #059669;border-radius:10px;padding:12px 14px;color:#ecfdf5;text-align:left">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:16px">📩</span>
+              <strong style="font-size:13px;color:#34d399">Code de sécurité envoyé par e-mail !</strong>
+            </div>
+            <div style="font-size:12px;line-height:1.5;color:#d1fae5">
+              Un e-mail contenant votre code confidentiel à 6 chiffres a été expédié à :<br>
+              <b style="color:#6ee7b7">${email}</b>
+            </div>
+            <div style="font-size:11px;color:#a7f3d0;margin-top:6px;border-top:1px dashed #047857;padding-top:6px">
+              🔒 Veuillez consulter votre <b>boîte de réception</b> ou dossier <b>Spam</b> et saisir le code reçu.
+            </div>
           </div>
-          <div style="font-size:12px;line-height:1.5;color:#d1fae5">
-            Un e-mail contenant votre code confidentiel à 6 chiffres a été expédié à :<br>
-            <b style="color:#6ee7b7">${email}</b>
+        `;
+      } else {
+        showToast(`⚠️ Service d'envoi non configuré`, "error");
+        banner.innerHTML = `
+          <div style="background:#451a03;border:1px solid #b45309;border-radius:10px;padding:12px 14px;color:#fef3c7;text-align:left">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:16px">⚠️</span>
+              <strong style="font-size:13px;color:#f59e0b">Service d'envoi d'e-mails non configuré</strong>
+            </div>
+            <div style="font-size:11.5px;line-height:1.5;color:#fde68a">
+              L'envoi automatique d'e-mails vers <b>${email}</b> nécessite l'enregistrement d'une clé API gratuite (Brevo ou Resend) par l'administrateur. Veuillez contacter l'administrateur : <b>melekabdelmaksoud72@gmail.com</b>
+            </div>
           </div>
-          <div style="font-size:11px;color:#a7f3d0;margin-top:6px;border-top:1px dashed #047857;padding-top:6px">
-            🔒 Veuillez consulter votre <b>boîte de réception</b> ou dossier <b>Spam</b>.
-            <span style="font-size:10.5px;color:#6ee7b7;cursor:pointer;text-decoration:underline;margin-left:8px" onclick="this.nextElementSibling.style.display='inline-block'">[Afficher le code si e-mail non reçu]</span>
-            <strong style="display:none;background:#065f46;padding:2px 6px;border-radius:4px;margin-left:4px;font-size:13px;letter-spacing:1px;color:#34d399">${forgotOtpCode}</strong>
-          </div>
-        </div>
-      `;
+        `;
+      }
+
       banner.style.display = "block";
       userSec.style.display = "block";
       adminSec.style.display = "none";
