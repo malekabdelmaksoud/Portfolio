@@ -273,26 +273,40 @@ function deleteChatMessage(id, msgElement) {
   msgElement.remove();
 }
 
-function handleUserQuery(query) {
+async function requestCloudAssistant() {
+  if (typeof ChatStore === "undefined") return null;
+  const history = ChatStore.getHistory().slice(-16).map(item => ({
+    role: item.role === "bot" ? "assistant" : "user",
+    content: String(item.text || "").slice(0, 4000)
+  }));
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        messages: history,
+        pageContext: document.querySelector("main")?.innerText?.slice(0, 9000) || ""
+      })
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data.answer === "string" && data.answer.trim() ? data.answer.trim() : null;
+  } catch (_) { return null; }
+}
+
+async function handleUserQuery(query) {
   let userMsgId = null;
   if (typeof ChatStore !== "undefined") {
     const saved = ChatStore.addMessage("user", query);
     userMsgId = saved.id;
   }
-
   appendAiMessage(query, "user", false, userMsgId);
-  const typing = appendAiMessage("Réflexion en cours...", "bot");
-
-  setTimeout(() => {
-    typing.remove();
-    const answer = generateAiAnswer(query);
-    let botMsgId = null;
-    if (typeof ChatStore !== "undefined") {
-      const savedBot = ChatStore.addMessage("bot", answer);
-      botMsgId = savedBot.id;
-    }
-    appendAiMessage(answer, "bot", true, botMsgId);
-  }, 350);
+  const typing = appendAiMessage("Je réfléchis…", "bot");
+  const cloudAnswer = await requestCloudAssistant();
+  typing.remove();
+  const answer = cloudAnswer || generateAiAnswer(query);
+  const savedBot = typeof ChatStore !== "undefined" ? ChatStore.addMessage("bot", answer) : null;
+  appendAiMessage(answer, "bot", !cloudAnswer, savedBot?.id || null);
 }
 
 function generateAiAnswer(rawQuery) {
