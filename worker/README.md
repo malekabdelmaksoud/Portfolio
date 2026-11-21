@@ -1,81 +1,76 @@
 # Portfolio API and admin dashboard
 
-This is a separate Cloudflare Worker API. It does not change the current production Worker until you deploy it and route the API hostname/path deliberately.
+The API is a separate Cloudflare Worker named `melek-portfolio-api`. It is isolated from the existing `portfolio` production Worker.
+
+## Current Cloudflare resource
+
+- D1 database: `melek-portfolio-db`
+- Database ID: `15577d7f-b636-4fa6-817c-8f0c77731927`
+- `wrangler.toml` is already configured with this database ID.
+- The allowed browser origin is configured as `https://portfolio.melekabdelmaksoud72.workers.dev`.
+- No API deployment has been performed yet.
+
+## Deploy through GitHub Actions
+
+The workflow `.github/workflows/deploy-api.yml` is a manual deployment workflow. To authorize it without exposing an API token in chat or in the repository:
+
+1. In Cloudflare, create an API token with the permissions needed for Workers Scripts and D1 (edit), scoped to this account.
+2. In GitHub, open **Settings → Secrets and variables → Actions**.
+3. Add repository secret `CLOUDFLARE_API_TOKEN` with that token.
+4. Add repository variable `CLOUDFLARE_ACCOUNT_ID` with the account ID.
+5. Open **Actions → Deploy portfolio API → Run workflow** and select branch `feature/melek-ai-from-scratch`.
+
+The workflow installs Wrangler, synchronizes the admin assets, applies the D1 migrations remotely, then deploys the Worker. It does not deploy or modify the existing `portfolio` Worker.
 
 ## Security model
 
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
-- There is no client-side admin password, role, or localStorage session. Do not restore the old browser-only login.
-- Visitor assistant reads **only** D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or generate factual claims.
-- Imported facts start unapproved. The eight seeded projects are already public on the current portfolio, so their visibility is preserved; new projects start hidden until explicitly published.
+- There is no client-side admin password, role, or localStorage admin session.
+- Visitor assistant reads only D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or invent factual claims.
+- Imported facts start unapproved. The eight seeded projects are already public on the current portfolio, so their visibility is preserved; newly created projects start hidden.
 - Admin API writes validate inputs and accept HTTPS links only.
 
-## 1. Create D1 and apply migration
+## Configure Cloudflare Access after deployment
 
-From this directory:
+After the Worker is deployed and its `.workers.dev` hostname is known:
 
-```bash
-npx wrangler d1 create melek-portfolio
-```
+1. Create a Cloudflare Access self-hosted application for that hostname.
+2. Protect only `/admin.html` and `/api/admin/*`; do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
+3. Add an allow policy for the owner's exact email address only.
+4. Add these Worker secrets in the Worker Settings → Variables and Secrets page:
+   - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
+   - `ACCESS_AUD`: the Access application's AUD tag
+   - `ADMIN_EMAIL`: the exact email allowed by the Access policy
 
-Copy the returned database ID into `wrangler.toml`, then:
+Never commit the email identity or Access secrets to this public repository.
 
-```bash
-npx wrangler d1 migrations apply melek-portfolio --remote
-```
+## Admin dashboard
 
-The migrations create facts/projects tables, import 23 unapproved trilingual facts, preserve the eight projects already shown publicly, and keep newly created projects hidden by default.
-
-## 2. Configure Cloudflare Access
-
-Protect the admin page and admin API paths with Cloudflare Access. The Worker bundles the admin dashboard as static assets, so it is served from the API Worker's own hostname. Create one hostname/path Access application protecting that Worker hostname's `/admin.html` and `/api/admin/*` paths, with an allow policy for the owner email only. Do not protect the entire Worker, because public `/api/assistant` and `/api/projects` must remain public. Configure:
-- `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
-- `ACCESS_AUD`: the Access application's AUD tag
-- `ADMIN_EMAIL`: `melekabdelmaksoud72@gmail.com`
-- `ALLOWED_ORIGIN`: exact portfolio origin, e.g. `https://portfolio.melekabdelmaksoud72.workers.dev`
-
-Set the first three as Worker secrets/vars (issuer and audience are identifiers, not passwords; secrets are still acceptable):
-
-```bash
-npx wrangler secret put ACCESS_ISSUER
-npx wrangler secret put ACCESS_AUD
-npx wrangler secret put ALLOWED_ORIGIN
-```
-
-`ADMIN_EMAIL` is configured in `wrangler.toml`; change it if the Access identity differs.
-
-## 3. Deploy the API
-
-```bash
-npm install --save-dev wrangler
-npm run sync-admin
-npx wrangler deploy
-```
-
-This creates a separate Worker hostname. Before deployment, run `npm run sync-admin` to copy the root admin UI into `worker/admin-assets`. The API Worker serves `/admin.html`, `/admin.css`, `/admin.js`, and `/api-config.js` from its own origin; its admin API calls are therefore same-origin and protected by the same Access application. Set `window.PORTFOLIO_API_BASE` in the root portfolio's `api-config.js` to the deployed API Worker origin so the public chat/project UI can call `/api/assistant` and `/api/projects`. Set `ALLOWED_ORIGIN` to the exact portfolio origin. The root `/admin.html` redirects to the protected dashboard on the API Worker once that origin is configured. Do not guess or commit the generated Worker hostname.
-
-## 4. Admin dashboard
-
-After deploying and configuring Cloudflare Access, open `https://<your-api-worker-host>/admin.html` (or the portfolio's `/admin.html` redirect once `api-config.js` is set). It supports:
+After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
 - Approve or revoke each fact.
 - Create/edit/delete projects, control visibility, and set order.
 
 The dashboard never asks for a password; Cloudflare Access supplies the identity.
 
-## 5. Assistant integration
+## Assistant integration
 
-The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. Until the API is deployed and the draft facts reviewed, the assistant deliberately abstains. This is intentional and safer than silently falling back to a browser-only answer engine.
+The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. The 23 seeded facts remain unapproved until reviewed in the dashboard; the assistant intentionally abstains until there is approved evidence.
+
+Once the API hostname is known, set `window.PORTFOLIO_API_BASE` in the portfolio's `api-config.js` to that exact origin. Do not guess or commit a hostname before deployment.
 
 ## Local development
 
 ```bash
 npm install
+npm run sync-admin
 npx wrangler dev
 ```
 
-Set a local D1 database with the same migration before testing admin/assistant endpoints. Access-protected admin routes require a real Cloudflare Access token and cannot be authenticated by a fake local role.
+Access-protected admin routes require a real Cloudflare Access token and cannot be authenticated by a fake local role.
 
-## Important limitation
+## Important limitations
 
-This API is a reliable, source-bound portfolio assistant and admin CRUD backend, not a general ChatGPT-class model. A small from-scratch Transformer is kept as a separate research experiment; it is not trained, deployed, or used to invent facts.
+- This API is a source-bound portfolio assistant and admin CRUD backend, not a general ChatGPT-class model.
+- The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
+- Per-user email login and server-side chat history/deletion are not implemented yet. The current short follow-up context is browser-side only.
