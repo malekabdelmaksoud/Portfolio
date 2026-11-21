@@ -56,3 +56,13 @@ INSERT OR IGNORE INTO projects(id,title,type,description_fr,description_en,url,v
 
 -- These eight projects are already displayed on the public portfolio; preserve their existing public visibility.
 UPDATE projects SET visible=1 WHERE id IN ('project-001','project-002','project-003','project-004','project-005','project-006','project-007','project-008');
+
+-- Keep project technology labels useful in the public project cards and admin dashboard.
+UPDATE projects SET type='JAVA · E-LEARNING' WHERE id='project-001';
+UPDATE projects SET type='PHP · CSS' WHERE id='project-002';
+UPDATE projects SET type='LARAVEL · PHP' WHERE id='project-003';
+UPDATE projects SET type='JAVA · INVENTORY' WHERE id='project-004';
+UPDATE projects SET type='TYPESCRIPT · MCP · CLOUDFLARE' WHERE id='project-005';
+UPDATE projects SET type='JAVA · OOP' WHERE id='project-006';
+UPDATE projects SET type='SYMFONY · PHP' WHERE id='project-007';
+UPDATE projects SET type='C# · .NET' WHERE id='project-008';
