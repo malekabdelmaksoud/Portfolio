@@ -1,0 +1,361 @@
+{
+  "schema_version": "1.0",
+  "status": "draft_requires_owner_review",
+  "policy": "Drafted from public portfolio HTML. Every fact is unapproved by default. The owner must verify and explicitly approve each exact statement before visitor-facing use.",
+  "facts": [
+    {
+      "id": "profile-001",
+      "category": "profile",
+      "text_fr": "Melek Abdelmaksoud est étudiante en dernière année de Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid, spécialité Développement Web et Multimédia.",
+      "text_en": "Melek Abdelmaksoud is a final-year Information Technology undergraduate student at ISET Sidi Bouzid, specializing in Web Development and Multimedia.",
+      "aliases": [
+        "études",
+        "formation",
+        "iset",
+        "study",
+        "education",
+        "قراية"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .about-copy p:first-child"
+      },
+      "approved": false
+    },
+    {
+      "id": "profile-002",
+      "category": "profile",
+      "text_fr": "Le portfolio présente un intérêt pour les applications web, les usages concrets de l'intelligence artificielle et la qualité logicielle.",
+      "text_en": "The portfolio describes an interest in web applications, practical uses of artificial intelligence, and software quality.",
+      "aliases": [
+        "ia",
+        "ai",
+        "intelligence artificielle",
+        "software quality",
+        "جودة البرمجيات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .about-copy p:first-child"
+      },
+      "approved": false
+    },
+    {
+      "id": "location-001",
+      "category": "contact",
+      "text_fr": "La localisation indiquée sur le portfolio est Sfax, Tunisie.",
+      "text_en": "The location shown on the portfolio is Sfax, Tunisia.",
+      "aliases": [
+        "sfax",
+        "tunisie",
+        "location",
+        "صفاقس",
+        "تونس"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": ".hero-meta"
+      },
+      "approved": false
+    },
+    {
+      "id": "education-001",
+      "category": "education",
+      "text_fr": "Licence en Technologie de l'Informatique — ISET de Sidi Bouzid (2024–présent).",
+      "text_en": "Bachelor's degree in Information Technology — ISET Sidi Bouzid (2024–present).",
+      "aliases": [
+        "licence",
+        "bachelor",
+        "iset",
+        "university",
+        "جامعة"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .education"
+      },
+      "approved": false
+    },
+    {
+      "id": "education-002",
+      "category": "education",
+      "text_fr": "Baccalauréat en sciences expérimentales — Lycée Tayeb Mhiri, Sfax (2023–2024).",
+      "text_en": "Baccalaureate in Experimental Sciences — Lycée Tayeb Mhiri, Sfax (2023–2024).",
+      "aliases": [
+        "bac",
+        "lycée",
+        "high school"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .education"
+      },
+      "approved": false
+    },
+    {
+      "id": "skills-001",
+      "category": "skills",
+      "text_fr": "Langages mentionnés : C, C#, Java, Python, JavaScript et PHP.",
+      "text_en": "Listed programming languages: C, C#, Java, Python, JavaScript, and PHP.",
+      "aliases": [
+        "langages",
+        "programming languages",
+        "python",
+        "java",
+        "php"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsLangagesList"
+      },
+      "approved": false
+    },
+    {
+      "id": "skills-002",
+      "category": "skills",
+      "text_fr": "Technologies web mentionnées : HTML, CSS et Angular.",
+      "text_en": "Listed web technologies: HTML, CSS, and Angular.",
+      "aliases": [
+        "web",
+        "html",
+        "css",
+        "angular",
+        "frontend"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsWebList"
+      },
+      "approved": false
+    },
+    {
+      "id": "skills-003",
+      "category": "skills",
+      "text_fr": "Frameworks et outils mentionnés : Laravel, Symfony, Spring Boot, .NET et Android Studio.",
+      "text_en": "Listed frameworks and tools: Laravel, Symfony, Spring Boot, .NET, and Android Studio.",
+      "aliases": [
+        "framework",
+        "laravel",
+        "symfony",
+        "spring boot",
+        "dotnet",
+        "android studio"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsFrameworksList"
+      },
+      "approved": false
+    },
+    {
+      "id": "skills-004",
+      "category": "skills",
+      "text_fr": "Systèmes et réseaux : maintenance informatique, câblage réseau et OCS Inventory.",
+      "text_en": "Systems and networking: IT support, network cabling, and OCS Inventory.",
+      "aliases": [
+        "réseaux",
+        "networking",
+        "maintenance",
+        "ocs inventory"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsSystemesList"
+      },
+      "approved": false
+    },
+    {
+      "id": "experience-001",
+      "category": "experience",
+      "text_fr": "Stage en informatique à l'Hôpital Hédi Chaker, à Sfax : configuration d'une application de soins, découverte du Dossier Médical Informatisé et utilisation d'OCS Inventory.",
+      "text_en": "IT internship at Hôpital Hédi Chaker in Sfax: configuring a care application, exploring the Electronic Medical Record, and using OCS Inventory.",
+      "aliases": [
+        "hôpital",
+        "hopital",
+        "hedi chaker",
+        "dmi",
+        "ocs inventory",
+        "internship"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(1)"
+      },
+      "approved": false
+    },
+    {
+      "id": "experience-002",
+      "category": "experience",
+      "text_fr": "Stage en développement web chez Advanced Computer Solutions (ACS), en janvier 2026.",
+      "text_en": "Web development internship at Advanced Computer Solutions (ACS), in January 2026.",
+      "aliases": [
+        "acs",
+        "advanced computer solutions",
+        "web internship"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(2)"
+      },
+      "approved": false
+    },
+    {
+      "id": "experience-003",
+      "category": "experience",
+      "text_fr": "Stage en réseaux chez Netsys Com Support, de juin à juillet 2025.",
+      "text_en": "Networking internship at Netsys Com Support, from June to July 2025.",
+      "aliases": [
+        "netsys",
+        "network internship"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(3)"
+      },
+      "approved": false
+    },
+    {
+      "id": "experience-004",
+      "category": "experience",
+      "text_fr": "Stage en maintenance informatique chez CISEN, de janvier à février 2025.",
+      "text_en": "IT support internship at CISEN, from January to February 2025.",
+      "aliases": [
+        "cisen",
+        "maintenance internship"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(4)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-001",
+      "category": "project",
+      "text_fr": "Elearning Platform : plateforme e-learning développée en Java pour la gestion des cours, des inscriptions et du suivi des apprenants.",
+      "text_en": "Elearning Platform: a Java e-learning platform for course management, enrolment, and learner progress tracking.",
+      "aliases": [
+        "elearning",
+        "java",
+        "learning platform"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/elearning-platform",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(1)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-002",
+      "category": "project",
+      "text_fr": "Projet PHP : application web réalisée avec PHP et CSS pour pratiquer le développement web côté serveur.",
+      "text_en": "PHP Project: a web application built with PHP and CSS to practise server-side web development.",
+      "aliases": [
+        "php",
+        "css",
+        "web application"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/projetphp",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(2)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-003",
+      "category": "project",
+      "text_fr": "Application Laravel : application web full-stack mettant en pratique MVC, les migrations et l'authentification.",
+      "text_en": "Laravel Application: a full-stack web application applying MVC, migrations, and authentication.",
+      "aliases": [
+        "laravel",
+        "mvc",
+        "migration",
+        "authentication"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/laravel",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(3)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-004",
+      "category": "project",
+      "text_fr": "Gestion de Magasin : application Java pour l'inventaire des produits, la gestion des stocks et les opérations de vente.",
+      "text_en": "Store Management: a Java application for product inventory, stock management, and sales operations.",
+      "aliases": [
+        "store",
+        "magasin",
+        "inventory",
+        "stock",
+        "vente",
+        "sales"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/tpmagasin",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(4)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-005",
+      "category": "project",
+      "text_fr": "Opportunity Hunter : serveur MCP sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior.",
+      "text_en": "Opportunity Hunter: an MCP server on Cloudflare Workers for searching public internships, final-year projects, apprenticeships, and junior roles.",
+      "aliases": [
+        "opportunity hunter",
+        "mcp",
+        "cloudflare",
+        "jobs",
+        "internships"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/opportunity-hunter",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(6)"
+      },
+      "approved": false
+    },
+    {
+      "id": "language-001",
+      "category": "languages",
+      "text_fr": "Langues affichées : arabe (langue maternelle), français (intermédiaire), anglais (intermédiaire) et espagnol (débutant).",
+      "text_en": "Languages shown: Arabic (native), French (intermediate), English (intermediate), and Spanish (beginner).",
+      "aliases": [
+        "langues",
+        "languages",
+        "arabic",
+        "french",
+        "english",
+        "spanish"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": ".language-list"
+      },
+      "approved": false
+    },
+    {
+      "id": "contact-001",
+      "category": "contact",
+      "text_fr": "Le portfolio propose un contact par e-mail, LinkedIn et GitHub.",
+      "text_en": "The portfolio provides contact through email, LinkedIn, and GitHub.",
+      "aliases": [
+        "contact",
+        "email",
+        "linkedin",
+        "github",
+        "تواصل"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#contact"
+      },
+      "approved": false
+    }
+  ]
+}
