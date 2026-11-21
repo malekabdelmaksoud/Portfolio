@@ -20,6 +20,9 @@ LICENSE_ALIASES = {
     "mit license": "mit",
     "apache 2.0": "apache-2.0",
     "apache-2.0": "apache-2.0",
+    "odc-by": "odc-by-1.0",
+    "odc-by 1.0": "odc-by-1.0",
+    "odc-by-1.0": "odc-by-1.0",
 }
 ALLOWED_LICENSES = set(LICENSE_ALIASES.values())
 
