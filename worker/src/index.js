@@ -66,7 +66,7 @@ async function readBody(request, max=16000) {
 function validateFact(x) {
   if(!x || typeof x!=="object") return "A fact object is required.";
   if(!safeId(x.id)) return "ID must contain 2–80 letters, numbers, underscores or hyphens.";
-  if(!["profile","contact","education","skills","experience","project","languages"].includes(x.category)) return "Unsupported fact category.";
+  if(!["profile","contact","education","skills","experience","project","languages","certifications","achievements"].includes(x.category)) return "Unsupported fact category.";
   for(const k of ["text_fr","text_en","text_ar"]) if(typeof x[k]!=="string" || !x[k].trim() || x[k].length>3000) return k+" is required (max 3000 characters).";
   if(!Array.isArray(x.aliases) || x.aliases.length>40 || x.aliases.some(a=>typeof a!=="string" || a.length>100)) return "Aliases must be up to 40 short strings.";
   if(!x.source || typeof x.source.file!=="string" || typeof x.source.selector!=="string") return "A source file and selector are required.";
