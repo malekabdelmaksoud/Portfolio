@@ -6,7 +6,17 @@ Re-check the upstream dataset cards before every new download.
 
 ## Included sources
 
-1. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
+1. **OpenAssistant Conversations (OASST1)** — https://huggingface.co/datasets/OpenAssistant/oasst1
+   - Dataset card declares Apache-2.0; 84,437 training messages from 35 languages.
+   - Languages selected: English (`en`), French (`fr`), Arabic (`ar`).
+   - Reconstructs one-turn user/assistant pairs using `parent_id` and `message_id`.
+   - Uses only reviewed, non-deleted, non-synthetic messages; prefers rank 0 and rejects
+     rows marked for spam, PII, hate, sexual content, or inappropriate content. It also
+     applies conservative Detoxify thresholds and the downloader's email/phone filter.
+   - This is the main source of assistant-style conversation examples.
+
+
+2. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
    - Languages selected: English (`en`), French (`fr`), Arabic (`ar`).
    - Fields: `text`, `language`, `license`, `identifier`, `collection`, `creator`.
    - The card describes document-level provenance and uncopyrighted/freely licensed material.
@@ -15,14 +25,14 @@ Re-check the upstream dataset cards before every new download.
      and records with obvious email/phone patterns are skipped.
    - Bounded streaming sample: default scan limit 150,000 and 1,200 documents per language.
 
-2. **UAE Arabic Legal Text Corpus** —
+3. **UAE Arabic Legal Text Corpus** —
    https://huggingface.co/datasets/University-of-Dubai/arabic-legal-text
    - Dataset card declares CC-BY-4.0 and describes Arabic UAE laws/decrees.
    - Fields: `text`, `source`, `year`, `category`.
    - Used to improve formal Arabic and cybersecurity/legal vocabulary; it is not
      representative of everyday Arabic conversation.
 
-3. **Tunisian Proverbs with Image Associations** —
+4. **Tunisian Proverbs with Image Associations** —
    https://huggingface.co/datasets/HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset
    - Dataset card declares CC-BY-4.0; 999 proverb entries.
    - Text fields only: Tunisian proverb/context for Derja and the Arabic explanation for
