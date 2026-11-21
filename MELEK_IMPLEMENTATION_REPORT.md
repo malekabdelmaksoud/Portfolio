@@ -67,3 +67,28 @@ NOT TESTED:
 - Set `AI_MODEL` if the candidate model is unavailable; use an available free Workers AI model.
 - Configure Cloudflare Access only for `/admin.html` and `/api/admin/*`.
 - Apply migration `0005_native_auth.sql` to D1 and deploy only after manual approval.
+
+## Actual files changed
+
+- `MELEK_AI_AUDIT.md`
+- `MELEK_IMPLEMENTATION_REPORT.md`
+- `README.md`
+- `account.css`
+- `account.html`
+- `account.js`
+- `index.html`
+- `script.js`
+- `style.css`
+- `worker/.dev.vars.example`
+- `worker/README.md`
+- `worker/admin-assets/account.css`
+- `worker/admin-assets/account.html`
+- `worker/admin-assets/account.js`
+- `worker/migrations/0005_native_auth.sql`
+- `worker/src/index.js`
+- `worker/test/worker.test.js`
+- `worker/wrangler.toml`
+
+## Git commits
+
+- `abe3256` — `feat: implement native OTP and Workers AI workspace`
