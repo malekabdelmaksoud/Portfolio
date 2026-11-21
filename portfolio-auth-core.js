@@ -9,74 +9,22 @@
 const ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com";
 
 // ── 1. AUTH & USERS SYSTEM ──
-const AuthService = {
-  getUsers() {
-    try {
-      return JSON.parse(localStorage.getItem("portfolio_registered_users")) || [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  saveUsers(users) {
-    localStorage.setItem("portfolio_registered_users", JSON.stringify(users));
-  },
-
-  getCurrentUser() {
-    try {
-      return JSON.parse(localStorage.getItem("portfolio_active_session")) || null;
-    } catch (e) {
-      return null;
-    }
-  },
-
-  // Legacy browser-only accounts are intentionally disabled. Admin access belongs to Cloudflare Access.
-  register() {
-    throw new Error("La création de comptes locaux est désactivée. Le portfolio est public.");
-  },
-
-  login() {
-    throw new Error("La connexion locale est désactivée. L'administration utilise Cloudflare Access.");
-  },
-
+const AuthService = Object.freeze({
+  // Legacy browser accounts are deliberately disabled. No password or role is stored client-side.
+  getUsers() { return []; },
+  saveUsers() { throw new Error("Les comptes locaux sont désactivés."); },
+  getCurrentUser() { return null; },
+  register() { throw new Error("La création de comptes locaux est désactivée."); },
+  login() { throw new Error("La connexion locale est désactivée. Utilisez Cloudflare Access pour l'administration."); },
   loginWithGitHub(username = "visiteur") {
-    // Public identity labels are not authentication and never grant admin privileges.
-    const cleanUser = username.trim().toLowerCase();
-    const normalUser = {
-      name: username.trim() || "Visiteur",
-      email: cleanUser ? `${cleanUser}@users.noreply.github.com` : "visiteur@github.com",
-      role: "user",
-      github: cleanUser || "guest",
-      createdAt: new Date().toISOString()
-    };
-    this.createSession(normalUser);
-    return normalUser;
+    const clean = String(username || "visiteur").trim();
+    return { name: clean || "Visiteur", role: "user" };
   },
-
-  createSession(user) {
-    const session = {
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: "tok_" + Date.now()
-    };
-    localStorage.setItem("portfolio_active_session", JSON.stringify(session));
-  },
-
-  logout() {
-    localStorage.removeItem("portfolio_active_session");
-    location.reload();
-  },
-
-  updatePassword() {
-    throw new Error("La gestion des mots de passe locaux est désactivée. Utilisez la protection Cloudflare Access.");
-  },
-
-  isAdmin() {
-    // Never trust a role stored in localStorage for privileged actions.
-    return false;
-  }
-};
+  createSession() { throw new Error("Les sessions navigateur ne sont pas autorisées."); },
+  logout() { try { localStorage.removeItem("portfolio_active_session"); } catch (_) {} location.reload(); },
+  updatePassword() { throw new Error("Les mots de passe locaux sont désactivés. Utilisez Cloudflare Access."); },
+  isAdmin() { return false; }
+});
 
 // ── 2. PROJECTS STORE & GITHUB AUTO-DESCRIPTION ──
 const ProjectsManager = {
