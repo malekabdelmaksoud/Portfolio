@@ -12,13 +12,13 @@
 <body>
   <main class="shell">
     <header class="top">
-      <a href="/" class="brand">MELEK<span>.</span></a>
-      <a href="/" class="back">← Portfolio</a>
+      <a href="https://portfolio.melekabdelmaksoud72.workers.dev/" class="brand">MELEK<span>.</span></a>
+      <a href="https://portfolio.melekabdelmaksoud72.workers.dev/" class="back">← Portfolio</a>
     </header>
     <section class="intro">
       <p class="eyebrow">ESPACE PERSONNEL</p>
       <h1>Mes conversations</h1>
-      <p>Connectez-vous avec votre adresse e-mail. Votre historique reste privé et n'est accessible qu'à votre compte.</p>
+      <p>Posez vos questions à l’assistant du portfolio. Votre historique reste privé et n'est accessible qu'à votre compte.</p>
     </section>
     <section class="toolbar">
       <div><strong id="identity">Vérification de votre connexion…</strong><small id="status">Connexion sécurisée par e-mail</small></div>
@@ -26,7 +26,16 @@
     </section>
     <section class="layout">
       <aside><div class="aside-head"><h2>Historique</h2><button id="delete-all" class="danger-link" type="button">Tout supprimer</button></div><div id="chat-list" class="chat-list"></div></aside>
-      <article class="conversation"><div id="conversation-head"><h2>Choisissez une conversation</h2></div><div id="messages" class="messages"><p class="empty">Vos conversations enregistrées apparaîtront ici.</p></div><div class="conversation-foot">Les conversations sont stockées séparément par adresse e-mail.</div></article>
+      <article class="conversation">
+        <div id="conversation-head"><h2>Choisissez une conversation</h2></div>
+        <div id="messages" class="messages"><p class="empty">Vos conversations enregistrées apparaîtront ici.</p></div>
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="chat-input">Votre message</label>
+          <textarea id="chat-input" rows="2" maxlength="800" placeholder="Posez une question sur le portfolio…" required></textarea>
+          <button id="send-message" type="submit">Envoyer ↗</button>
+        </form>
+        <div class="conversation-foot">Les conversations sont stockées séparément par adresse e-mail. L’assistant répond uniquement à partir des informations approuvées.</div>
+      </article>
     </section>
   </main>
   <div id="toast" role="status" aria-live="polite"></div>
