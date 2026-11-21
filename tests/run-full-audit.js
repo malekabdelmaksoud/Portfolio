@@ -312,92 +312,19 @@ async function runAudit() {
     // ══════════════════════════════════════════════════════════
     // PHASE 3 — AI FEATURES TESTING
     // ══════════════════════════════════════════════════════════
-    // Test 25: Open AI Chat Widget
-    const aiToggle = await page.$('#aiChatToggle');
-    await aiToggle.click();
-    await page.waitForTimeout(300);
-    const aiPopupActive = await page.evaluate(() => {
-      const el = document.getElementById('aiChatPopup');
-      return el && el.classList.contains('active') && el.getAttribute('aria-hidden') === 'false';
-    });
-    recordTest("Phase 3: AI Assistant", "AI Chat Widget Opened Successfully", aiPopupActive);
+    // Test 25: AI entry opens the full workspace (history + New Chat + modes).
+    const aiEntry = await page.$('#aiChatToggle');
+    const aiEntryHref = aiEntry ? await aiEntry.getAttribute('href') : '';
+    const aiEntryOk = Boolean(aiEntryHref && aiEntryHref.endsWith('/account.html') && aiEntryHref.includes('melek-portfolio-api'));
+    recordTest("Phase 3: AI Assistant", "AI Entry Routes to Full Workspace", aiEntryOk, aiEntryHref || "AI entry link missing");
 
-    // Test 26: Quick Prompt: Projets
-    await page.click('.quick-q[data-q*="projets"]');
-    await page.waitForTimeout(600);
-    const botProjectReply = await page.evaluate(() => {
-      const msgs = document.querySelectorAll('.ai-msg.bot');
-      return msgs[msgs.length - 1]?.innerHTML || "";
-    });
-    const projectReplyOk = botProjectReply.includes("Projets phares") && botProjectReply.includes("elearning-platform");
-    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: Projets", projectReplyOk);
+    // Test 26: The old popup is retired so users cannot land in the reduced legacy chat.
+    const legacyPopupExists = await page.$('#aiChatPopup') !== null;
+    recordTest("Phase 3: AI Assistant", "Legacy Mini Chat Removed", !legacyPopupExists);
 
-    // Test 27: Quick Prompt: Compétences
-    await page.click('.quick-q[data-q*="compétences"]');
-    await page.waitForTimeout(600);
-    const botSkillsReply = await page.evaluate(() => {
-      const msgs = document.querySelectorAll('.ai-msg.bot');
-      return msgs[msgs.length - 1]?.innerHTML || "";
-    });
-    const skillsReplyOk = botSkillsReply.includes("Compétences") && botSkillsReply.includes("Java");
-    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: Compétences", skillsReplyOk);
-
-    // Test 28: Quick Prompt: CV
-    await page.click('.quick-q[data-q*="CV"]');
-    await page.waitForTimeout(600);
-    const botCvReply = await page.evaluate(() => {
-      const msgs = document.querySelectorAll('.ai-msg.bot');
-      return msgs[msgs.length - 1]?.innerHTML || "";
-    });
-    const cvReplyOk = botCvReply.includes("Curriculum Vitae") && botCvReply.includes("openCvModal");
-    recordTest("Phase 3: AI Assistant", "AI Quick Prompt: CV Action Trigger", cvReplyOk);
-
-    // Test 29: AI Stress & Security Input Testing
-    // (A) Empty / Whitespace input
-    const emptySub = await page.evaluate(() => {
-      const input = document.getElementById('aiChatInput');
-      input.value = "     ";
-      const event = new Event('submit', { cancelable: true });
-      document.getElementById('aiChatForm').dispatchEvent(event);
-      return true;
-    });
-    recordTest("Phase 3: AI Assistant", "AI Empty Input Handling", emptySub);
-
-    // (B) XSS & HTML injection attempt
-    const xssPayload = "<script>window._xss_test = 1;</script><b>Test XSS</b>";
-    await page.evaluate((payload) => handleUserQuery(payload), xssPayload);
-    await page.waitForTimeout(600);
-    const xssExecuted = await page.evaluate(() => window._xss_test === 1);
-    recordTest("Phase 3: AI Assistant", "AI XSS Sanitization in User Query", !xssExecuted);
-
-    // (C) Long prompt stress test (10,000 characters)
-    const longPrompt = "Quelles sont tes compétences et formations ? ".repeat(250);
-    let longPromptError = false;
-    try {
-      await page.evaluate((q) => handleUserQuery(q), longPrompt);
-      await page.waitForTimeout(600);
-    } catch (e) {
-      longPromptError = true;
-    }
-    recordTest("Phase 3: AI Assistant", "AI Long Prompt Stress Test (10k chars)", !longPromptError);
-
-    // (D) Chat Message CRUD: Delete Action
-    const initialCount = await page.$$eval('.ai-msg', els => els.length);
-    const delClicked = await page.evaluate(() => {
-      const delBtn = document.querySelector('.ai-msg-actions .msg-act-btn[title*="Supprimer"]');
-      if (delBtn) {
-        delBtn.click();
-        return true;
-      }
-      return false;
-    });
-    await page.waitForTimeout(200);
-    const postCount = await page.$$eval('.ai-msg', els => els.length);
-    recordTest("Phase 3: AI Assistant", "Chat CRUD: Message Deletion", delClicked && postCount < initialCount);
-
-    // Close AI Chat
-    await page.click('#aiChatClose');
-    await page.waitForTimeout(200);
+    // Test 27: AI entry remains visible and accessible.
+    const aiEntryAccessible = aiEntry && await aiEntry.isVisible() && (await aiEntry.getAttribute('aria-label'));
+    recordTest("Phase 3: AI Assistant", "AI Workspace Entry Is Accessible", Boolean(aiEntryAccessible));
 
     // ══════════════════════════════════════════════════════════
     // PHASE 5 — UI/UX AND RESPONSIVENESS TESTING
