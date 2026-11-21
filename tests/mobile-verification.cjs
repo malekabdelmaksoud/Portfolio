@@ -123,12 +123,12 @@ async function run() {
         const aiShot2 = path.join(outDir2, `${vp.name}_${theme}_ai_chat.png`);
         await page.screenshot({ path: aiShot1 });
         fs.copyFileSync(aiShot1, aiShot2);
-        await page.locator('#aiChatClose').click();
+        await page.locator('#aiWorkspaceClose').click();
         await page.waitForTimeout(200);
       }
 
       // 4. Account Page (AI Workspace)
-      await page.goto(baseURL + '/account.html', { waitUntil: 'networkidle' });
+      await page.goto(baseURL + '/login.html', { waitUntil: 'networkidle' });
       await page.waitForTimeout(300);
       const accOverflow = await page.evaluate(() => ({
         clientWidth: document.documentElement.clientWidth,

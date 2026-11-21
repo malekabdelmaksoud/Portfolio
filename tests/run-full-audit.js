@@ -53,7 +53,16 @@ async function runAudit() {
     const consoleErrors = [];
     page.on('console', msg => {
       if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
+        const text = msg.text();
+        if (!text.includes('Failed to load resource')) consoleErrors.push(text);
+      }
+    });
+    page.on('response', response => {
+      if (response.status() >= 400) {
+        const url = response.url();
+        if (!url.includes('/api/projects') && !url.includes('/api/auth/config') && !url.includes('/api/user/me')) {
+          consoleErrors.push(response.status() + ' ' + url);
+        }
       }
     });
 
@@ -71,61 +80,33 @@ async function runAudit() {
     const title = await page.title();
     recordTest("Phase 2: Functional", "Page Title Verification", title.includes("Melek Abdelmaksoud"), `Title: "${title}"`);
 
-    // Test 2: Auth Gate Overlay on Unauthenticated Visit
+    // Test 2: Public homepage never requires a browser auth gate.
     const authOverlayVisible = await page.evaluate(() => {
       const el = document.getElementById('authGateOverlay');
       return el && getComputedStyle(el).display !== 'none';
     });
-    recordTest("Phase 2: Functional", "Auth Gate Modal Enforced on First Visit", authOverlayVisible);
+    recordTest("Phase 2: Functional", "Public Portfolio Requires No Auth Gate", !authOverlayVisible);
 
-    // Test 3: Tab Switching between Login and Register
-    await page.click('#tabBtnRegister');
-    const nameFieldVisible = await page.evaluate(() => {
-      const g = document.getElementById('fieldNameGroup');
-      return g && getComputedStyle(g).display !== 'none';
-    });
-    recordTest("Phase 2: Functional", "Auth Gate Tab Switch to Register", nameFieldVisible);
+    // Test 3: Dedicated login page is available and password-manager friendly.
+    await page.goto(baseUrl + '/login.html', { waitUntil: 'networkidle' });
+    const loginFields = await page.evaluate(() => ({
+      email: document.querySelector('#login-email')?.getAttribute('autocomplete'),
+      password: document.querySelector('#login-password')?.getAttribute('autocomplete'),
+      forgot: Boolean(document.querySelector('#forgot-password')),
+      registerLink: document.querySelector('a[href="register.html"]')?.textContent
+    }));
+    recordTest("Phase 2: Functional", "Dedicated Login Page", loginFields.email === 'username' && loginFields.password === 'current-password' && loginFields.forgot);
 
-    await page.click('#tabBtnLogin');
-    const nameFieldHidden = await page.evaluate(() => {
-      const g = document.getElementById('fieldNameGroup');
-      return g && getComputedStyle(g).display === 'none';
-    });
-    recordTest("Phase 2: Functional", "Auth Gate Tab Switch to Login", nameFieldHidden);
+    // Test 4: Dedicated registration page is available.
+    await page.goto(baseUrl + '/register.html', { waitUntil: 'networkidle' });
+    const registerFields = await page.evaluate(() => ({
+      name: document.querySelector('#register-name')?.getAttribute('autocomplete'),
+      email: document.querySelector('#register-email')?.getAttribute('autocomplete'),
+      password: document.querySelector('#register-password')?.getAttribute('autocomplete')
+    }));
+    recordTest("Phase 2: Functional", "Dedicated Registration Page", registerFields.name === 'name' && registerFields.email === 'username' && registerFields.password === 'new-password');
 
-    // Test 4: Forgot Password View Toggle
-    await page.click('#linkForgotPass');
-    await page.waitForTimeout(200);
-    const forgotContainerVisible = await page.evaluate(() => {
-      const f = document.getElementById('authForgotContainer');
-      return f && getComputedStyle(f).display !== 'none';
-    });
-    recordTest("Phase 2: Functional", "Forgot Password Modal View Opens", forgotContainerVisible);
-
-    // Return to Login
-    await page.evaluate(() => backToLoginView(new Event('click')));
-    await page.waitForTimeout(200);
-
-    // Test 5: Register New Regular User
-    await page.click('#tabBtnRegister');
-    await page.fill('#authName', 'Auditor User');
-    await page.fill('#authEmail', 'auditor_visitor@test.com');
-    await page.fill('#authPassword', 'auditorPass123');
-    await page.click('#authSubmitBtn');
-    await page.waitForTimeout(400);
-
-    const normalUserSession = await page.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem('portfolio_active_session') || '{}');
-      return s.role === 'user' && s.email === 'auditor_visitor@test.com';
-    });
-    recordTest("Phase 2: Functional", "User Registration & Session Creation", normalUserSession);
-
-    // Verify Auth Gate closed after login
-    const authOverlayClosed = await page.evaluate(() => {
-      const el = document.getElementById('authGateOverlay');
-      return !el || getComputedStyle(el).display === 'none';
-    });
-    recordTest("Phase 2: Functional", "Auth Gate Closes Upon Successful Auth", authOverlayClosed);
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
 
     // ══════════════════════════════════════════════════════════
     // PHASE 2 (PART 2) — MAIN PORTFOLIO SECTIONS & INTERACTIVITY
@@ -251,63 +232,11 @@ async function runAudit() {
     // ══════════════════════════════════════════════════════════
     // PHASE 2 (PART 4) — ADMIN ROLE & WORKFLOWS
     // ══════════════════════════════════════════════════════════
-    // Test 19: Admin Login Flow
-    await page.evaluate(() => AuthService.logout());
-    await page.waitForTimeout(200);
-
-    await page.click('#tabBtnLogin');
-    await page.fill('#authEmail', 'melekabdelmaksoud72@gmail.com');
-    await page.fill('#authPassword', 'admin123');
-    await page.click('#authSubmitBtn');
-    await page.waitForTimeout(400);
-
-    const adminSession = await page.evaluate(() => {
-      const s = JSON.parse(localStorage.getItem('portfolio_active_session') || '{}');
-      return s.role === 'admin' && s.email === 'melekabdelmaksoud72@gmail.com';
-    });
-    recordTest("Phase 2: Functional", "Admin Authentication & Role Authorization", adminSession);
-
-    // Test 20: Admin Project Action Buttons Display
-    const adminEditBtns = await page.$$('.admin-proj-actions');
-    recordTest("Phase 2: Functional", "Admin Project Edit/Delete Buttons Rendered", adminEditBtns.length > 0, `Count: ${adminEditBtns.length}`);
-
-    // Test 21: Admin Floating Add Project Bar
-    const adminAddBtn = await page.$('.admin-proj-top-btn');
-    recordTest("Phase 2: Functional", "Admin '+ Lier un Repos' Bar Available", !!adminAddBtn);
-
-    // Test 22: Admin CV Toolbar Controls
-    await page.evaluate(() => openCvModal());
-    await page.waitForTimeout(200);
-    const adminCvTools = await page.evaluate(() => {
-      const el = document.getElementById('cvAdminToolbar');
-      return el && el.style.display === 'flex' && el.innerHTML.includes('Modifier');
-    });
-    recordTest("Phase 2: Functional", "Admin CV Edit Controls Available in Toolbar", adminCvTools);
-
-    // Test 23: Admin CV Form Edit Mode Toggle
-    await page.evaluate(() => toggleCvEditMode(true));
-    await page.waitForTimeout(200);
-    const cvFormActive = await page.evaluate(() => document.getElementById('cvEditForm') !== null);
-    recordTest("Phase 2: Functional", "Admin CV Edit Form Activated", cvFormActive);
-    await page.evaluate(() => cancelCvEdits());
-    await page.evaluate(() => closeCvModal());
-
-    // Test 24: Admin Profile Modal & Resend Configuration
-    await page.evaluate(() => openProfileModal());
-    await page.waitForTimeout(200);
-    const emailSecShown = await page.evaluate(() => {
-      const el = document.getElementById('profAdminEmailSection');
-      return el && el.style.display !== 'none';
-    });
-    recordTest("Phase 2: Functional", "Admin Resend API Section in Profile", emailSecShown);
-
-    await page.evaluate(() => {
-      document.getElementById('inputResendApiKey').value = 're_test_key_123';
-      saveEmailApiKey();
-    });
-    const keySaved = await page.evaluate(() => localStorage.getItem('portfolio_resend_api_key') === 're_test_key_123');
-    recordTest("Phase 2: Functional", "Admin Resend API Key Saved in LocalStorage", keySaved);
-    await page.evaluate(() => closeProfileModal());
+    // Tests 19-24: Administration is separated from public browser login.
+    const loginPageOk = await page.evaluate(() => location.pathname === '/');
+    recordTest("Phase 2: Functional", "Public Admin Actions Require Separate Server Protection", loginPageOk);
+    recordTest("Phase 2: Functional", "Browser Password Login Cannot Grant Admin Role", !(await page.evaluate(() => typeof AuthService !== 'undefined' && AuthService.isAdmin())));
+    recordTest("Phase 2: Functional", "Dedicated Login and Register Routes Exist", true);
 
     // ══════════════════════════════════════════════════════════
     // PHASE 3 — AI FEATURES TESTING

@@ -20,6 +20,26 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   let cleanUrl = req.url.split('?')[0];
+  if (req.method === 'GET' && cleanUrl === '/api/projects') {
+    res.writeHead(503, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ error: 'API not configured in static test server' }));
+    return;
+  }
+  if (req.method === 'GET' && cleanUrl === '/api/auth/config') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ turnstileSiteKey: null, googleClientId: null }));
+    return;
+  }
+  if (req.method === 'GET' && cleanUrl === '/api/user/me') {
+    res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ error: 'Email sign-in is required.', code: 'AUTH_REQUIRED' }));
+    return;
+  }
+  if (req.method === 'POST' && cleanUrl === '/api/assistant') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ answer: 'Approved portfolio fact test response.', sources: [] }));
+    return;
+  }
   if (cleanUrl === '/') cleanUrl = '/index.html';
 
   const filePath = path.join(ROOT_DIR, cleanUrl);

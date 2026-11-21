@@ -145,7 +145,7 @@ test('floating AI button opens the full-screen Melek AI workspace', async () => 
     assert.equal(await overlay.isVisible(), true);
     assert.equal(await overlay.getAttribute('aria-hidden'), 'false');
     assert.match(await frame.getAttribute('title'), /New Chat.*history.*Chat \/ Analyze/i);
-    assert.match(await frame.getAttribute('src'), /account\.html/);
+    assert.match(await frame.getAttribute('src'), /login\.html/);
     assert.equal(await page.locator('#aiWorkspaceClose').isVisible(), true);
     assert.equal(await page.locator('#aiWorkspaceNewTab').getAttribute('target'), '_blank');
   } finally { await page.close(); }

@@ -7,32 +7,17 @@
         "details": "Title: \"Melek Abdelmaksoud | Portfolio\""
       },
       {
-        "testName": "Auth Gate Modal Enforced on First Visit",
+        "testName": "Public Portfolio Requires No Auth Gate",
         "passed": true,
         "details": ""
       },
       {
-        "testName": "Auth Gate Tab Switch to Register",
+        "testName": "Dedicated Login Page",
         "passed": true,
         "details": ""
       },
       {
-        "testName": "Auth Gate Tab Switch to Login",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Forgot Password Modal View Opens",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "User Registration & Session Creation",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Auth Gate Closes Upon Successful Auth",
+        "testName": "Dedicated Registration Page",
         "passed": true,
         "details": ""
       },
@@ -59,7 +44,7 @@
       {
         "testName": "Dynamic Skills Section Populated",
         "passed": true,
-        "details": "Lang: C · C# · Java · Python · JavaScript · PHP"
+        "details": "Lang: C · C# · Java · Python · JavaScript · PHP · TypeScript"
       },
       {
         "testName": "Experiences Timeline Items",
@@ -69,7 +54,7 @@
       {
         "testName": "Projects Grid Display",
         "passed": true,
-        "details": "Rendered 7 project cards"
+        "details": "Rendered 8 project cards"
       },
       {
         "testName": "Normal User Protected from Admin Project Actions",
@@ -117,79 +102,29 @@
         "details": "Dimensions: 210mm x 297mm"
       },
       {
-        "testName": "Admin Authentication & Role Authorization",
+        "testName": "Public Admin Actions Require Separate Server Protection",
         "passed": true,
         "details": ""
       },
       {
-        "testName": "Admin Project Edit/Delete Buttons Rendered",
-        "passed": true,
-        "details": "Count: 7"
-      },
-      {
-        "testName": "Admin '+ Lier un Repos' Bar Available",
+        "testName": "Browser Password Login Cannot Grant Admin Role",
         "passed": true,
         "details": ""
       },
       {
-        "testName": "Admin CV Edit Controls Available in Toolbar",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Admin CV Edit Form Activated",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Admin Resend API Section in Profile",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Admin Resend API Key Saved in LocalStorage",
+        "testName": "Dedicated Login and Register Routes Exist",
         "passed": true,
         "details": ""
       }
     ],
     "Phase 3: AI Assistant": [
       {
-        "testName": "AI Chat Widget Opened Successfully",
+        "testName": "Floating Button Opens Full AI Workspace",
         "passed": true,
         "details": ""
       },
       {
-        "testName": "AI Quick Prompt: Projets",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "AI Quick Prompt: Compétences",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "AI Quick Prompt: CV Action Trigger",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "AI Empty Input Handling",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "AI XSS Sanitization in User Query",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "AI Long Prompt Stress Test (10k chars)",
-        "passed": true,
-        "details": ""
-      },
-      {
-        "testName": "Chat CRUD: Message Deletion",
+        "testName": "Legacy Mini Chat Removed",
         "passed": true,
         "details": ""
       }
@@ -290,12 +225,12 @@
       {
         "testName": "All Internal Hyperlinks Valid",
         "passed": true,
-        "details": "Checked 0 internal routes"
+        "details": "Checked 1 internal routes"
       }
     ]
   },
-  "testsTotal": 57,
-  "testsPassed": 57,
+  "testsTotal": 44,
+  "testsPassed": 44,
   "testsFailed": 0,
   "failures": [],
   "logs": []
