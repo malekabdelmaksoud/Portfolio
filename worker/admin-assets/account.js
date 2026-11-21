@@ -38,9 +38,16 @@
   }
   async function refreshChats(){const data=await api("/api/user/chats");chats=data.chats||[];renderList();}
   async function openChat(id){
-    try{const data=await api("/api/user/chats/"+encodeURIComponent(id));active=id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title||"Conversation";$("messages").replaceChildren();(data.messages||[]).forEach(m=>addMessage(m.role,m.content));renderList();$("messages").scrollTop=$("messages").scrollHeight;}catch(e){toast(e.message);}
+    try{
+      if(window.innerWidth<=760)$("sidebar").classList.remove("mobile-open");
+      const data=await api("/api/user/chats/"+encodeURIComponent(id));
+      active=id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title||"Conversation";
+      $("messages").replaceChildren();(data.messages||[]).forEach(m=>addMessage(m.role,m.content));
+      renderList();$("messages").scrollTop=$("messages").scrollHeight;
+    }catch(e){toast(e.message);}
   }
   async function createChat(title="New chat"){
+    if(window.innerWidth<=760)$("sidebar").classList.remove("mobile-open");
     const data=await api("/api/user/chats",{method:"POST",body:JSON.stringify({title})});active=data.chat.id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title;$("messages").replaceChildren();await refreshChats();return data.chat;
   }
   async function deleteChat(id){if(!confirm("Supprimer définitivement cette conversation ?"))return;try{await api("/api/user/chats/"+encodeURIComponent(id),{method:"DELETE"});if(active===id){active=null;$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();}await refreshChats();toast("Conversation supprimée.");}catch(e){toast(e.message);}}
@@ -70,8 +77,18 @@
   $("mode-chat").addEventListener("click",()=>setMode("chat"));$("mode-analyze").addEventListener("click",()=>setMode("analyze"));
   $("history-search").addEventListener("input",async e=>{const sequence=++searchSequence,q=e.target.value.trim();if(!q){await refreshChats();return;}try{const data=await api("/api/user/chats?q="+encodeURIComponent(q));if(sequence===searchSequence){chats=data.chats||[];renderList();}}catch(err){toast(err.message);}});
   $("delete-all").addEventListener("click",async()=>{if(!confirm("Supprimer tout votre historique ? Cette action est irréversible."))return;try{await api("/api/user/chats",{method:"DELETE"});active=null;chats=[];$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();renderList();toast("Historique supprimé.");}catch(e){toast(e.message);}});
-  $("sidebar-toggle").addEventListener("click",()=>$("sidebar").classList.toggle("collapsed"));
+  $("sidebar-toggle").addEventListener("click",()=>{
+    if(window.innerWidth<=760){$("sidebar").classList.remove("mobile-open");}
+    else{$("sidebar").classList.toggle("collapsed");}
+  });
   $("mobile-menu").addEventListener("click",()=>$("sidebar").classList.toggle("mobile-open"));
+  document.addEventListener("click",e=>{
+    if(window.innerWidth<=760&&$("sidebar").classList.contains("mobile-open")){
+      if(!e.target.closest("#sidebar")&&!e.target.closest("#mobile-menu")){
+        $("sidebar").classList.remove("mobile-open");
+      }
+    }
+  });
   document.querySelectorAll("[data-prompt]").forEach(button=>button.addEventListener("click",()=>{$("chat-input").value=button.dataset.prompt;$("chat-input").focus();}));
   document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("new-chat").click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="f"){e.preventDefault();$("history-search").focus();}});
   load();
