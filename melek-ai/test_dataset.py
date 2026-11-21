@@ -11,7 +11,7 @@ class DatasetTests(unittest.TestCase):
         temp = tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False)
         with temp:
             for row in rows:
-                temp.write(json.dumps(row, ensure_ascii=False) + "\\n")
+                temp.write(json.dumps(row, ensure_ascii=False) + "\n")
         self.addCleanup(Path(temp.name).unlink, missing_ok=True)
         return Path(temp.name)
 
@@ -47,7 +47,7 @@ class DatasetTests(unittest.TestCase):
 
     def test_rejects_malformed_json(self):
         path = self.write_rows([self.row("A"), self.row("B")])
-        path.write_text('{"text": "broken"\\n', encoding="utf-8")
+        path.write_text("{not-json}\n", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "Invalid JSON"):
             load_documents(path)
 
