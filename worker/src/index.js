@@ -174,8 +174,11 @@ async function assistant(request, env, identity) {
   if(!portfolioIntent) {
     let liveResults=[];
     if(env.WEB_SEARCH_ENABLED==="true"&&identity?.email){
-      const usage=await env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE user_email=? AND created_at>=datetime('now','-1 hour')").bind(identity.email).first();
-      if((usage?.total||0)<10){
+      const [usage,monthlyUsage]=await Promise.all([
+        env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE user_email=? AND created_at>=datetime('now','-1 hour')").bind(identity.email).first(),
+        env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE created_at>=datetime('now','start of month')").first()
+      ]);
+      if((usage?.total||0)<10&&(monthlyUsage?.total||0)<5000){
         await env.DB.prepare("INSERT INTO web_search_usage(id,user_email) VALUES(?,?)").bind(crypto.randomUUID(),identity.email).run();
         liveResults=await liveWebSearch(env,question);
       }
@@ -381,7 +384,7 @@ export default {
           env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first(),
           env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 1").first()
         ]);
-        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",searchLimitPerUserPerHour:10,sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
+        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",searchLimitPerUserPerHour:10,searchLimitPerMonth:5000,sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
       }
       if(path==="/api/assistant" && method==="POST") {
         const identity=await verifyAccessIdentity(request,env);
