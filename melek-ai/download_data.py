@@ -20,16 +20,16 @@ LANGUAGE_ALIASES = {
 }
 ALLOWED_COMMON_LICENSES = {"public-domain", "cc0-1.0", "cc-by-4.0", "mit", "apache-2.0"}
 PII_PATTERNS = (
-    re.compile(r"(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b"),
-    re.compile(r"(?<!\\w)(?:\\+?\\d[\\d .()/-]{7,}\\d)(?!\\w)"),
+    re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
+    re.compile(r"(?<!\w)(?:\+?\d[\d .()/-]{7,}\d)(?!\w)"),
 )
 
 
 def clean_text(value):
     if not isinstance(value, str):
         return ""
-    value = value.replace("\\x00", " ")
-    value = re.sub(r"\\s+", " ", value).strip()
+    value = value.replace(chr(0), " ")
+    value = re.sub(r"\s+", " ", value).strip()
     if len(value) < 180 or len(value) > 12000:
         return ""
     if any(pattern.search(value) for pattern in PII_PATTERNS):
@@ -37,9 +37,9 @@ def clean_text(value):
     return value
 
 
-def record_key(source, text):
+def record_key(text):
     import hashlib
-    return hashlib.sha256((source + "\\0" + text.casefold()).encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.casefold().encode("utf-8")).hexdigest()
 
 
 def main():
@@ -63,12 +63,12 @@ def main():
         text = clean_text(text)
         if not text:
             return False
-        key = record_key(source.split("|")[0], text)
+        key = record_key(text)
         if key in seen:
             return False
         seen.add(key)
         row = {"text": text, "source": source, "license": license_name, "language": language}
-        handle.write(json.dumps(row, ensure_ascii=False) + "\\n")
+        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
         counts[language] += 1
         return True
 
@@ -83,8 +83,7 @@ def main():
                     scanned += 1
                     if scanned > args.max_scan:
                         break
-                    lang_raw = row.get("language")
-                    lang = LANGUAGE_ALIASES.get(str(lang_raw).strip().lower())
+                    lang = LANGUAGE_ALIASES.get(str(row.get("language", "")).strip().lower())
                     if lang not in {"en", "fr", "ar"} or counts[lang] >= args.max_per_language:
                         if all(counts[key] >= args.max_per_language for key in ("en", "fr", "ar")):
                             break
@@ -92,7 +91,6 @@ def main():
                     license_name = normalize_license(row.get("license"))
                     if license_name not in ALLOWED_COMMON_LICENSES:
                         continue
-                    text = row.get("text")
                     identifier = row.get("identifier")
                     if not isinstance(identifier, str) or not identifier.strip():
                         continue
@@ -102,7 +100,7 @@ def main():
                         f" | collection={str(row.get('collection', 'unknown'))[:120]}"
                         f" | creator={str(row.get('creator', 'unknown'))[:160]}"
                     )
-                    append(text, source, license_name, lang)
+                    append(row.get("text"), source, license_name, lang)
                 print(f"Common Corpus scanned={min(scanned, args.max_scan)}; counts={counts}")
                 sources.append("PleIAs/common_corpus")
             except Exception as exc:
@@ -118,16 +116,15 @@ def main():
                 )
                 for row in stream:
                     chunk_id = str(row.get("chunk_id") or row.get("original_text_id") or "unknown")
-                    # Keep the source Tunisian text; do not train on generated translation prose.
+                    # Keep the original Tunisian text, not generated translation explanations.
                     tunisian = row.get("original_text") or row.get("chunk_text")
                     if append(
                         tunisian,
                         f"tunis-ai/tunisian-msa-parallel-corpus | chunk_id={chunk_id}",
                         "cc-by-4.0",
                         "aeb",
-                    ):
-                        if counts["aeb"] >= args.max_per_language:
-                            break
+                    ) and counts["aeb"] >= args.max_per_language:
+                        break
                 sources.append("tunis-ai/tunisian-msa-parallel-corpus")
             except Exception as exc:
                 print(f"WARNING: Tunisian parallel corpus unavailable: {exc}", file=sys.stderr)
