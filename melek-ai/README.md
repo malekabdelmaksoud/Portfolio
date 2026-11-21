@@ -52,7 +52,7 @@ Only use content you own or are allowed to train on. Do not add private personal
 
 ## Download public, license-filtered data
 
-The repository includes a bounded downloader for selected public corpora. It streams a sample from PleIAs Common Corpus (English, French, Arabic) and the Tunisia.AI Tunisian↔MSA dataset. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read `data/SOURCES.md` before downloading; some tempting Tunisian corpora are deliberately excluded because their upstream rights or privacy provenance are unclear.
+The repository includes a bounded downloader for selected public corpora. It streams a sample from PleIAs Common Corpus (English, French, Arabic), the University of Dubai Arabic legal corpus, and a CC-BY Tunisian proverb corpus. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read `data/SOURCES.md` before downloading; raw Tunisian social-media text was excluded after sample inspection found abusive content.
 
 ```bash
 python download_data.py --out data/train.jsonl --max-per-language 1200 --max-scan 150000
