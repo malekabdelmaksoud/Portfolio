@@ -1,0 +1,15 @@
+name = "melek-portfolio-api"
+main = "src/index.js"
+compatibility_date = "2026-11-21"
+workers_dev = true
+
+# Create the D1 database, then replace the database_id before deploying.
+[[d1_databases]]
+binding = "DB"
+database_name = "melek-portfolio"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[vars]
+ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com"
+# Set ACCESS_ISSUER, ACCESS_AUD, and ALLOWED_ORIGIN as secrets/vars after configuring Cloudflare Access.
