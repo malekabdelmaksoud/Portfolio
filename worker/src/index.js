@@ -65,6 +65,7 @@ async function verifyAdmin(request, env) {
   const parts=token.split(".");
   if(parts.length!==3) throw new Error("Invalid Access token.");
   const header=JSON.parse(new TextDecoder().decode(b64url(parts[0])));
+  if(header.alg!=="RS256" || !header.kid) throw new Error("Unsupported Access token signature.");
   const claims=JSON.parse(new TextDecoder().decode(b64url(parts[1])));
   const issuer=env.ACCESS_ISSUER.replace(/\/$/,"");
   const now=Math.floor(Date.now()/1000);
