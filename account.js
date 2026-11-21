@@ -28,11 +28,11 @@
       const items=filtered.filter(c=>groupFor(c.updated_at)===group);if(!items.length)return;
       const heading=document.createElement("div");heading.className="history-group";heading.textContent=group;list.append(heading);
       items.forEach(chat=>{
-        const button=document.createElement("button");button.type="button";button.className="chat-item"+(chat.id===active?" active":"");
+        const button=document.createElement("div");button.setAttribute("role","button");button.tabIndex=0;button.className="chat-item"+(chat.id===active?" active":"");
         const title=document.createElement("span");title.className="chat-name";title.textContent=chat.title||"New chat";
         const menu=document.createElement("button");menu.type="button";menu.className="chat-menu";menu.textContent="···";menu.title="Options";
         menu.addEventListener("click",async e=>{e.stopPropagation();const action=prompt("Tapez rename pour renommer ou delete pour supprimer :","rename");if(action==="rename"){const next=prompt("Nouveau titre :",chat.title);if(next?.trim())try{await api("/api/user/chats/"+encodeURIComponent(chat.id),{method:"PUT",body:JSON.stringify({title:next.trim()})});await refreshChats();if(active===chat.id)$("conversation-head").textContent=next.trim();}catch(err){toast(err.message);}}else if(action==="delete")await deleteChat(chat.id);});
-        button.append(title,menu);button.addEventListener("click",()=>openChat(chat.id));list.append(button);
+        button.append(title,menu);button.addEventListener("click",()=>openChat(chat.id));button.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openChat(chat.id);}});list.append(button);
       });
     });
   }
