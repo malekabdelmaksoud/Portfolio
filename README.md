@@ -13,11 +13,11 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 - API-backed project publishing and an admin dashboard (Cloudflare Access setup is still pending).
 - Conversational AI powered server-side by Cloudflare Workers AI; provider keys and model configuration are never exposed in the browser.
 
-## Assistant: evidence-only by design
+## Assistant: conversational AI with verified portfolio grounding
 
 The authenticated visitor workspace uses Workers AI for general conversation. When a question concerns Melek or her portfolio, the Worker retrieves only explicitly approved D1 facts and supplies them as grounding context. If relevant approved evidence is missing, the assistant must say so instead of inventing personal facts.
 
-The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved, so the assistant abstains until the owner reviews and approves reliable statements. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
+The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved; portfolio-specific questions abstain when no relevant approved evidence exists. General questions can still be answered conversationally. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
 The model catalogue currently offers Gemma 4 and Qwen 3.8 and can be extended server-side with `AI_MODELS_JSON`. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
 
