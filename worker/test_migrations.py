@@ -65,6 +65,26 @@ class MigrationTests(unittest.TestCase):
         approved = self.db.execute("SELECT approved FROM facts WHERE id='extra-001'").fetchone()[0]
         self.assertEqual(approved, 0)
 
+    def test_repository_import_indexes_exist_and_original_projects_are_insert_only(self):
+        indexes = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        self.assertIn("idx_projects_url", indexes)
+        original = self.db.execute(
+            "SELECT id,title,type,url,visible,sort_order FROM projects ORDER BY sort_order"
+        ).fetchall()
+        self.assertEqual(len(original), 8)
+        self.db.execute(
+            "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order) "
+            "VALUES(?,?,?,?,?,?,1,90)",
+            ("import-github-test", "Test", "GitHub · JavaScript", "Projet public", "Public project",
+             "https://github.com/owner/test")
+        )
+        count = self.db.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+        self.assertEqual(count, 9)
+        unchanged = self.db.execute(
+            "SELECT id,title,type,url,visible,sort_order FROM projects WHERE id LIKE 'project-%' ORDER BY sort_order"
+        ).fetchall()
+        self.assertEqual(unchanged, original)
+
 
 if __name__ == "__main__":
     unittest.main()

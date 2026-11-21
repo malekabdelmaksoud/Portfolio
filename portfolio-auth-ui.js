@@ -7,8 +7,13 @@ function showToast(message, type = "success") {
     document.body.appendChild(toast);
   }
   toast.className = `portfolio-toast ${type} show`;
-  const icon = type === "error" ? "⚠️" : (type === "info" ? "ℹ️" : "✅");
-  toast.innerHTML = `<span style="font-size:16px">${icon}</span> <span>${message}</span>`;
+  toast.replaceChildren();
+  const icon = document.createElement("span");
+  icon.style.fontSize = "16px";
+  icon.textContent = type === "error" ? "⚠️" : (type === "info" ? "ℹ️" : "✅");
+  const text = document.createElement("span");
+  text.textContent = String(message);
+  toast.append(icon, text);
 
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
@@ -156,20 +161,6 @@ function initAdminProjectTools() {
 let currentGitPlatform = localStorage.getItem("portfolio_last_git_platform") || "github";
 let loadedGitReposList = [];
 
-const FALLBACK_GITHUB_REPOS = [
-  { name: "opportunity-hunter", language: "TypeScript", updated_at: "2026-11-19" },
-  { name: "spring-boot-student-project", language: "Java", updated_at: "2026-11-18" },
-  { name: "firstappmobile", language: "Java", updated_at: "2026-11-18" },
-  { name: "projet-symfony", language: "PHP", updated_at: "2026-11-18" },
-  { name: "tp-poo", language: "Java", updated_at: "2026-11-18" },
-  { name: "Portfolio", language: "HTML", updated_at: "2026-11-18" },
-  { name: "laravel", language: "PHP", updated_at: "2026-10-30" },
-  { name: "projetphp", language: "CSS", updated_at: "2026-10-19" },
-  { name: "elearning-platform", language: "Java", updated_at: "2026-10-19" },
-  { name: "firstApp", language: "C#", updated_at: "2026-01-16" },
-  { name: "tpmagasin", language: "Java", updated_at: "2025-10-28" }
-];
-
 function authorizeWithPlatform(platform) {
   currentGitPlatform = platform;
   localStorage.setItem("portfolio_last_git_platform", platform);
@@ -235,14 +226,18 @@ async function loadGitReposForActivePlatform() {
     if (btnGl) btnGl.classList.remove("active");
     if (icon) icon.textContent = "🐙";
     const username = localStorage.getItem("portfolio_last_github_user") || "malekabdelmaksoud";
-    if (activeLabel) activeLabel.innerHTML = `Compte connecté : <b>GitHub (${username})</b>`;
-    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement de vos dépôts autorisés (${username})...</div>`;
+    if (activeLabel) { activeLabel.textContent = "Compte connecté : GitHub (" + username + ")"; }
+    container.replaceChildren();
+    const loading = document.createElement("div");
+    loading.style.cssText = "text-align:center;padding:26px;color:#888;font-size:13px";
+    loading.textContent = "Chargement des dépôts publics GitHub (" + username + ")...";
+    container.append(loading);
 
     try {
       const res = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100`);
       if (!res.ok) throw new Error("Compte GitHub introuvable ou limite atteinte.");
       const list = await res.json();
-      loadedGitReposList = list.map(r => ({
+      loadedGitReposList = list.filter(r => r && r.private !== true).map(r => ({
         id: r.id,
         name: r.name,
         platform: "GitHub",
@@ -253,12 +248,13 @@ async function loadGitReposForActivePlatform() {
         description: r.description
       }));
     } catch (err) {
-      if (username.toLowerCase() === "malekabdelmaksoud") {
-        loadedGitReposList = FALLBACK_GITHUB_REPOS.map(r => ({ ...r, platform: "GitHub", private: false, html_url: `https://github.com/malekabdelmaksoud/${r.name}` }));
-      } else {
-        container.innerHTML = `<div style="text-align:center;padding:26px;color:#ef4444;font-size:13px">⚠️ Aucun dépôt trouvé pour ce compte.</div>`;
-        return;
-      }
+      container.replaceChildren();
+      const message = document.createElement("div");
+      message.style.cssText = "text-align:center;padding:26px;color:#ef4444;font-size:13px";
+      message.textContent = "GitHub API Failure.";
+      container.append(message);
+      loadedGitReposList = [];
+      return;
     }
   } else {
     // GitLab Platform
@@ -266,8 +262,12 @@ async function loadGitReposForActivePlatform() {
     if (btnGh) btnGh.classList.remove("active");
     if (icon) icon.textContent = "🦊";
     const username = localStorage.getItem("portfolio_last_gitlab_user") || "malekabdelmaksoud";
-    if (activeLabel) activeLabel.innerHTML = `Compte connecté : <b>GitLab (${username})</b>`;
-    container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">⏳ Chargement des projets GitLab (${username})...</div>`;
+    if (activeLabel) { activeLabel.textContent = "Compte connecté : GitLab (" + username + ")"; }
+    container.replaceChildren();
+    const loading = document.createElement("div");
+    loading.style.cssText = "text-align:center;padding:26px;color:#888;font-size:13px";
+    loading.textContent = "Chargement des projets publics GitLab (" + username + ")...";
+    container.append(loading);
 
     try {
       const userRes = await fetch(`https://gitlab.com/api/v4/users?username=${username}`);
@@ -278,21 +278,29 @@ async function loadGitReposForActivePlatform() {
       const projRes = await fetch(`https://gitlab.com/api/v4/users/${userId}/projects?order_by=updated_at&per_page=50`);
       const projects = await projRes.json();
       if (!projects || projects.length === 0) {
-        container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet trouvé sur GitLab pour <b>${username}</b>.</div>`;
+        container.replaceChildren();
+        const empty = document.createElement("div");
+        empty.style.cssText = "text-align:center;padding:26px;color:#888;font-size:13px";
+        empty.textContent = "Aucun projet public trouvé sur GitLab pour " + username + ".";
+        container.append(empty);
         return;
       }
-      loadedGitReposList = projects.map(p => ({
+      loadedGitReposList = projects.filter(p => p.visibility === "public").map(p => ({
         id: p.id,
         name: p.name,
         platform: "GitLab",
-        private: p.visibility === "private",
+        private: p.visibility !== "public",
         language: "GitLab Project",
         updated_at: p.last_activity_at,
         html_url: p.web_url,
         description: p.description
       }));
     } catch (err) {
-      container.innerHTML = `<div style="text-align:center;padding:26px;color:#888;font-size:13px">ℹ️ Aucun projet public trouvé sur GitLab pour <b>${username}</b>.</div>`;
+      container.replaceChildren();
+      const empty = document.createElement("div");
+      empty.style.cssText = "text-align:center;padding:26px;color:#888;font-size:13px";
+      empty.textContent = "Aucun projet public trouvé sur GitLab pour " + username + ".";
+      container.append(empty);
       return;
     }
   }
@@ -303,39 +311,42 @@ async function loadGitReposForActivePlatform() {
 function renderVercelRepos(repos) {
   const container = document.getElementById("vercelReposContainer");
   if (!repos || repos.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:26px;color:#666">Aucun dépôt trouvé pour ce compte.</div>';
+    container.replaceChildren();
+    const empty = document.createElement("div");
+    empty.style.cssText = "text-align:center;padding:26px;color:#666";
+    empty.textContent = "Aucun dépôt public trouvé pour ce compte.";
+    container.append(empty);
     return;
   }
-
-  const existingIds = ProjectsManager.getAll().map(p => p.name.toLowerCase());
-
-  container.innerHTML = repos.map(r => {
-    const isAdded = existingIds.includes(r.name.toLowerCase());
-    const lang = r.language || 'Code';
-    const platIcon = r.platform === 'GitLab' ? '🦊 GitLab' : '🐙 GitHub';
-    const privBadge = r.private 
-      ? '<span style="background:rgba(234,179,8,0.15);color:#eab308;border:1px solid rgba(234,179,8,0.3);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;margin-left:6px">🔒 Privé</span>' 
-      : '';
-
-    return `
-      <div class="repo-card-vercel">
-        <div class="repo-info-v">
-          <strong>
-            <span>📦</span> ${r.name}
-            <span style="font-size:10.5px;color:#888;font-weight:500;margin-left:6px">${platIcon}</span>
-            ${privBadge}
-          </strong>
-          <span>${lang} • Mis à jour le ${new Date(r.updated_at).toLocaleDateString()}</span>
-        </div>
-        <div>
-          ${isAdded 
-            ? '<span style="color:#10b981;font-size:11.5px;font-weight:700">✓ Déjà sur le site</span>' 
-            : `<button class="btn-import-v" onclick="importGitRepoDirect('${r.name.replace(/'/g, "\\'")}', '${r.platform}', '${r.html_url}', '${lang}', '${(r.description || '').replace(/'/g, "\\'")}', ${r.private === true})">Importer ⚡</button>`
-          }
-        </div>
-      </div>
-    `;
-  }).join("");
+  container.replaceChildren();
+  repos.filter(r => r && r.private !== true).forEach(r => {
+    const card = document.createElement("div");
+    card.className = "repo-card-vercel";
+    const info = document.createElement("div");
+    info.className = "repo-info-v";
+    const title = document.createElement("strong");
+    title.textContent = "📦 " + String(r.name || "Repository");
+    const platform = document.createElement("span");
+    platform.style.cssText = "font-size:10.5px;color:#888;font-weight:500;margin-left:6px";
+    platform.textContent = r.platform === "GitLab" ? "🦊 GitLab" : "🐙 GitHub";
+    title.append(platform);
+    const meta = document.createElement("span");
+    meta.textContent = (r.language || "Code") + " • Mis à jour le " + new Date(r.updated_at || Date.now()).toLocaleDateString();
+    info.append(title, meta);
+    const actions = document.createElement("div");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn-import-v";
+    button.textContent = "Importer";
+    button.addEventListener("click", () => importGitRepoDirect(
+      String(r.name || ""),
+      r.platform === "GitLab" ? "GitLab" : "GitHub",
+      String(r.html_url || "")
+    ));
+    actions.append(button);
+    card.append(info, actions);
+    container.append(card);
+  });
 }
 
 function filterVercelRepos(val) {
@@ -344,37 +355,49 @@ function filterVercelRepos(val) {
   renderVercelRepos(filtered);
 }
 
-async function importGitRepoDirect(name, platform, htmlUrl, lang, rawDesc, isPrivate = false) {
+async function importGitRepoDirect(name, platform, htmlUrl) {
   const container = document.getElementById("vercelReposContainer");
-  const originalHtml = container.innerHTML;
-  container.innerHTML = `<div style="text-align:center;padding:30px;color:#fff">⚡ Analyse de <b>${name}</b> (${platform}) & génération automatique...</div>`;
+  const loading = document.createElement("div");
+  loading.style.cssText = "text-align:center;padding:30px;color:#fff";
+  loading.textContent = "Import en cours pour " + String(name || "ce dépôt") + "...";
+  container.replaceChildren(loading);
 
+  const apiBase = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
   try {
-    let cleanLang = lang || "Logiciel";
-    let autoType = `${cleanLang.toUpperCase()} · ${isPrivate ? 'PROJET PRIVÉ' : platform.toUpperCase()}`;
-    if (cleanLang === "PHP") autoType = isPrivate ? "PHP · PROJET PRIVÉ" : "PHP · FRAMEWORK & WEB";
-    if (cleanLang === "Java") autoType = isPrivate ? "JAVA · PROJET PRIVÉ" : "JAVA · APPLICATION";
-    if (cleanLang === "C#") autoType = isPrivate ? "C# · PROJET PRIVÉ" : "C# · .NET APPLICATION";
-    if (cleanLang === "TypeScript" || cleanLang === "JavaScript") autoType = isPrivate ? "FULL STACK · PROJET PRIVÉ" : "FULL STACK · APPLICATION";
-
-    let autoDesc = rawDesc && rawDesc.trim() 
-      ? rawDesc.trim() 
-      : `Projet ${isPrivate ? 'privé' : 'officiel'} hébergé sur ${platform} (${name}). Développé principalement avec ${cleanLang}, structuré selon les standards modernes d'architecture logicielle.`;
-
-    const newProj = {
-      id: "p_" + Date.now(),
-      name: name,
-      type: autoType,
-      description: autoDesc,
-      github: htmlUrl
-    };
-
-    ProjectsManager.add(newProj);
+    const response = await fetch(apiBase + "/api/admin/projects/import", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json", "accept": "application/json" },
+      body: JSON.stringify({
+        provider: platform === "GitLab" ? "gitlab" : "github",
+        url: String(htmlUrl || "")
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const code = data.code || "";
+      const message = code === "PRIVATE_REPOSITORY" ? "Private Repository"
+        : code === "INTERNAL_REPOSITORY" ? "Internal Repository"
+        : code === "DUPLICATE_PROJECT" ? "Duplicate Project"
+        : code === "INVALID_REPOSITORY_URL" ? "Invalid Repository URL"
+        : code === "DATABASE_FAILURE" ? "Database Failure"
+        : code === "GITHUB_API_FAILURE" ? "GitHub API Failure"
+        : code === "GITLAB_API_FAILURE" ? "GitLab API Failure"
+        : response.status === 401 || response.status === 403 ? "Access Denied"
+        : data.error || "Repository import failed";
+      throw new Error(message);
+    }
+    if (!data.saved || !data.project) throw new Error("Database Failure");
     closeProjectModal();
-    showToast(`🎉 Le projet "${name}" ${isPrivate ? '(Privé 🔒)' : ''} a été importé avec succès !`, "success");
+    showToast("Projet importé avec succès après confirmation D1 : " + data.project.title, "success");
+    if (typeof window.refreshRemotePortfolioProjects === "function") {
+      await window.refreshRemotePortfolioProjects();
+    } else {
+      window.dispatchEvent(new Event("portfolio:projectsimported"));
+    }
   } catch (err) {
-    showToast("Erreur lors de l'importation : " + err.message, "error");
-    container.innerHTML = originalHtml;
+    showToast(err.message || "Repository import failed", "error");
+    await loadGitReposForActivePlatform();
   }
 }
 

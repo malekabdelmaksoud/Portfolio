@@ -60,6 +60,238 @@ async function readBody(request, max = 16000) {
   return JSON.parse(raw || "{}");
 }
 
+function importError(message, code, status = 400) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  return error;
+}
+
+function parseRepositoryUrl(rawUrl, providerHint) {
+  let url;
+  try { url = new URL(String(rawUrl || "").trim()); } catch (_) {
+    throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.port || url.search || url.hash) {
+    throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+  }
+  const provider = String(providerHint || "").toLowerCase();
+  if (url.hostname === "github.com" && (!provider || provider === "github")) {
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length !== 2) throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    const owner = decodeURIComponent(parts[0]).replace(/\.git$/i, "");
+    const name = decodeURIComponent(parts[1]).replace(/\.git$/i, "");
+    if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(owner) ||
+        !/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(name)) {
+      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    }
+    return { provider: "github", owner, name, fullName: owner + "/" + name, canonical: "https://github.com/" + owner + "/" + name };
+  }
+  if (url.hostname === "gitlab.com" && (!provider || provider === "gitlab")) {
+    const parts = url.pathname.split("/").filter(Boolean).map(part => decodeURIComponent(part).replace(/\.git$/i, ""));
+    if (parts.length < 2) throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    if (parts.some(part => !/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(part))) {
+      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    }
+    const fullName = parts.join("/");
+    const name = parts[parts.length - 1];
+    return { provider: "gitlab", owner: parts.slice(0, -1).join("/"), name, fullName, canonical: "https://gitlab.com/" + fullName };
+  }
+  throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+}
+
+function sanitizeRepositoryText(value, limit = 500) {
+  return String(value || "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/[`*_~>#]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, limit);
+}
+
+async function safeApiFetch(url, env, accept = "application/json") {
+  const parsed = new URL(url);
+  if (!/^https:$/.test(parsed.protocol) ||
+      parsed.username || parsed.password || parsed.port ||
+      !["api.github.com", "github.com", "raw.githubusercontent.com", "gitlab.com"].includes(parsed.hostname)) {
+    throw importError("Repository API Failure.", "REPOSITORY_API_FAILURE", 502);
+  }
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: { accept, "user-agent": "Melek-Portfolio-Repository-Import" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(8000)
+    });
+  } catch (_) {
+    throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  }
+  const length = Number(response.headers.get("content-length") || 0);
+  if (length > 250000) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  if (!response.ok) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  const text = await response.text();
+  if (text.length > 250000) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  return text;
+}
+
+function parseJsonText(text, fallback) {
+  try { return JSON.parse(text); } catch { return fallback; }
+}
+
+async function fetchGitHubRepository(repo, env) {
+  const metadataText = await safeApiFetch(
+    "https://api.github.com/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name),
+    env,
+    "application/vnd.github+json"
+  );
+  const metadata = parseJsonText(metadataText, null);
+  if (!metadata || typeof metadata !== "object") throw importError("GitHub API Failure.", "GITHUB_API_FAILURE", 502);
+  if (metadata.private === true || metadata.visibility === "private" || metadata.visibility === "internal") {
+    throw importError("Private Repository.", "PRIVATE_REPOSITORY", 403);
+  }
+  const defaultBranch = sanitizeRepositoryText(metadata.default_branch || "main", 100);
+  const topicsText = await safeApiFetch(
+    "https://api.github.com/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name) + "/topics",
+    env,
+    "application/vnd.github+json"
+  ).catch(() => "[]");
+  const topicsJson = parseJsonText(topicsText, {});
+  const topics = Array.isArray(topicsJson.names) ? topicsJson.names : [];
+  const languagesText = await safeApiFetch(
+    "https://api.github.com/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name) + "/languages",
+    env,
+    "application/vnd.github+json"
+  ).catch(() => "{}");
+  const languagesJson = parseJsonText(languagesText, {});
+  const languages = typeof languagesJson === "object" ? Object.keys(languagesJson).filter(Boolean).slice(0, 12) : [];
+
+  let readme = "";
+  for (const name of ["README.md", "README.rst", "README"]) {
+    try {
+      const text = await safeApiFetch(
+        "https://api.github.com/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name) +
+          "/contents/" + encodeURIComponent(name) + "?ref=" + encodeURIComponent(defaultBranch),
+        env,
+        "application/vnd.github.raw+json"
+      );
+      const json = parseJsonText(text, null);
+      if (json && typeof json.content === "string") {
+        readme = new TextDecoder().decode(Uint8Array.from(atob(json.content.replace(/\n/g, "")), c => c.charCodeAt(0))).slice(0, 5000);
+      } else if (typeof text === "string") {
+        readme = text.slice(0, 5000);
+      }
+      if (readme) break;
+    } catch (_) {}
+  }
+
+  const manifestEvidence = [];
+  for (const file of ["package.json","composer.json","pom.xml","requirements.txt","pyproject.toml"]) {
+    try {
+      const text = await safeApiFetch(
+        "https://api.github.com/repos/" + encodeURIComponent(repo.owner) + "/" + encodeURIComponent(repo.name) +
+          "/contents/" + encodeURIComponent(file) + "?ref=" + encodeURIComponent(defaultBranch),
+        env,
+        "application/vnd.github.raw+json"
+      );
+      const json = parseJsonText(text, null);
+      let content = text;
+      if (json && typeof json.content === "string") {
+        content = new TextDecoder().decode(Uint8Array.from(atob(json.content.replace(/\n/g, "")), c => c.charCodeAt(0))).slice(0, 5000);
+      }
+      if (content.trim()) manifestEvidence.push({ file, content: content.slice(0, 5000) });
+    } catch (_) {}
+  }
+  return {
+    title: sanitizeRepositoryText(metadata.name || repo.name, 120) || repo.name,
+    officialDescription: sanitizeRepositoryText(metadata.description, 700),
+    topics: topics.map(x => sanitizeRepositoryText(x, 60)).filter(Boolean).slice(0, 12),
+    languages: languages.map(x => sanitizeRepositoryText(x, 40)).filter(Boolean).slice(0, 12),
+    readme,
+    manifests: manifestEvidence,
+    defaultBranch
+  };
+}
+
+async function fetchGitLabRepository(repo, env) {
+  const encodedProject = encodeURIComponent(repo.fullName);
+  const metadataText = await safeApiFetch("https://gitlab.com/api/v4/projects/" + encodedProject, env);
+  const metadata = parseJsonText(metadataText, null);
+  if (!metadata || typeof metadata !== "object") throw importError("GitLab API Failure.", "GITLAB_API_FAILURE", 502);
+  if (metadata.visibility === "private") throw importError("Private Repository.", "PRIVATE_REPOSITORY", 403);
+  if (metadata.visibility === "internal") throw importError("Internal Repository.", "INTERNAL_REPOSITORY", 403);
+  if (metadata.visibility !== "public") throw importError("Only public repositories can be imported.", "PRIVATE_REPOSITORY", 403);
+  const defaultBranch = sanitizeRepositoryText(metadata.default_branch || "main", 100);
+
+  let topics = Array.isArray(metadata.tag_list) ? metadata.tag_list : [];
+  const languagesText = await safeApiFetch("https://gitlab.com/api/v4/projects/" + encodedProject + "/languages", env).catch(() => "{}");
+  const languagesJson = parseJsonText(languagesText, {});
+  const languages = typeof languagesJson === "object" ? Object.keys(languagesJson).slice(0, 12) : [];
+
+  let readme = "";
+  for (const name of ["README.md", "README.rst", "README"]) {
+    try {
+      const text = await safeApiFetch(
+        "https://gitlab.com/api/v4/projects/" + encodedProject + "/repository/files/" +
+          encodeURIComponent(name) + "/raw?ref=" + encodeURIComponent(defaultBranch),
+        env
+      );
+      if (typeof text === "string" && text.trim()) { readme = text.slice(0, 5000); break; }
+    } catch (_) {}
+  }
+
+  const manifestEvidence = [];
+  for (const file of ["package.json","composer.json","pom.xml","requirements.txt","pyproject.toml"]) {
+    try {
+      const text = await safeApiFetch(
+        "https://gitlab.com/api/v4/projects/" + encodedProject + "/repository/files/" +
+          encodeURIComponent(file) + "/raw?ref=" + encodeURIComponent(defaultBranch),
+        env
+      );
+      if (text.trim()) manifestEvidence.push({ file, content: text.slice(0, 5000) });
+    } catch (_) {}
+  }
+  return {
+    title: sanitizeRepositoryText(metadata.name || repo.name, 120) || repo.name,
+    officialDescription: sanitizeRepositoryText(metadata.description, 700),
+    topics: topics.map(x => sanitizeRepositoryText(x, 60)).filter(Boolean).slice(0, 12),
+    languages: languages.map(x => sanitizeRepositoryText(x, 40)).filter(Boolean).slice(0, 12),
+    readme,
+    manifests: manifestEvidence,
+    defaultBranch
+  };
+}
+
+function buildImportedProjectDescription(repo, evidence) {
+  const languages = evidence.languages;
+  const topics = evidence.topics;
+  const manifestNames = evidence.manifests.map(item => item.file);
+  const evidenceBits = [];
+  if (evidence.officialDescription) evidenceBits.push(evidence.officialDescription);
+  if (languages.length) evidenceBits.push("Languages: " + languages.join(", "));
+  if (topics.length) evidenceBits.push("Topics: " + topics.join(", "));
+  if (manifestNames.length) evidenceBits.push("Manifests: " + manifestNames.join(", "));
+  if (!evidenceBits.length) {
+    const readme = sanitizeRepositoryText(evidence.readme, 180);
+    if (readme) evidenceBits.push(readme);
+  }
+  const detail = evidenceBits.join(". ").replace(/\.+$/g, "").slice(0, 900);
+  const fr = detail
+    ? repo.title + " est un dépôt public " + (repo.provider === "github" ? "GitHub" : "GitLab") + ". " + detail + "."
+    : "Les détails vérifiés du dépôt public " + repo.title + " sont limités. Les fonctionnalités ne peuvent pas être confirmées.";
+  const en = detail
+    ? repo.title + " is a public " + (repo.provider === "github" ? "GitHub" : "GitLab") + " repository. " + detail + "."
+    : "Verified details for the public repository " + repo.title + " are limited. Its features cannot be confirmed.";
+  return { fr: sanitizeRepositoryText(fr, 2000), en: sanitizeRepositoryText(en, 2000) };
+}
+
 function validateFact(x) {
   if (!x || typeof x !== "object") return "A fact object is required.";
   if (!safeId(x.id)) return "ID must contain 2–80 letters, numbers, underscores or hyphens.";
@@ -280,7 +512,21 @@ async function rankedFacts(env, question, context = "") {
   const searchTerms = followUp && context ? terms(context + " " + question) : q;
   if (!searchTerms.size) return { searchTerms, selected: [] };
   const { results = [] } = await env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
-  const ranked = results.map(f => {
+  const { results: projectRows = [] } = await env.DB.prepare(
+    "SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title"
+  ).all();
+  const projectFacts = projectRows.map(project => ({
+    id: project.id,
+    category: "project",
+    text_fr: project.description_fr || project.title,
+    text_en: project.description_en || project.title,
+    text_ar: project.description_fr || project.title,
+    aliases_json: JSON.stringify([project.title, project.type, project.url]),
+    source_file: "D1 projects",
+    source_selector: "#" + project.id,
+    public_url: project.url
+  }));
+  const ranked = [...results, ...projectFacts].map(f => {
     const hay = terms([f.text_fr, f.text_en, f.text_ar, ...parseJson(f.aliases_json, [])].join(" "));
     const matched = [...searchTerms].filter(t => hay.has(t));
     return { fact: f, coverage: matched.length / searchTerms.size };
@@ -397,7 +643,8 @@ async function assistant(request, env) {
       code: error.code || "MELEK_AI_UNAVAILABLE",
       mode,
       retryable: true,
-      conversation_preserved: true
+      conversation_preserved: true,
+      sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
     }, 503);
   }
 }
@@ -476,6 +723,47 @@ async function userChatRoute(request, env, path, method, identity) {
 async function adminRoute(request, env, path, method) {
   const actor = await verifyAdmin(request, env);
   if (path === "/api/admin/session" && method === "GET") return json({ authenticated: true, user: actor });
+  if (path === "/api/admin/projects/import" && method === "POST") {
+    let body;
+    try { body = await readBody(request, 4000); } catch (_) {
+      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    }
+    const repo = parseRepositoryUrl(body.url, body.provider);
+    let evidence;
+    if (repo.provider === "github") evidence = await fetchGitHubRepository(repo, env);
+    else evidence = await fetchGitLabRepository(repo, env);
+    const digest = await sha256Hex("repository:" + repo.canonical);
+    const id = "import-" + repo.provider + "-" + digest.slice(0, 32);
+    const existing = await env.DB.prepare("SELECT id,url,title FROM projects WHERE id=? OR url=? LIMIT 1").bind(id, repo.canonical).first();
+    if (existing) throw importError("Duplicate Project.", "DUPLICATE_PROJECT", 409);
+    const description = buildImportedProjectDescription({ ...repo, title: evidence.title }, evidence);
+    const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(sort_order),0) AS max_order FROM projects").first();
+    const sortOrder = Number(maxRow?.max_order || 0) + 10;
+    const languages = evidence.languages.slice(0, 4);
+    const type = languages.length
+      ? (repo.provider === "github" ? "GitHub" : "GitLab") + " · " + languages.join(" / ")
+      : (repo.provider === "github" ? "GitHub · Repository" : "GitLab · Repository");
+    try {
+      const insert = await env.DB.prepare(
+        "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order,updated_at) VALUES(?,?,?,?,?,?,1,?,CURRENT_TIMESTAMP)"
+      ).bind(id, evidence.title, type, description.fr, description.en, repo.canonical, sortOrder).run();
+      if (!insert.meta?.changes) throw importError("Database Failure.", "DATABASE_FAILURE", 500);
+    } catch (error) {
+      if (error.code) throw error;
+      throw importError("Database Failure.", "DATABASE_FAILURE", 500);
+    }
+    return json({
+      saved: true,
+      project: {
+        id, title: evidence.title, type,
+        description_fr: description.fr,
+        description_en: description.en,
+        url: repo.canonical,
+        visible: true,
+        sort_order: sortOrder
+      }
+    }, 201);
+  }
   if (path === "/api/admin/facts" && method === "GET") {
     const { results = [] } = await env.DB.prepare("SELECT * FROM facts ORDER BY category,id").all();
     return json({ facts: results.map(f => ({
@@ -565,6 +853,10 @@ export default {
       return withCors(json({ error: "Not found." }, 404), cors);
     } catch (error) {
       const message = String(error?.message || "The server could not complete this request.");
+      if (error?.code) {
+        const status = Number.isInteger(error.status) ? error.status : (error.code === "DATABASE_FAILURE" ? 500 : 400);
+        return withCors(json({ error: message, code: error.code }, status), cors);
+      }
       const status = /sign-in|authentication|access token|token|signing keys|not allowed to administer/i.test(message) ? 401 : 500;
       return withCors(json({ error: status === 401 ? message : "The server could not complete this request." }, status), cors);
     }

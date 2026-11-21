@@ -102,6 +102,8 @@ async function loadRemoteProjects() {
   } catch (_) { /* Keep static project cards until the API is deployed. */ }
 }
 window.addEventListener("portfolio:languagechange", renderRemoteProjects);
+window.refreshRemotePortfolioProjects = loadRemoteProjects;
+window.addEventListener("portfolio:projectsimported", loadRemoteProjects);
 loadRemoteProjects();
 
 /* ── Footer Year ── */

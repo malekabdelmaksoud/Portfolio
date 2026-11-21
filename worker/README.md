@@ -89,6 +89,14 @@ The dashboard never asks for a password; Cloudflare Access supplies the identity
 
 The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. The 23 seeded facts remain unapproved until reviewed in the dashboard; the assistant intentionally abstains until there is approved evidence.
 
+Visible D1 project records are also included as project evidence. Imported repositories become available through the existing project listing and assistant retrieval after a confirmed D1 insert.
+
+## Repository project import
+
+`POST /api/admin/projects/import` is admin-protected by existing Cloudflare Access verification. The frontend sends only `provider` and `url`. The Worker validates the host, independently fetches GitHub/GitLab metadata and evidence, rejects private/internal repositories, prevents URL/ID duplicates, and inserts only confirmed public repository records with prepared SQL statements.
+
+No automatic synchronization or deletion is performed. The existing curated projects are not modified or removed during import.
+
 The portfolio's `api-config.js` already points to the deployed API origin. `ALLOWED_ORIGIN` is configured for the production portfolio.
 
 ## Local development
