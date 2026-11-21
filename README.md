@@ -25,7 +25,7 @@ This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**
 
 See [worker/README.md](worker/README.md) for D1 creation, migrations, Cloudflare Access configuration, API deployment, and admin usage.
 
-Important: the API Worker and D1 database are source-controlled here but have not been provisioned or deployed. The live portfolio has not been modified. Configure a same-origin `/api/*` route to the API Worker (recommended), or set `window.PORTFOLIO_API_BASE` in `api-config.js` to the API Worker origin and configure CORS/Access accordingly.
+Important: the API Worker and D1 database are source-controlled here but have not been provisioned or deployed. The live portfolio has not been modified. After deploying the API Worker, set `window.PORTFOLIO_API_BASE` in the root `api-config.js` to its `workers.dev` origin. The Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. Configure Cloudflare Access for that Worker’s `/admin.html` and `/api/admin/*` paths, and set the exact portfolio origin in `ALLOWED_ORIGIN` for public chat/project requests.
 
 ## Security
 
