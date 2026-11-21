@@ -146,7 +146,7 @@ async function verifyAdmin(request, env) {
   if(!valid) throw new Error("Access token signature is invalid.");
   return {email:claims.email,name:claims.name||claims.email};
 }
-async function assistant(request, env) {
+async function assistant(request, env, identity) {
   let body;
   try { body=await readBody(request,24000); } catch { return json({error:"Invalid request body."},400); }
   const question=String(body.question||"").trim().slice(0,1200);
@@ -172,7 +172,14 @@ async function assistant(request, env) {
   const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
   let webSources=[];
   if(!portfolioIntent) {
-    const liveResults=await liveWebSearch(env,question);
+    let liveResults=[];
+    if(env.WEB_SEARCH_ENABLED==="true"&&identity?.email){
+      const usage=await env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE user_email=? AND created_at>=datetime('now','-1 hour')").bind(identity.email).first();
+      if((usage?.total||0)<10){
+        await env.DB.prepare("INSERT INTO web_search_usage(id,user_email) VALUES(?,?)").bind(crypto.randomUUID(),identity.email).run();
+        liveResults=await liveWebSearch(env,question);
+      }
+    }
     const {results:webRows=[]}=await env.DB.prepare("SELECT title,url,source_name,source_host,summary,published_at,fetched_at FROM web_knowledge WHERE status='active' ORDER BY COALESCE(published_at,fetched_at) DESC LIMIT 120").all();
     const rankedWeb=webRows.map(item=>{
       const hay=terms(item.title+" "+item.summary+" "+item.source_name);
@@ -374,11 +381,11 @@ export default {
           env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first(),
           env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 1").first()
         ]);
-        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
+        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",searchLimitPerUserPerHour:10,sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
       }
       if(path==="/api/assistant" && method==="POST") {
-        await verifyAccessIdentity(request,env);
-        return withCors(await assistant(request,env),cors);
+        const identity=await verifyAccessIdentity(request,env);
+        return withCors(await assistant(request,env,identity),cors);
       }
       if(path==="/api/projects" && method==="GET") {
         const {results=[]}=await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
