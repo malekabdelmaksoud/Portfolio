@@ -1,7 +1,7 @@
 (() => {
   const base=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
   const $=id=>document.getElementById(id);
-  let active=null,mode="chat",sending=false,chats=[],searchSequence=0,availableModels=[];
+  let active=null,mode="chat",sending=false,chats=[],searchSequence=0,availableModels=[],attachment=null,lastAssistantAnswer="";
   const api=async(path,options={})=>{
     const response=await fetch(base+path,{...options,credentials:"include",headers:{"content-type":"application/json","accept":"application/json",...(options.headers||{})}});
     if(response.status===401||response.status===403)throw new Error("Votre session Cloudflare Access n'est pas active. Rechargez la page et terminez la connexion par e-mail.");
@@ -17,7 +17,7 @@
     const label=document.createElement("div");label.className="message-role";label.textContent=role==="user"?"You":"Melek AI";
     const text=document.createElement("div");text.className="message-text";text.innerHTML=renderText(content);
     body.append(label,text);
-    if(role==="assistant"&&withActions){const actions=document.createElement("div");actions.className="message-actions";const copy=document.createElement("button");copy.type="button";copy.textContent="Copier";copy.addEventListener("click",()=>navigator.clipboard?.writeText(content).then(()=>toast("Réponse copiée."),()=>toast("Copie indisponible.")));actions.append(copy);body.append(actions);}
+    if(role==="assistant"&&withActions){const actions=document.createElement("div");actions.className="message-actions";const copy=document.createElement("button");copy.type="button";copy.textContent="Copier";copy.addEventListener("click",()=>navigator.clipboard?.writeText(content).then(()=>toast("Réponse copiée."),()=>toast("Copie indisponible.")));const speak=document.createElement("button");speak.type="button";speak.textContent="Écouter";speak.addEventListener("click",()=>speakText(content));actions.append(copy,speak);body.append(actions);if(role==="assistant")lastAssistantAnswer=content;}
     node.append(avatar,body);$("messages").append(node);$("messages").scrollTop=$("messages").scrollHeight;return node;
   }
   function groupFor(value){const d=new Date(String(value).endsWith("Z")?value:value+"Z"),n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate()),day=new Date(d.getFullYear(),d.getMonth(),d.getDate()),diff=Math.round((today-day)/86400000);return diff<=0?"Today":diff===1?"Yesterday":diff<7?"Previous 7 days":"Older";}
@@ -53,23 +53,24 @@
   async function deleteChat(id){if(!confirm("Supprimer définitivement cette conversation ?"))return;try{await api("/api/user/chats/"+encodeURIComponent(id),{method:"DELETE"});if(active===id){active=null;$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();}await refreshChats();toast("Conversation supprimée.");}catch(e){toast(e.message);}}
   function setMode(next){mode=next;$("mode-chat").classList.toggle("selected",mode==="chat");$("mode-analyze").classList.toggle("selected",mode==="analyze");$("mode-hint").textContent=mode==="chat"?"Réponses directes et concises":"Réponse structurée et analyse détaillée";$("mobile-mode").textContent=mode==="chat"?"Chat":"Analyze";}
   async function sendMessage(event){
-    event.preventDefault();const input=$("chat-input"),question=input.value.trim();if(!question||sending)return;
+    event.preventDefault();const input=$("chat-input"),question=input.value.trim();if((!question&&!attachment)||sending)return;
     sending=true;$("send-message").disabled=true;input.value="";input.style.height="auto";
     let pending=null;
     try{
       if(!active)await createChat(question.slice(0,64));
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:question})});
-      addMessage("user",question);
+      const submittedText=question+(attachment?"\n\n[Attached file: "+attachment.name+"]\n"+attachment.text:"");
+      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:submittedText.slice(0,6000)})});
+      addMessage("user",question+(attachment?"\n[File: "+attachment.name+"]":""));
       const history=[...$("messages").children].slice(0,-1).slice(-8).map(node=>({
         role:node.classList.contains("user")?"user":"assistant",
         content:node.querySelector(".message-text")?.textContent||""
       })).filter(item=>item.content.trim());
       pending=addMessage("assistant",mode==="analyze"?"Analyse en cours…":"Réponse en cours…",false);
       const data=await api("/api/assistant",{method:"POST",body:JSON.stringify({
-        question,mode,model:$("model-select").value||undefined,history
+        question:question||"Please analyze the attached file.",attachmentText:attachment?.text||"",attachmentName:attachment?.name||"",mode,model:$("model-select").value||undefined,history
       })});
       const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";
-      pending.remove();pending=null;
+      pending.remove();pending=null;attachment=null;renderAttachment();
       await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});
       addMessage("assistant",answer);await refreshChats();
     }catch(e){if(pending)pending.remove();toast(e.message);input.value=question;}
@@ -95,6 +96,12 @@
       toast("La liste des modèles est indisponible. L’historique reste accessible.");
     }
   }
+  function speakText(text){if(!("speechSynthesis" in window)){toast("La lecture vocale n'est pas prise en charge par ce navigateur.");return;}window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=/[\\u0600-\\u06ff]/.test(text)?"ar-TN":/[àâçéèêëîïôûùüÿœ]/i.test(text)?"fr-FR":"en-US";window.speechSynthesis.speak(utterance);}
+  function renderAttachment(){const chip=$("attachment-chip");chip.hidden=!attachment;chip.textContent=attachment?"📎 "+attachment.name+" · "+Math.ceil(attachment.text.length/1000)+"k caractères — ×":"";chip.onclick=()=>{attachment=null;renderAttachment();};}
+  $("attach-file").addEventListener("click",()=>$("file-input").click());
+  $("file-input").addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>12000){toast("Fichier trop volumineux (maximum 12 Ko pour cette version).");e.target.value="";return;}try{const text=await file.text();if(!text.trim())throw new Error("Le fichier est vide.");attachment={name:file.name,text:text.slice(0,10000)};renderAttachment();toast("Fichier prêt à être analysé.");}catch(err){toast(err.message||"Impossible de lire ce fichier.");}e.target.value="";});
+  $("voice-input").addEventListener("click",()=>{const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition){toast("La dictée vocale n'est pas prise en charge. Essayez Chrome ou Edge.");return;}const recognition=new Recognition();recognition.lang=/[\\u0600-\\u06ff]/.test($("chat-input").value)?"ar-TN":"fr-FR";recognition.interimResults=false;recognition.onresult=event=>{$("chat-input").value=($("chat-input").value+" "+event.results[0][0].transcript).trim();$("chat-input").focus();};recognition.onerror=()=>toast("La dictée vocale n'a pas abouti. Vérifiez l'autorisation du microphone.");recognition.start();});
+  $("read-aloud").addEventListener("click",()=>lastAssistantAnswer?speakText(lastAssistantAnswer):toast("Aucune réponse à lire."));
   async function load(){
     try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);}
     catch(e){$("identity").textContent="Connexion requise";$("status").textContent=e.message;toast(e.message);}
