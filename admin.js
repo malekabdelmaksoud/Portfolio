@@ -2,9 +2,10 @@
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
 const state={facts:[],projects:[],editingFact:null,editingProject:null};
+const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};
 async function api(path,options={}) {
-  const response=await fetch(path,{credentials:"same-origin",...options,headers:{"content-type":"application/json",...(options.headers||{})}});
+  const response=await fetch(API_BASE+path,{credentials:"same-origin",...options,headers:{"content-type":"application/json",...(options.headers||{})}});
   const data=await response.json().catch(()=>({error:"Réponse serveur illisible."}));
   if(!response.ok) throw new Error(data.error||("HTTP "+response.status));
   return data;
