@@ -9,7 +9,7 @@ test("parses allowlisted RSS/Atom entries and sanitizes markup", () => {
     <description><![CDATA[<p>New security research and <b>defensive guidance</b> for AI systems. <script>steal secrets</script>More details in the full post.</p>]]></description>
     <pubDate>Sat, 21 Nov 2026 10:00:00 GMT</pubDate>
   </item></channel></rss>`;
-  const items = parseFeed(xml, { name: "Cloudflare Blog" });
+  const items = parseFeed(xml, { name: "Cloudflare Blog", host: "blog.cloudflare.com" });
   assert.equal(items.length, 1);
   assert.equal(items[0].title, "AI Security Update");
   assert.match(items[0].summary, /defensive guidance/);
@@ -48,7 +48,7 @@ test("refreshes only fixed feeds and persists deduplicated source records", asyn
     return new Response(xml, { status: 200, headers: { "content-type": "application/rss+xml" } });
   });
   assert.equal(urls.length, 5);
-  assert.equal(result.fetched, 5);
+  assert.equal(result.fetched, 5, JSON.stringify({ urls, failed: result.failed }));
   assert.equal(result.saved, 5);
   assert.equal(writes.length, 6); // five feed records plus one run summary
   assert.ok(writes.every(x => !x.sql.includes("INSERT INTO facts")));
