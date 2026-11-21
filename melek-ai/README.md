@@ -100,11 +100,22 @@ The Worker exposes **MelekGPT** in the model selector as unavailable until both 
    $env:MELEK_AI_TOKEN = "replace-with-a-long-random-secret"
    python serve.py
    ```
-5. Put the server behind a **named Cloudflare Tunnel** with an HTTPS hostname. Do not expose port 8788 directly. Configure Worker secrets `MELEK_AI_URL` (the tunnel URL ending in `/v1/chat/completions`) and `MELEK_AI_TOKEN` (the same token), then deploy the Worker.
-6. Keep the host machine running. If it is offline, the custom model will be unavailable; the free hosted model remains independently selectable.
+5. For a zero-cost temporary connection, start a Cloudflare Quick Tunnel in a second terminal (no domain or Cloudflare account is required):
+   ```powershell
+   cloudflared tunnel --url http://localhost:8788
+   ```
+   Copy the generated `https://….trycloudflare.com` URL. Do not expose port 8788 directly. In the repository's `worker` directory, set the Worker secrets:
+   ```powershell
+   npx wrangler@4 secret put MELEK_AI_URL
+   # Enter: https://YOUR-QUICK-TUNNEL.trycloudflare.com/v1/chat/completions
+   npx wrangler@4 secret put MELEK_AI_TOKEN
+   # Enter the same long random token used by serve.py
+   ```
+   Deploy only through the manual GitHub Actions workflow after confirming the Cloudflare account is still on Workers Free.
+6. Keep both the Python server and Quick Tunnel running. Quick Tunnel URLs are temporary and change when restarted, so update `MELEK_AI_URL` and manually redeploy when the URL changes. If the laptop is off or the tunnel stops, MelekGPT is unavailable; the two free hosted models remain independently selectable. Quick Tunnels are for testing/development and have no uptime guarantee.
 
 The server loads only a checkpoint marked `trained_from_scratch` and requires bearer authentication. The current tiny character-level Transformer is experimental and is not comparable to Claude or other foundation models. It needs a large, varied corpus and evaluation; a small personal portfolio dataset will not teach it general conversation.
 
 ## Current status
 
-The architecture, public-data pipeline, and private inference adapter are implemented. An earlier byte-level experimental checkpoint was trained and evaluated but rejected for serving because generated samples were poor. The improved Unicode-character checkpoint is being trained and evaluated in CI. No live model endpoint is configured, so MelekGPT remains unavailable in the website selector until a checkpoint passes review and a private service is configured.
+The architecture, public-data pipeline, and private inference adapter are implemented. An earlier byte-level experimental checkpoint was trained and evaluated but rejected for serving because generated samples were poor. The improved Unicode-character checkpoint is trained in a free GitHub Actions job for this public repository and is published as a temporary artifact; it is not automatically hosted. No live model endpoint is configured, so MelekGPT remains listed but unavailable in the website selector until a checkpoint passes review and the local server plus a Quick Tunnel are configured.
