@@ -58,8 +58,7 @@ async function digest(value) {
 }
 export async function refreshWebKnowledge(env, fetcher = fetch) {
   if (!env.DB) throw new Error("D1 binding DB is not configured.");
-  let fetched = 0, saved = 0, failed = [];
-  for (const feed of FEEDS) {
+  const feedResults = await Promise.all(FEEDS.map(async feed => {
     try {
       const response = await fetcher(feed.url, {
         headers: { "accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "user-agent": "MelekGPT-WebKnowledge/1.0 (+portfolio)" },
@@ -69,21 +68,23 @@ export async function refreshWebKnowledge(env, fetcher = fetch) {
       if (!response.ok) throw new Error("HTTP " + response.status);
       const xml = await response.text();
       if (xml.length > 1_500_000) throw new Error("Feed exceeds size limit");
-      const entries = parseFeed(xml, feed).slice(0, 8);
-      fetched += entries.length;
-      for (const item of entries) {
-        const id = await digest(item.url);
-        await env.DB.prepare(
-          "INSERT INTO web_knowledge(id,title,url,source_name,source_host,summary,published_at,content_hash,status,fetched_at) VALUES(?,?,?,?,?,?,?,?, 'active',CURRENT_TIMESTAMP) ON CONFLICT(url) DO UPDATE SET title=excluded.title,source_name=excluded.source_name,source_host=excluded.source_host,summary=excluded.summary,published_at=excluded.published_at,content_hash=excluded.content_hash,status='active',fetched_at=CURRENT_TIMESTAMP"
-        ).bind(id, item.title, item.url, item.source, item.host, item.summary, item.published_at, await digest(item.title + "\n" + item.summary)).run();
-        saved++;
-      }
+      return { items: parseFeed(xml, feed).slice(0, 8), failed: null };
     } catch (error) {
-      failed.push({ source: feed.name, error: String(error?.message || error).slice(0, 160) });
+      return { items: [], failed: { source: feed.name, error: String(error?.message || error).slice(0, 160) } };
     }
+  }));
+  const items = feedResults.flatMap(x => x.items);
+  const failed = feedResults.map(x => x.failed).filter(Boolean);
+  let saved = 0;
+  for (const item of items) {
+    const id = await digest(item.url);
+    await env.DB.prepare(
+      "INSERT INTO web_knowledge(id,title,url,source_name,source_host,summary,published_at,content_hash,status,fetched_at) VALUES(?,?,?,?,?,?,?,?, 'active',CURRENT_TIMESTAMP) ON CONFLICT(url) DO UPDATE SET title=excluded.title,source_name=excluded.source_name,source_host=excluded.source_host,summary=excluded.summary,published_at=excluded.published_at,content_hash=excluded.content_hash,status='active',fetched_at=CURRENT_TIMESTAMP"
+    ).bind(id, item.title, item.url, item.source, item.host, item.summary, item.published_at, await digest(item.title + "\n" + item.summary)).run();
+    saved++;
   }
   await env.DB.prepare("INSERT INTO web_learning_runs(id,fetched,saved,failed_json,finished_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP)")
-    .bind(crypto.randomUUID(), fetched, saved, JSON.stringify(failed)).run();
-  return { fetched, saved, failed };
+    .bind(crypto.randomUUID(), items.length, saved, JSON.stringify(failed)).run();
+  return { fetched: items.length, saved, failed };
 }
 export { FEEDS, parseFeed, plainText };
