@@ -50,6 +50,16 @@ Create `data/train.jsonl` (one JSON object per line). Each row must include non-
 
 Only use content you own or are allowed to train on. Do not add private personal data, passwords, tokens, or visitor conversations without informed consent. Keep the real dataset out of Git.
 
+## Download public, license-filtered data
+
+The repository includes a bounded downloader for selected public corpora. It streams a sample from PleIAs Common Corpus (English, French, Arabic) and the Tunisia.AI Tunisian↔MSA dataset. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read \`data/SOURCES.md\` before downloading; some tempting Tunisian corpora are deliberately excluded because their upstream rights or privacy provenance are unclear.
+
+\`\`\`bash
+python download_data.py --out data/train.jsonl --max-per-language 1200 --max-scan 150000
+\`\`\`
+
+Common Corpus is very large; the script has a scan cap and may not find every language in one run. Increase the cap deliberately if needed. Inspect the generated counts and samples before training. The script does not fabricate substitute data.
+
 ## Train a small model from scratch
 
 ```bash
