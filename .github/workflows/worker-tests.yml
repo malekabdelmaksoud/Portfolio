@@ -19,9 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Verify bundled admin assets are synchronized
+        working-directory: worker
+        run: npm run sync-admin && git diff --exit-code -- admin-assets
       - name: Run Worker API and browser script checks
         working-directory: worker
-        run: node --check src/index.js && node --check ../admin.js && node --check ../script.js && node --check ../portfolio-auth-core.js && node --test test/*.test.js
+        run: node --check src/index.js && node --check admin-assets/admin.js && node --check ../admin.js && node --check ../script.js && node --check ../portfolio-auth-core.js && node --test test/*.test.js
       - name: Validate D1 migrations using SQLite
         working-directory: worker
         run: python -m unittest -v test_migrations.py
