@@ -479,6 +479,23 @@ async function sendOtpEmail(env, email, code) {
   if (!response.ok) throw apiError("The email provider could not deliver the sign-in code.", "EMAIL_DELIVERY_FAILED", 502);
 }
 
+async function sendPasswordResetEmail(env, email, code) {
+  if (!env.RESEND_API_KEY) throw apiError("Email delivery is not configured.", "EMAIL_NOT_CONFIGURED", 503);
+  if (!env.EMAIL_FROM) throw apiError("The OTP sender is not configured.", "EMAIL_NOT_CONFIGURED", 503);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [email],
+      subject: "Reset your Melek Portfolio password",
+      text: `Your password reset code is ${code}. It expires in 15 minutes and can only be used once. If you did not request it, ignore this email.`,
+      html: `<p>Your password reset code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 15 minutes and can only be used once.</p><p>If you did not request it, ignore this email.</p>`
+    })
+  });
+  if (!response.ok) throw apiError("The email provider could not deliver the reset code.", "EMAIL_DELIVERY_FAILED", 502);
+}
+
 function sessionCookie(token, env, remember = true) {
   const maxAge = remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
   return `__Host-portfolio_session=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${maxAge}`;
@@ -592,6 +609,72 @@ async function authRoutes(request, env, path, method) {
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, tokenHash, expires).run();
     return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(token, env) });
+  }
+  if (path === "/api/auth/password/reset/request" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: "A valid email address is required.", code: "INVALID_EMAIL" }, 400);
+    await verifyTurnstile(request, env, body);
+    const ip = await sha256Hex(ipFrom(request));
+    if (!await abuseCheck(env, "reset-email:" + await sha256Hex(email), "reset-email", 5, 3600)) {
+      return json({ sent: true, expiresInSeconds: 900 });
+    }
+    if (!await abuseCheck(env, "reset-ip:" + ip, "reset-ip", 10, 600)) {
+      return json({ sent: true, expiresInSeconds: 900 });
+    }
+    const user = await env.DB.prepare("SELECT id,email,password_hash FROM users WHERE email=?").bind(email).first();
+    if (user?.password_hash) {
+      let randomValue;
+      do { randomValue = crypto.getRandomValues(new Uint32Array(1))[0]; } while (randomValue >= 4294000000);
+      const code = String(randomValue % 1000000).padStart(6, "0");
+      const codeHash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
+      await env.DB.prepare(
+        "UPDATE password_reset_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE email=? AND consumed_at IS NULL"
+      ).bind(email).run();
+      await env.DB.prepare(
+        "INSERT INTO password_reset_challenges(id,email,code_hash,expires_at,ip_hash) VALUES(?,?,?,?,?)"
+      ).bind(crypto.randomUUID(), email, codeHash, new Date(Date.now() + 15 * 60 * 1000).toISOString(), ip).run();
+      try {
+        await sendPasswordResetEmail(env, email, code);
+      } catch (error) {
+        await env.DB.prepare("DELETE FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL").bind(email).run();
+        throw error;
+      }
+    }
+    return json({ sent: true, expiresInSeconds: 900 });
+  }
+  if (path === "/api/auth/password/reset/verify" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const email = String(body.email || "").trim().toLowerCase();
+    const code = String(body.code || "").replace(/\D/g, "").slice(0, 6);
+    const password = String(body.password || "");
+    if (!EMAIL_RE.test(email) || !/^\d{6}$/.test(code)) return json({ error: "Email and six-digit code are required.", code: "INVALID_RESET" }, 400);
+    if (password.length < 8 || password.length > 128) return json({ error: "Password must contain 8 to 128 characters.", code: "INVALID_PASSWORD" }, 400);
+    const ip = await sha256Hex(ipFrom(request));
+    const challenge = await env.DB.prepare(
+      "SELECT id,code_hash,expires_at,attempts,consumed_at,ip_hash FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1"
+    ).bind(email).first();
+    if (!challenge) return json({ error: "No active reset code. Request a new code.", code: "RESET_NOT_FOUND" }, 400);
+    if (challenge.ip_hash !== ip) return json({ error: "This reset code cannot be used from this network.", code: "RESET_NETWORK" }, 403);
+    if (Date.now() >= Date.parse(challenge.expires_at)) return json({ error: "This reset code has expired.", code: "RESET_EXPIRED" }, 400);
+    const attempt = await env.DB.prepare(
+      "UPDATE password_reset_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts < 5 RETURNING attempts"
+    ).bind(challenge.id).first();
+    if (!attempt) return json({ error: "Too many reset attempts. Request a new code.", code: "RESET_LIMIT" }, 429);
+    const hash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
+    if (!timingSafeEqual(hash, challenge.code_hash)) return json({ error: "The reset code is incorrect.", code: "INVALID_RESET" }, 400);
+    const consume = await env.DB.prepare(
+      "UPDATE password_reset_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND consumed_at IS NULL"
+    ).bind(challenge.id).run();
+    if (consume.meta?.changes === 0) return json({ error: "This reset code has already been used.", code: "RESET_USED" }, 400);
+    const user = await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first();
+    if (!user) return json({ error: "The account could not be found.", code: "RESET_ACCOUNT_NOT_FOUND" }, 400);
+    const salt = bytesToBase64url(crypto.getRandomValues(new Uint8Array(16)));
+    const passwordHash = await hashPassword(password, salt);
+    await env.DB.prepare(
+      "UPDATE users SET password_salt=?,password_hash=?,last_login_at=CURRENT_TIMESTAMP WHERE id=?"
+    ).bind(salt, passwordHash, user.id).run();
+    return json({ reset: true });
   }
   if (path === "/api/auth/request" && method === "POST") {
     const body = await readBody(request, 4000);

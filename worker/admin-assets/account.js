@@ -471,6 +471,44 @@
     $("otp-request-form").hidden = false;
     $("otp-code").value = "";
   });
+
+  $("reset-request-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    const email = $("reset-email").value.trim();
+    $("reset-error").textContent = "";
+    try {
+      await api("/api/auth/password/reset/request", {
+        method: "POST",
+        body: JSON.stringify({ email, turnstileToken })
+      });
+      $("reset-request-form").hidden = true;
+      $("reset-verify-form").hidden = false;
+      $("reset-code").focus();
+    } catch (error) { $("reset-error").textContent = error.message; }
+  });
+
+  $("reset-verify-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    $("reset-error").textContent = "";
+    try {
+      await api("/api/auth/password/reset/verify", {
+        method: "POST",
+        body: JSON.stringify({
+          email: $("reset-email").value.trim(),
+          code: $("reset-code").value.trim(),
+          password: $("reset-password").value
+        })
+      });
+      $("reset-password").value = "";
+      $("reset-code").value = "";
+      $("reset-request-form").hidden = false;
+      $("reset-verify-form").hidden = true;
+      $("password-reset").open = false;
+      $("login-email").value = $("reset-email").value.trim();
+      $("login-password").value = "";
+      $("auth-error").textContent = "Password reset successfully. Sign in with your new password.";
+    } catch (error) { $("reset-error").textContent = error.message; }
+  });
   $("logout").addEventListener("click", async () => {
     try {
       await api("/api/auth/logout", { method: "POST", body: "{}" });

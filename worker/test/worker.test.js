@@ -200,6 +200,27 @@ test("email password registration and login create a private session",async()=>{
  assert.match(loggedIn.headers.get("set-cookie")||"",/HttpOnly/);
 });
 
+test("password reset verifies a private code and replaces the password",async()=>{
+ const env=authEnvironment({SESSION_PEPPER:"test-pepper",OTP_PEPPER:"reset-pepper"});
+ const registered=await worker.fetch(authRequest("/api/auth/register",{name:"Reset User",email:"reset@example.test",password:"OldPassword123"}),env);
+ assert.equal(registered.status,200);
+ env.__resetChallenges.push({
+  id:"reset-1",
+  email:"reset@example.test",
+  code_hash:sha256("123456:reset@example.test:reset-pepper"),
+  expires_at:new Date(Date.now()+900000).toISOString(),
+  attempts:0,
+  consumed_at:null,
+  ip_hash:sha256("203.0.113.5")
+ });
+ const response=await worker.fetch(authRequest("/api/auth/password/reset/verify",{email:"reset@example.test",code:"123456",password:"NewPassword123"}),env);
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.reset,true);
+ const login=await worker.fetch(authRequest("/api/auth/login",{email:"reset@example.test",password:"NewPassword123"}),env);
+ assert.equal(login.status,200);
+});
+
 test("Melek AI status reports development truthfully",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
  const data=await response.json();
@@ -545,6 +566,7 @@ function sha256(value) {
 
 function authEnvironment(overrides = {}) {
   const otpChallenges = [];
+  const passwordResetChallenges = [];
   const users = [];
   const sessions = [];
   const abuseWindows = new Map();
@@ -583,6 +605,15 @@ function authEnvironment(overrides = {}) {
         if (sql.includes("FROM otp_challenges")) {
           return otpChallenges.find(c => c.email === params[0] && !c.consumed_at) || null;
         }
+        if (sql.includes("FROM password_reset_challenges")) {
+          return passwordResetChallenges.find(c => c.email === params[0] && !c.consumed_at) || null;
+        }
+        if (sql.includes("UPDATE password_reset_challenges SET attempts=attempts+1")) {
+          const challenge = passwordResetChallenges.find(c => c.id === params[0] && !c.consumed_at && c.attempts < 5);
+          if (!challenge) return null;
+          challenge.attempts += 1;
+          return { attempts: challenge.attempts };
+        }
         if (sql.includes("FROM users")) return users.find(u => u.email === params[0]) || null;
         if (sql.includes("auth_sessions")) {
           const [tokenHash, now] = params;
@@ -614,6 +645,19 @@ function authEnvironment(overrides = {}) {
           return { meta: { changes: 0 } };
         } else if (sql.includes("INSERT INTO otp_challenges")) {
           otpChallenges.push({ id: params[0], email: params[1], otp_hash: params[2], expires_at: params[3], attempts: 0, consumed_at: null, ip_hash: params[4] });
+        } else if (sql.includes("INSERT INTO password_reset_challenges")) {
+          passwordResetChallenges.push({ id: params[0], email: params[1], code_hash: params[2], expires_at: params[3], attempts: 0, consumed_at: null, ip_hash: params[4] });
+        } else if (sql.includes("UPDATE password_reset_challenges SET consumed_at")) {
+          const challenge = passwordResetChallenges.find(c => c.id === params[0] && !c.consumed_at);
+          if (!challenge) return { meta: { changes: 0 } };
+          challenge.consumed_at = "2026-01-01 00:00:00";
+          return { meta: { changes: 1 } };
+        } else if (sql.includes("UPDATE users SET password_salt=?")) {
+          const user = users.find(u => u.id === params[2]);
+          if (user) {
+            user.password_salt = params[0];
+            user.password_hash = params[1];
+          }
         } else if (sql.includes("UPDATE otp_challenges SET attempts")) {
           const challenge = otpChallenges.find(c => c.id === params[0]);
           if (challenge) challenge.attempts += 1;
@@ -644,7 +688,7 @@ function authEnvironment(overrides = {}) {
       async batch() { return []; }
     };
   }};
-  return { DB, ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows };
+  return { DB, ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows };
 }
 
 const authRequest = (path, body) => new Request("https://api.test" + path, {

@@ -19,6 +19,8 @@
 .auth-card form label+input,.auth-card form input+label{margin-top:10px}
 .otp-details{margin-top:12px;text-align:left;border-top:1px solid #303844;padding-top:10px;color:#98a2b1}
 .otp-details summary{cursor:pointer;font-size:12px}
+.password-reset{margin-top:12px;text-align:left;border-top:1px solid #303844;padding-top:10px;color:#98a2b1}
+.password-reset summary{cursor:pointer;font-size:12px}
 .google-signin{display:flex;justify-content:center;margin:14px 0 4px}
 .email-divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:#7f8896;font-size:11px}
 .email-divider::before,.email-divider::after{content:"";height:1px;background:#303844;flex:1}
