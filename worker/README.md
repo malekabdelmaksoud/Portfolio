@@ -26,7 +26,7 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
 - There is no client-side admin password, role, or localStorage admin session.
-- Visitor assistant requires a verified Cloudflare Access identity and uses Workers AI for general conversation. When a question concerns Melek or her portfolio, only approved D1 facts are supplied as evidence; unapproved drafts are never retrieved.
+- Visitor assistant requires a verified Cloudflare Access identity. General conversation can use Cloudflare Workers AI (GLM-4.7 Flash is the recommended free-quota default); the original MelekGPT can be selected when its private local inference endpoint is configured. When a question concerns Melek or her portfolio, only approved D1 facts are supplied as evidence; unapproved drafts are never retrieved.
 - Imported facts start unapproved. The eight existing project cards remain published; newly created projects start hidden.
 - Admin API writes validate inputs and accept HTTPS links only.
 
@@ -35,7 +35,7 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 The API Worker serves both protected HTML pages and API routes on the same hostname:
 `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev`.
 
-Create **two separate Self-hosted Access applications** on that hostname. Do not protect the whole hostname: public `/api/assistant`, `/api/projects`, and `/api/health` must remain reachable.
+Create **two separate Self-hosted Access applications** on that hostname. Do not protect the whole hostname. Protect the visitor paths listed below; keep only `/api/projects` and `/api/health` public.
 
 ### 1. Admin application
 
@@ -97,3 +97,16 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 - Workers AI includes 10,000 free Neurons per day on Workers Free and Paid; usage above that requires Workers Paid and is billed at $0.011 per 1,000 Neurons. The model catalogue lists Gemma 4 at $0.10 per million input tokens and $0.30 per million output tokens, and Qwen 3.8 at $0.45/$3.20 per million. Monitor actual Neuron use and review current pricing before public launch. The model catalogue can be changed with the server-side `AI_MODELS_JSON` variable; never expose provider credentials to the browser.
 - The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
 - The browser-based Cloudflare Access sign-in flow and cross-origin iframe behavior still need verification in the production account configuration.
+
+
+## AI model providers
+
+- The default hosted option is `@cf/zai-org/glm-4.7-flash`. Cloudflare documents a shared free allocation of 10,000 Neurons per day; usage is subject to account limits and requests can fail after the free allocation on the Free plan. Check the current [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) before increasing usage.
+- Gemma 4 is also available as an alternative; Qwen 3.8 is labelled metered and may consume more of the shared allocation.
+- The original MelekGPT is a separate from-scratch byte-level Transformer under `melek-ai/`. It is not a hosted foundation model and has no trained checkpoint in Git. Follow `melek-ai/README.md` to build a reviewed corpus, train locally, start the bearer-protected inference server, and place it behind a named Cloudflare Tunnel.
+- After the private HTTPS tunnel is ready, set Worker secrets:
+  ```bash
+  npx wrangler secret put MELEK_AI_URL
+  npx wrangler secret put MELEK_AI_TOKEN
+  ```
+  `MELEK_AI_URL` must end in `/v1/chat/completions`; `MELEK_AI_TOKEN` must match the local inference server token. MelekGPT appears as unavailable until both secrets exist. The machine hosting the checkpoint must remain online.
