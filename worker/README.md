@@ -66,6 +66,14 @@ The Worker validates admin JWTs against `ACCESS_AUD` and additionally compares t
 
 Never commit the email identity or Access secrets to this public repository.
 
+## Chat retention and recovery
+
+- Chat messages remain in Cloudflare D1 and are never written to GitHub. GitHub stores application source code and SQL migrations only.
+- The Worker starts pruning when estimated UTF-8 chat-message content exceeds 180 MiB and targets 150 MiB, while keeping a safety stop at 200 MiB. It deletes complete conversations from oldest activity first across all users, but preserves each user's newest conversation and the conversation currently receiving a message. If the hard safety limit still cannot be met, new message writes are rejected rather than deleting a user's last conversation.
+- This is an application-level content estimate, not a guarantee of total SQLite database size. It leaves headroom below D1's 500 MB per-database Free-plan limit for indexes and other tables.
+- D1 Time Travel provides built-in point-in-time recovery for the last 7 days on the Workers Free plan. It is not an independent off-site backup and does not protect against losing access to the Cloudflare account/database. No R2 export or external backup is configured because storage overages or billing requirements could violate the project's strict zero-spend rule.
+- Never store chat contents, exports, backup files, or user conversation logs in GitHub Actions artifacts or repository commits.
+
 ## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is the authenticated chat workspace. Its assistant and model catalogue require the visitor's verified Cloudflare Access identity. Conversations and messages are persisted per email identity.\n\n## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
@@ -95,14 +103,14 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 ## Important limitations
 
 - **Zero-spend rule:** use Cloudflare Workers Free only. Workers AI provides 10,000 Neurons/day at no charge on Workers Free; when that quota is exhausted, requests fail until reset. Do not upgrade to Workers Paid: it starts at $5/month and bills AI usage above the free allocation. The code allowlists only GLM-4.7 Flash and Gemma 4 and ignores custom model overrides.
-- The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
+- The from-scratch Transformer is still experimental. A licensed-corpus pipeline and training workflow exist, but a checkpoint must pass held-out evaluation and manual sample review before it can be enabled; no production inference endpoint is currently configured.
 - The browser-based Cloudflare Access sign-in flow and cross-origin iframe behavior still need verification in the production account configuration.
 
 
 ## AI model providers
 
 - The default hosted option is `@cf/zai-org/glm-4.7-flash`. Cloudflare documents a shared free allocation of 10,000 Neurons per day; usage is subject to account limits and requests can fail after the free allocation on the Free plan. Check the current [Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/) before increasing usage.
-- Gemma 4 is also available as an alternative; Qwen 3.8 is labelled metered and may consume more of the shared allocation.
+- Gemma 4 is also available as an alternative within the same shared free allocation. No metered model or paid provider is enabled.
 - The original MelekGPT is a separate from-scratch byte-level Transformer under `melek-ai/`. It is not a hosted foundation model and has no trained checkpoint in Git. Follow `melek-ai/README.md` to build a reviewed corpus, train locally, start the bearer-protected inference server, and place it behind a named Cloudflare Tunnel.
 - After the private HTTPS tunnel is ready, set Worker secrets:
   ```bash
