@@ -17,7 +17,7 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 
 The visitor-facing chat does **not** use the old browser-only retrieval engine or a pretrained model. It sends questions to the Worker API in `worker/`, which retrieves only facts explicitly approved in D1 and returns their reviewed French/English text verbatim. If no approved fact matches, it abstains instead of inventing an answer.
 
-The knowledge-base draft contains 23 records (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every record starts unapproved. Project rows start hidden. Review and approve content in `/admin.html` after deploying the API and configuring Cloudflare Access.
+The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every record starts unapproved. Project rows start hidden. Review and approve content in `/admin.html` after deploying the API and configuring Cloudflare Access.
 
 This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
 
