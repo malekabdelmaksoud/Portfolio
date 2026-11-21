@@ -114,7 +114,12 @@
   $("voice-input").addEventListener("click",()=>{const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition){toast("La dictée vocale n'est pas prise en charge. Essayez Chrome ou Edge.");return;}const recognition=new Recognition();recognition.lang=/[\u0600-\u06ff]/.test($("chat-input").value)?"ar-TN":"fr-FR";recognition.interimResults=false;recognition.onresult=event=>{$("chat-input").value=($("chat-input").value+" "+event.results[0][0].transcript).trim();$("chat-input").focus();};recognition.onerror=()=>toast("La dictée vocale n'a pas abouti. Vérifiez l'autorisation du microphone.");recognition.start();});
   $("read-aloud").addEventListener("click",()=>lastAssistantAnswer?speakText(lastAssistantAnswer):toast("Aucune réponse à lire."));
   async function load(){
-    try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);}
+    try{
+      const me=await api("/api/user/me");$("identity").textContent=me.user.email;
+      $("status").textContent="Compte vérifié · historique privé · auto-learning web activé";
+      try{const learning=await api("/api/learning/status");$("status").textContent="Compte vérifié · auto-learning web actif · "+learning.sourceCount+" sources indexées";}catch(_){}
+      await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);
+    }
     catch(e){$("identity").textContent="Connexion requise";$("status").textContent=e.message;toast(e.message);}
   }
   $("new-chat").addEventListener("click",async()=>{try{active=null;await createChat();$("chat-input").focus();}catch(e){toast(e.message);}});
