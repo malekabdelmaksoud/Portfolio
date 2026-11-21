@@ -264,11 +264,17 @@ test("GitLab private and internal repositories are rejected",async()=>{
 test("public GitHub repository is imported once with metadata evidence",async()=>{
  const env=await adminEnvironment();
  const oldFetch=globalThis.fetch;
+ let readmeRequested=false;
  globalThis.fetch=async url=>{
  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
  if(url.endsWith("/repos/owner/demo")) return new Response(JSON.stringify({name:"demo",private:false,visibility:"public",default_branch:"main",description:"A public demo application."}),{status:200,headers:{"content-type":"application/json"}});
  if(url.includes("/topics")) return new Response(JSON.stringify({names:["javascript","portfolio"]}),{status:200,headers:{"content-type":"application/json"}});
  if(url.includes("/languages")) return new Response(JSON.stringify({JavaScript:100}),{status:200,headers:{"content-type":"application/json"}});
+ if(url.includes("/contents/README.md")) {
+   readmeRequested=true;
+   const encoded=Buffer.from("# Demo\n\nGITHUB_README_EVIDENCE_MARKER provides a public demo application with verified sample evidence.").toString("base64");
+   return new Response(JSON.stringify({content:encoded}),{status:200,headers:{"content-type":"application/json"}});
+  }
  if(url.includes("/contents/")) return new Response("{}",{status:404});
  return new Response("{}",{status:404});
  };
@@ -278,6 +284,8 @@ test("public GitHub repository is imported once with metadata evidence",async()=
  assert.equal(first.status,201);
  assert.equal(firstData.saved,true);
  assert.match(firstData.project.description_en,/public demo application/i);
+ assert.match(firstData.project.description_en,/GITHUB_README_EVIDENCE_MARKER/);
+ assert.equal(readmeRequested,true);
  const duplicate=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/demo"}),env);
  const duplicateData=await duplicate.json();
  assert.equal(duplicate.status,409);
@@ -310,13 +318,18 @@ test("imported GitHub project appears in public projects and assistant retrieval
 test("public GitLab repository is imported with public visibility evidence",async()=>{
  const env=await adminEnvironment();
  const oldFetch=globalThis.fetch;
+ let readmeRequested=false;
  globalThis.fetch=async url=>{
  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+ if(url.includes("/repository/files/README.md/raw")) {
+  readmeRequested=true;
+  return new Response("# Demo\n\nGLAB_README_EVIDENCE_MARKER provides a public PHP project with verified README evidence.",{status:200,headers:{"content-type":"text/plain"}});
+ }
+ if(url.includes("/repository/files/")) return new Response("{}",{status:404});
  if(url.includes("/api/v4/projects/group%2Fdemo")) {
   if(url.endsWith("/languages")) return new Response(JSON.stringify({PHP:70}),{status:200,headers:{"content-type":"application/json"}});
   return new Response(JSON.stringify({name:"demo",visibility:"public",default_branch:"main",description:"A public PHP project.",tag_list:["php"]}),{status:200,headers:{"content-type":"application/json"}});
  }
- if(url.includes("/repository/files/")) return new Response("{}",{status:404});
  return new Response("{}",{status:404});
  };
  try {
@@ -325,6 +338,33 @@ test("public GitLab repository is imported with public visibility evidence",asyn
  assert.equal(response.status,201);
  assert.equal(data.project.url,"https://gitlab.com/group/demo");
  assert.match(data.project.description_en,/public PHP project/i);
+ assert.match(data.project.description_en,/PHP/);
+ assert.match(data.project.description_en,/php/);
+ assert.match(data.project.description_en,/GLAB_README_EVIDENCE_MARKER/);
+ assert.equal(readmeRequested,true);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("public GitLab repository imports when README.md is unavailable",async()=>{
+ const env=await adminEnvironment();
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/repository/files/")) return new Response("{}",{status:404});
+  if(url.includes("/api/v4/projects/group%2Fno-readme")) {
+   if(url.endsWith("/languages")) return new Response(JSON.stringify({JavaScript:90}),{status:200,headers:{"content-type":"application/json"}});
+   return new Response(JSON.stringify({name:"no-readme",visibility:"public",default_branch:"main",description:"A public JavaScript project.",tag_list:["javascript"]}),{status:200,headers:{"content-type":"application/json"}});
+  }
+  if(url.includes("/repository/files/")) return new Response("{}",{status:404});
+  return new Response("{}",{status:404});
+ };
+ try {
+  const response=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"gitlab",url:"https://gitlab.com/group/no-readme"}),env);
+  const data=await response.json();
+  assert.equal(response.status,201);
+  assert.equal(data.project.url,"https://gitlab.com/group/no-readme");
+  assert.match(data.project.description_en,/public JavaScript project/i);
+  assert.match(data.project.description_en,/Languages: JavaScript/i);
  } finally {globalThis.fetch=oldFetch;}
 });
 

@@ -107,7 +107,7 @@ function sanitizeRepositoryText(value, limit = 500) {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/https?:\/\/\S+/gi, "")
-    .replace(/[`*_~>#]/g, "")
+    .replace(/[`*~>#]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, limit);
@@ -269,19 +269,61 @@ async function fetchGitLabRepository(repo, env) {
   };
 }
 
+function extractReadmeEvidence(readme, limit = 220) {
+  const lines = String(readme || "")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/^\s{0,3}(?:[-*_]\s*){3,}\s*$/gm, " ")
+    .replace(/^\s*(?:>|[-*+]\s+|\d+[.)]\s+)/gm, "")
+    .replace(/[`*~|]/g, "")
+    .split(/\r?\n/)
+    .map(line => sanitizeRepositoryText(line, 500))
+    .filter(line =>
+      line &&
+      line.length >= 20 &&
+      !/^(?:build|ci|coverage|license|table of contents|installation|usage|getting started|contributing)$/i.test(line) &&
+      !/\b(?:npm install|pip install|docker run|git clone)\b/i.test(line)
+    );
+  if (!lines.length) return "";
+
+  const selected = [];
+  const seen = new Set();
+  for (const line of lines) {
+    const key = normalize(line).replace(/\s+/g, " ");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    selected.push(line);
+    if (selected.join(" ").length >= limit) break;
+  }
+  return sanitizeRepositoryText(selected.join(" "), limit);
+}
+
 function buildImportedProjectDescription(repo, evidence) {
   const languages = evidence.languages;
   const topics = evidence.topics;
   const manifestNames = evidence.manifests.map(item => item.file);
   const evidenceBits = [];
-  if (evidence.officialDescription) evidenceBits.push(evidence.officialDescription);
-  if (languages.length) evidenceBits.push("Languages: " + languages.join(", "));
-  if (topics.length) evidenceBits.push("Topics: " + topics.join(", "));
-  if (manifestNames.length) evidenceBits.push("Manifests: " + manifestNames.join(", "));
-  if (!evidenceBits.length) {
-    const readme = sanitizeRepositoryText(evidence.readme, 180);
-    if (readme) evidenceBits.push(readme);
-  }
+  const seenEvidence = new Set();
+  const addEvidence = value => {
+    const cleaned = sanitizeRepositoryText(value, 700);
+    if (!cleaned) return;
+    const key = normalize(cleaned).replace(/\s+/g, " ");
+    if (seenEvidence.has(key)) return;
+    seenEvidence.add(key);
+    evidenceBits.push(cleaned);
+  };
+  if (evidence.officialDescription) addEvidence(evidence.officialDescription);
+  if (languages.length) addEvidence("Languages: " + languages.join(", "));
+  if (topics.length) addEvidence("Topics: " + topics.join(", "));
+  if (manifestNames.length) addEvidence("Manifests: " + manifestNames.join(", "));
+
+  const readme = extractReadmeEvidence(evidence.readme, 220);
+  if (readme) addEvidence("README: " + readme);
+
   const detail = evidenceBits.join(". ").replace(/\.+$/g, "").slice(0, 900);
   const fr = detail
     ? repo.title + " est un dépôt public " + (repo.provider === "github" ? "GitHub" : "GitLab") + ". " + detail + "."
