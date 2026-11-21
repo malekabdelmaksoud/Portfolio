@@ -263,7 +263,7 @@ export default {
       if(path.startsWith("/api/user/")) { const identity=await verifyAccessIdentity(request,env); return withCors(await userChatRoute(request,env,path,method,identity),cors); }\n      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
       return withCors(json({error:"Not found."},404),cors);
     } catch(error) {
-      const status=/Access authentication|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
+      const status=/Access authentication|email sign-in|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
       return withCors(json({error:status===401?error.message:"The server could not complete this request."},status),cors);
     }
   }
