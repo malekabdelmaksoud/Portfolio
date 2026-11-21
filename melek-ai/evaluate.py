@@ -7,19 +7,20 @@ import torch
 
 from dataset import load_documents, split_documents
 from model import MelekGPT
+from tokenizer import TOKENIZER_TYPE, encode
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     saved = torch.load(args.checkpoint, map_location=device, weights_only=True)
-    if saved.get("vocab") != "utf8-byte-v1" or not saved.get("trained_from_scratch"):
-        raise ValueError("Unsupported or unverified MelekGPT checkpoint")
+    if saved.get("vocab") != TOKENIZER_TYPE or not saved.get("trained_from_scratch"):
+        raise ValueError("Unsupported or unverified Unicode-character MelekGPT checkpoint")
+    tokenizer = saved["tokenizer"]
     model = MelekGPT(**saved["config"]).to(device)
     model.load_state_dict(saved["model"])
     model.eval()
@@ -27,7 +28,7 @@ def main():
     documents = load_documents(args.data)
     _, validation_documents = split_documents(documents, saved.get("training", {}).get("seed", 42))
     validation = torch.tensor(
-        list(("\n".join(validation_documents) + "\n").encode("utf-8")),
+        encode("\n".join(validation_documents) + "\n", tokenizer),
         dtype=torch.long,
     )
     context = model.context
@@ -48,7 +49,7 @@ def main():
     print(f"checkpoint={args.checkpoint}")
     print(f"device={device}; documents={len(documents)}; validation_documents={len(validation_documents)}")
     print(f"steps_total={training.get('steps_total', training.get('steps', 'unknown'))}")
-    print(f"validation_loss={mean_loss:.4f}; byte_perplexity={perplexity:.2f}")
+    print(f"validation_loss={mean_loss:.4f}; character_perplexity={perplexity:.2f}")
 
 
 if __name__ == "__main__":
