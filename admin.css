@@ -428,3 +428,5 @@ footer {
   .tabs { overflow: auto; }
   .tab { white-space: nowrap; padding: 12px 10px; }
 }
+
+.learning-summary{margin:18px 0}.learning-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.learning-stat{border:1px solid var(--line,#dfe5e1);border-radius:12px;padding:14px;background:var(--surface,#fff);font-size:13px;color:var(--ink,#14211e)}.learning-link{display:inline-block;margin-top:6px;color:var(--accent,#286b58);font-size:13px;text-underline-offset:3px}
