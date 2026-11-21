@@ -158,6 +158,7 @@ async function assistant(request, env, identity) {
   const history=Array.isArray(body.history)?body.history.slice(-8).filter(x=>x&&["user","assistant"].includes(x.role)&&typeof x.content==="string")
     .map(x=>({role:x.role,content:x.content.slice(0,1800)})):[];
   const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
+  if(portfolioIntent&&!selected.length) return json({answer:abstentionFor(question),mode:body.mode==="analyze"?"analyze":"chat",model:selectedModel.id,sources:[],webSources:[]});
   let webSources=[];
   if(!portfolioIntent) {
     // Free automatic learning only: retrieve from the daily RSS index, never paid live-search providers.
