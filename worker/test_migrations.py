@@ -43,7 +43,20 @@ class MigrationTests(unittest.TestCase):
         visible = self.db.execute("SELECT visible FROM projects WHERE id='new-project'").fetchone()[0]
         self.assertEqual(visible, 0)
 
-    def test_fact_approval_defaults_to_false(self):
+
+    def test_user_chat_history_is_partitioned_by_verified_email(self):
+        tables = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertIn("chats", tables)
+        self.assertIn("chat_messages", tables)
+        self.db.execute("INSERT INTO chats(id,user_email,title) VALUES(?,?,?)", ("chat-a", "a@example.test", "A"))
+        self.db.execute("INSERT INTO chats(id,user_email,title) VALUES(?,?,?)", ("chat-b", "b@example.test", "B"))
+        self.db.execute("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)",
+                        ("msg-a", "chat-a", "a@example.test", "user", "Private question"))
+        own = self.db.execute("SELECT content FROM chat_messages WHERE user_email=?", ("a@example.test",)).fetchall()
+        other = self.db.execute("SELECT content FROM chat_messages WHERE user_email=?", ("b@example.test",)).fetchall()
+        self.assertEqual(own, [("Private question",)])
+        self.assertEqual(other, [])
+\n    def test_fact_approval_defaults_to_false(self):
         self.db.execute(
             "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
             ("extra-001", "profile", "Texte", "Text", "index.html", "#about", "نص")
