@@ -55,8 +55,9 @@ setLanguage(savedLanguage);
 /* ── Approved API-backed project publishing ── */
 const portfolioApiBase = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
 let remotePortfolioProjects = [];
+let remotePortfolioProjectsLoaded = false;
 function renderRemoteProjects() {
-  if (!remotePortfolioProjects.length) return;
+  if (!remotePortfolioProjectsLoaded) return;
   const grid = document.querySelector("#projets .projects-grid");
   if (!grid) return;
   const language = document.documentElement.lang === "en" ? "en" : "fr";
@@ -80,7 +81,7 @@ async function loadRemoteProjects() {
     const response = await fetch(portfolioApiBase + "/api/projects", {headers:{Accept:"application/json"},credentials:"omit"});
     if (!response.ok) return;
     const data = await response.json();
-    if (Array.isArray(data.projects) && data.projects.length) { remotePortfolioProjects = data.projects; renderRemoteProjects(); }
+    if (Array.isArray(data.projects)) { remotePortfolioProjects = data.projects; remotePortfolioProjectsLoaded = true; renderRemoteProjects(); }
   } catch (_) { /* Keep static project cards until the API is deployed. */ }
 }
 window.addEventListener("portfolio:languagechange", renderRemoteProjects);
