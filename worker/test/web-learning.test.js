@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseFeed, refreshWebKnowledge } from "../src/web-learning.js";
+import { liveWebSearch, parseFeed, refreshWebKnowledge } from "../src/web-learning.js";
 
 test("parses allowlisted RSS/Atom entries and sanitizes markup", () => {
   const xml = `<?xml version="1.0"?><rss><channel><item>
@@ -53,4 +53,22 @@ test("refreshes only fixed feeds and persists deduplicated source records", asyn
   assert.equal(writes.length, 6); // five feed records plus one run summary
   assert.ok(writes.every(x => !x.sql.includes("INSERT INTO facts")));
   assert.match(writes[0].sql, /ON CONFLICT\(url\) DO UPDATE/);
+});
+
+test("live web search is opt-in and returns only safe HTTPS citations", async () => {
+  const disabled = await liveWebSearch({ WEB_SEARCH_ENABLED: "false", AI: { websearch: async () => { throw new Error("must not run"); } } }, "latest AI security");
+  assert.deepEqual(disabled, []);
+  let args;
+  const results = await liveWebSearch({
+    WEB_SEARCH_ENABLED: "true",
+    AI: { websearch: async input => { args = input; return new Response(JSON.stringify({ items: [
+      { title: "AI security paper", url: "https://arxiv.org/abs/2611.12345", description: "<b>New research</b> with results." },
+      { title: "Bad URL", url: "javascript:alert(1)", description: "bad" }
+    ] }), { status: 200 }); } }
+  }, "latest AI security research");
+  assert.equal(args.provider, "ceramic");
+  assert.equal(args.limit, 4);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].source_host, "arxiv.org");
+  assert.match(results[0].summary, /New research/);
 });
