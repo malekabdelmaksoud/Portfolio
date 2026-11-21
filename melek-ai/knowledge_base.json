@@ -24,7 +24,8 @@
         "file": "index.html",
         "selector": "#apropos .about-copy p:first-child"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "ملاك عبد المقصود طالبة في السنة الأخيرة من الإجازة في تكنولوجيا المعلومات بالمعهد العالي للدراسات التكنولوجية بسيدي بوزيد، اختصاص تطوير الويب والوسائط المتعددة."
     },
     {
       "id": "profile-002",
@@ -46,7 +47,8 @@
         "file": "index.html",
         "selector": "#apropos .about-copy p:first-child"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "يعرض ملف الأعمال اهتمامًا بتطبيقات الويب والاستخدامات العملية للذكاء الاصطناعي وجودة البرمجيات."
     },
     {
       "id": "location-001",
@@ -68,7 +70,8 @@
         "file": "index.html",
         "selector": ".hero-meta"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "الموقع المذكور في ملف الأعمال هو صفاقس، تونس."
     },
     {
       "id": "education-001",
@@ -91,7 +94,8 @@
         "file": "index.html",
         "selector": "#apropos .education"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "إجازة في تكنولوجيا المعلومات — المعهد العالي للدراسات التكنولوجية بسيدي بوزيد (2024–الآن)."
     },
     {
       "id": "education-002",
@@ -113,7 +117,8 @@
         "file": "index.html",
         "selector": "#apropos .education"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "بكالوريا في العلوم التجريبية — معهد الطيب المهيري، صفاقس (2023–2024)."
     },
     {
       "id": "skills-001",
@@ -137,7 +142,8 @@
         "file": "index.html",
         "selector": "#skillsLangagesList"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "لغات البرمجة المذكورة: C و C# و Java و Python و JavaScript و PHP."
     },
     {
       "id": "skills-002",
@@ -161,7 +167,8 @@
         "file": "index.html",
         "selector": "#skillsWebList"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تقنيات الويب المذكورة: HTML و CSS و Angular."
     },
     {
       "id": "skills-003",
@@ -186,7 +193,8 @@
         "file": "index.html",
         "selector": "#skillsFrameworksList"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "الأطر والأدوات المذكورة: Laravel و Symfony و Spring Boot و .NET و Android Studio."
     },
     {
       "id": "skills-004",
@@ -209,7 +217,8 @@
         "file": "index.html",
         "selector": "#skillsSystemesList"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "الأنظمة والشبكات: صيانة الحواسيب، تمديد كابلات الشبكات، واستخدام OCS Inventory."
     },
     {
       "id": "experience-001",
@@ -233,7 +242,8 @@
         "file": "index.html",
         "selector": "#experiences .timeline-item:nth-child(1)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تربص في الإعلامية بمستشفى الهادي شاكر في صفاقس: المساهمة في إعداد تطبيق للرعاية، والتعرّف على الملف الطبي الإلكتروني، واستخدام OCS Inventory لجرد المعدات المعلوماتية."
     },
     {
       "id": "experience-002",
@@ -254,7 +264,8 @@
         "file": "index.html",
         "selector": "#experiences .timeline-item:nth-child(2)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تربص في تطوير الويب لدى Advanced Computer Solutions (ACS) في جانفي 2026."
     },
     {
       "id": "experience-003",
@@ -274,7 +285,8 @@
         "file": "index.html",
         "selector": "#experiences .timeline-item:nth-child(3)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تربص في الشبكات لدى Netsys Com Support من جوان إلى جويلية 2025."
     },
     {
       "id": "experience-004",
@@ -294,7 +306,8 @@
         "file": "index.html",
         "selector": "#experiences .timeline-item:nth-child(4)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تربص في صيانة الحواسيب لدى CISEN من جانفي إلى فيفري 2025."
     },
     {
       "id": "project-001",
@@ -317,7 +330,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(1)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "منصة التعلّم الإلكتروني: منصة مطوّرة بلغة Java لإدارة الدروس والتسجيلات ومتابعة تقدّم المتعلّمين."
     },
     {
       "id": "project-002",
@@ -340,7 +354,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(2)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "مشروع PHP: تطبيق ويب باستخدام PHP و CSS للتدرّب على تطوير الويب من جهة الخادم."
     },
     {
       "id": "project-003",
@@ -364,7 +379,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(3)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "تطبيق Laravel: تطبيق ويب متكامل يطبّق معمارية MVC وعمليات ترحيل قاعدة البيانات والمصادقة."
     },
     {
       "id": "project-004",
@@ -390,7 +406,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(4)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "إدارة متجر: تطبيق Java لجرد المنتجات وإدارة المخزون وعمليات البيع."
     },
     {
       "id": "project-005",
@@ -415,7 +432,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(6)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "Opportunity Hunter: خادم MCP يعمل على Cloudflare Workers للبحث عن عروض التربص ومشاريع ختم الدراسة والتدريب بالتناوب ووظائف المبتدئين المنشورة للعموم."
     },
     {
       "id": "language-001",
@@ -437,7 +455,8 @@
         "file": "index.html",
         "selector": ".language-list"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "اللغات المذكورة: العربية (اللغة الأم)، الفرنسية (متوسط)، الإنجليزية (متوسط)، والإسبانية (مبتدئ)."
     },
     {
       "id": "contact-001",
@@ -458,7 +477,8 @@
         "file": "index.html",
         "selector": "#contact"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "يوفّر ملف الأعمال وسائل التواصل عبر البريد الإلكتروني وLinkedIn وGitHub."
     },
     {
       "id": "project-006",
@@ -486,7 +506,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(5)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "أعمال تطبيقية في البرمجة كائنية التوجّه: تمارين Java تطبّق مفاهيم الوراثة وتعدّد الأشكال والتغليف."
     },
     {
       "id": "project-007",
@@ -511,7 +532,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(7)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "مشروع Symfony: تطبيق ويب يستكشف التوجيه ومتحكّمات Twig وإدارة قواعد البيانات باستخدام Doctrine."
     },
     {
       "id": "project-008",
@@ -537,7 +559,8 @@
         "file": "index.html",
         "selector": "#projets .project-card:nth-child(8)"
       },
-      "approved": false
+      "approved": false,
+      "text_ar": "أول تطبيق C#: مشروع تمهيدي للتعرّف على C# وبيئة .NET وإنشاء الواجهات."
     }
   ]
 }
