@@ -18,9 +18,9 @@ function renderFacts(){
  for(const f of state.facts){
   const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",f.id+" · "+f.category),meta=node("div","meta",f.source_file+" · "+f.source_selector);
   left.append(title,meta);const status=node("span","status"+(f.approved?" on":""),f.approved?"APPROUVÉ · UTILISABLE":"BROUILLON · NON PUBLIÉ");top.append(left,status);
-  const fr=node("p","",f.text_fr),en=node("p","",f.text_en),actions=node("div","record-actions");
+  const fr=node("p","",f.text_fr),en=node("p","",f.text_en),ar=node("p","",f.text_ar),actions=node("div","record-actions");
   actions.append(button("Modifier",()=>editFact(f)),button(f.approved?"Retirer l'approbation":"Approuver",()=>toggleFact(f),f.approved?"":"primary"),button("Supprimer",()=>deleteFact(f),"danger"));
-  card.append(top,fr,en,actions);root.append(card);
+  card.append(top,fr,en,ar,actions);root.append(card);
  }
 }
 function renderProjects(){
@@ -43,7 +43,7 @@ async function load(){
 function formData(form){return Object.fromEntries(new FormData(form).entries());}
 function editFact(f){
  state.editingFact=f?f.id:null;const form=$("#factForm");form.hidden=false;form.reset();$("#factFormTitle").textContent=f?"Modifier l'information":"Nouvelle information";
- if(f){for(const [k,v] of Object.entries({id:f.id,category:f.category,text_fr:f.text_fr,text_en:f.text_en,aliases:f.aliases.join(", "),source_file:f.source_file,source_selector:f.source_selector,url:f.url||""})){form.elements[k].value=v;}form.elements.approved.checked=f.approved;}
+ if(f){for(const [k,v] of Object.entries({id:f.id,category:f.category,text_fr:f.text_fr,text_en:f.text_en,text_ar:f.text_ar,aliases:f.aliases.join(", "),source_file:f.source_file,source_selector:f.source_selector,url:f.url||""})){form.elements[k].value=v;}form.elements.approved.checked=f.approved;}
  else {form.elements.source_file.value="index.html";form.elements.approved.checked=false;}
  form.elements.id.readOnly=!!f;form.scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -54,7 +54,7 @@ function editProject(p){
  form.elements.id.readOnly=!!p;form.scrollIntoView({behavior:"smooth",block:"center"});
 }
 async function saveFact(e){
- e.preventDefault();const form=e.currentTarget,d=formData(form),f={id:d.id.trim(),category:d.category,text_fr:d.text_fr.trim(),text_en:d.text_en.trim(),aliases:d.aliases.split(",").map(x=>x.trim()).filter(Boolean),source:{file:d.source_file.trim(),selector:d.source_selector.trim()},url:d.url.trim(),approved:form.elements.approved.checked};
+ e.preventDefault();const form=e.currentTarget,d=formData(form),f={id:d.id.trim(),category:d.category,text_fr:d.text_fr.trim(),text_en:d.text_en.trim(),text_ar:d.text_ar.trim(),aliases:d.aliases.split(",").map(x=>x.trim()).filter(Boolean),source:{file:d.source_file.trim(),selector:d.source_selector.trim()},url:d.url.trim(),approved:form.elements.approved.checked};
  try{await api(state.editingFact?"/api/admin/facts/"+encodeURIComponent(state.editingFact):"/api/admin/facts",{method:state.editingFact?"PUT":"POST",body:JSON.stringify(f)});form.hidden=true;notice("Information enregistrée.");await load();}catch(err){notice(err.message,true);}
 }
 async function saveProject(e){
