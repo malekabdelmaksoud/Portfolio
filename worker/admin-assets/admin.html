@@ -8,6 +8,7 @@
   <title>Administration — Portfolio</title>
   <link rel="stylesheet" href="admin.css">
   <script src="api-config.js"></script>
+  <script>if (window.PORTFOLIO_API_BASE && new URL(window.PORTFOLIO_API_BASE, window.location.href).origin !== window.location.origin) window.location.replace(new URL("/admin.html", window.PORTFOLIO_API_BASE).href);</script>
   <script src="admin.js" defer></script>
 </head>
 <body>
