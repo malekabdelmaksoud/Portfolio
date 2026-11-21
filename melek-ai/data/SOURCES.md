@@ -1,74 +1,44 @@
 # Public training data sources and license policy
 
-The downloader writes a local `data/train.jsonl` file and never commits raw source text to Git.
-Every row records the upstream dataset, source identifier, normalized license, and language.
-Re-check the upstream dataset cards before every new download.
+The downloader writes a local `data/train.jsonl` file and never commits raw source text to Git. Every row records the upstream dataset, source identifier, normalized license, and language. Re-check upstream dataset cards before every new download.
 
 ## Included sources
 
-1. **Tunisian Chatbot Instruction Data** — https://huggingface.co/datasets/abdouuu/tunisian_chatbot_data
-   - Dataset card declares Apache-2.0; 1,430 instruction/output examples.
-   - Fields used: `instruction`, optional textual `input`, and `output`.
-   - Converted into `User:` / `Assistant:` pairs; rows with missing text, obvious PII,
-     or a small list of explicit abusive phrases are skipped.
-   - The card has limited provenance detail, so review a sample and preserve its license
-     notice. It is a small supplemental Derja chatbot source, not a broad language corpus.
-
+1. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
+   - A large multilingual corpus containing books, public records, legal/scientific material and cultural heritage documents.
+   - The dataset card states that source documents are uncopyrighted or freely licensed and that document-level provenance is available.
+   - The downloader samples English, French and Arabic, but only accepts rows with explicit identifiers and a narrow permissive allowlist: public domain, CC0-1.0, CC-BY-4.0, MIT or Apache-2.0.
+   - CC-BY-NC, CC-BY-ND, unknown licenses, missing identifiers, short/noisy text and obvious email/phone patterns are skipped.
+   - The sample is bounded; it is not a full download of the multi-terabyte corpus.
 
 2. **OpenAssistant Conversations (OASST1)** — https://huggingface.co/datasets/OpenAssistant/oasst1
-   - Dataset card declares Apache-2.0; 84,437 training messages from 35 languages.
-   - Languages selected: English (`en`) and French (`fr`). Arabic Common Corpus records are deliberately skipped because the small sampled OpenITI texts included historical sectarian material.
-   - Reconstructs one-turn user/assistant pairs using `parent_id` and `message_id`.
-   - Uses only reviewed, non-deleted, non-synthetic messages; prefers rank 0 and rejects
-     rows marked for spam, PII, hate, sexual content, or inappropriate content. It also
-     applies conservative Detoxify thresholds and the downloader's email/phone filter.
-   - This is the main source of assistant-style conversation examples.
+   - Dataset card declares Apache-2.0 and describes human-generated, human-annotated conversations in 35 languages.
+   - The downloader selects English, French and Arabic user/assistant pairs using parent/message IDs.
+   - It keeps only reviewed, non-deleted, non-synthetic messages, rejects messages flagged for spam, PII, hate, sexual content or inappropriateness, and applies conservative Detoxify thresholds and email/phone filtering.
+   - Dataset attribution and license notice must be retained.
 
+3. **UAE Arabic Legal Text Corpus** — https://huggingface.co/datasets/University-of-Dubai/arabic-legal-text
+   - Dataset card declares CC-BY-4.0 and identifies the University of Dubai Research team as maintainer.
+   - Provides Arabic legal provisions and metadata. The current public release is very small (two rows), so it is only a domain supplement.
+   - The downloader preserves law/category/year metadata in the source field.
 
-3. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
-   - Languages selected: English (`en`), French (`fr`), Arabic (`ar`).
-   - Fields: `text`, `language`, `license`, `identifier`, `collection`, `creator`.
-   - The card describes document-level provenance and uncopyrighted/freely licensed material.
-   - Strict allowlist: public domain, CC0-1.0, CC-BY-4.0, MIT, Apache-2.0.
-   - CC-BY-NC, CC-BY-ND, unknown licenses, missing identifiers, short/noisy text,
-     and records with obvious email/phone patterns are skipped.
-   - Bounded streaming sample: default scan limit 150,000 and 1,200 documents per language.
+4. **Tunisian Proverbs with Image Associations** — https://huggingface.co/datasets/HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset
+   - Dataset card declares CC-BY-4.0 and describes 999 Tunisian proverb records.
+   - Only text fields are used: Tunisian proverb, context and Arabic explanation. Image prompts and binary images are excluded.
+   - A small conservative blocklist filters known abusive phrases; this is not complete human moderation. Review samples before training.
+   - Cite Habiba Abderrahim, Hedi Ayadi and Fadoua Ouamani, DOI: 10.57967/hf/5189.
 
-4. **UAE Arabic Legal Text Corpus** —
-   https://huggingface.co/datasets/University-of-Dubai/arabic-legal-text
-   - Dataset card declares CC-BY-4.0 and describes Arabic UAE laws/decrees.
-   - Fields: `text`, `source`, `year`, `category`.
-   - The current public release has only two rows, one of which is a test record; the
-     downloader accepts only the longer legal text. This is a tiny domain supplement,
-     not a substantial Arabic corpus.
-
-5. **Tunisian Proverbs with Image Associations** —
-   https://huggingface.co/datasets/HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset
-   - Dataset card declares CC-BY-4.0; 999 proverb entries.
-   - Text fields only: Tunisian proverb/context for Derja and the Arabic explanation for
-     formal Arabic. Image prompts and image data are excluded.
-   - Image columns are removed before iteration to avoid downloading image binaries. A
-     conservative blocklist removes a small set of obvious insults/abusive phrases.
-     This is not full human moderation; inspect the generated sample before training.
+5. **Tunisian Chatbot Instruction Data** — https://huggingface.co/datasets/abdouuu/tunisian_chatbot_data
+   - A small Tunisian Derja instruction/response dataset listed in public Tunisian NLP resource collections.
+   - Its license and source provenance must be verified from the live dataset card before use. It is therefore **not included in the automatic training downloader** until that verification is available.
 
 ## Explicit exclusions
 
-- `tunis-ai/tunisian-msa-parallel-corpus`: although its card declares CC-BY-4.0, a
-  downloaded preview contained abusive and insulting raw source text. It is excluded
-  from training rather than relying on an incomplete automatic moderation list.
-- `tunis-ai/tunisian-msa-parallel-corpus-evaluated`: contains the same original raw
-  Tunisian source text; quality flags cover translation quality, not safety moderation.
-- `Syrinesmati/tunisian-dialect-corpus`: Apache-2.0 is declared, but the corpus merges
-  many upstream social-media datasets and warns that sensitive information may remain.
-- `linagora/Tunisian_Derja_Dataset` and the unified Derja corpus: CC-BY-SA; excluded
-  from this starter mix because ShareAlike implications for model weights need separate review.
-- `AzizBelaweid/Tunisian_Language_Dataset`: license metadata has shown conflicting descriptions.
-- `linagora/TunisianMMLU` is CC-BY-NC-SA-4.0 and is excluded from training; it is better
-  reserved as a non-commercial evaluation benchmark.
-- `khaled123/Tunisian_Dialectic_English_Derja` is CreativeML OpenRAIL-M and contains
-  social-media/transcript material; it is excluded from this permissive-license mix.
-- CC-BY-NC and other non-commercial-only datasets are excluded.
-- News corpora with unclear underlying publisher rights are excluded.
+- Tunisian Derja aggregations tagged CC-BY-SA are excluded from this starter mix because ShareAlike implications for model weights need separate review.
+- Datasets with conflicting license metadata, unknown publisher rights, non-commercial-only restrictions, or unreviewed social-media personal data are excluded.
+- Raw Tunisian social-media corpora are not treated as automatically safe just because they are publicly downloadable.
+- The Tunisian Chatbot dataset is not automatically ingested until its license and provenance are verified.
+- CC-BY-NC and other non-commercial-only datasets are excluded from this permissive-license mix.
 
 ## Download and inspect
 
@@ -77,15 +47,8 @@ pip install -r requirements.txt
 python download_data.py --out data/train.jsonl --max-per-language 1200 --max-scan 150000
 ```
 
-The Common Corpus is very large; the script has a scan cap and may not find every language
-in one run. Inspect the language counts, license counts, and sample texts before training.
-Do not remove the license allowlist to force more rows. The downloader reports unavailable
-sources rather than fabricating replacement text.
+The Common Corpus is very large; the script has a scan cap and may not find every language in one run. Inspect language counts, license counts, and samples before training. Do not remove the license allowlist to force more rows. The downloader reports unavailable sources rather than fabricating replacement text.
 
 ## Attribution and obligations
 
-Keep this file and each row's source/license metadata with the experiment. Give attribution
-to PleIAs/Common Corpus, University of Dubai Research, and the Tunisian proverb dataset
-authors when using their material. CC-BY-4.0 requires appropriate credit and indication of
-changes. Review upstream terms and model-weight redistribution obligations before publishing
-or commercializing a checkpoint. This engineering filter is not legal advice.
+Keep this file and each row's source/license metadata with the experiment. Give attribution to PleIAs/Common Corpus, OpenAssistant contributors, University of Dubai Research, and the Tunisian proverb dataset authors when using their material. CC-BY-4.0 requires appropriate credit and indication of changes. Review upstream terms and model-weight redistribution obligations before publishing or commercializing a checkpoint. This engineering filter is not legal advice.
