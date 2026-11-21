@@ -38,6 +38,7 @@ class DatasetTests(unittest.TestCase):
         self.assertEqual(normalize_license("CC BY 4.0"), "cc-by-4.0")
         self.assertEqual(normalize_license("Public Domain"), "public-domain")
         self.assertIsNone(normalize_license("CC BY-NC 4.0"))
+        self.assertEqual(normalize_license("ODC-By"), "odc-by-1.0")
         self.assertIsNone(normalize_license("unknown"))
 
     def test_rejects_missing_source(self):
