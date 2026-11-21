@@ -30,64 +30,13 @@ const AuthService = {
     }
   },
 
-  register(name, email, password) {
-    const cleanEmail = email.trim().toLowerCase();
-    const users = this.getUsers();
-
-    if (users.find(u => u.email === cleanEmail)) {
-      throw new Error("Cet e-mail est déjà enregistré. Veuillez vous connecter.");
-    }
-
-    const role = cleanEmail === ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
-    const newUser = {
-      name: name.trim() || cleanEmail.split("@")[0],
-      email: cleanEmail,
-      password: password,
-      role: role,
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    this.saveUsers(users);
-    this.createSession(newUser);
-    return newUser;
+  // Legacy browser-only accounts are intentionally disabled. Admin access belongs to Cloudflare Access.
+  register() {
+    throw new Error("La création de comptes locaux est désactivée. Le portfolio est public.");
   },
 
-  login(email, password) {
-    const cleanEmail = email.trim().toLowerCase();
-    let users = this.getUsers();
-    let user = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-    // No client-side administrator login: browser storage cannot securely authenticate an owner.
-
-    if (!user) {
-        user = {
-          name: "Melek Abdelmaksoud (Admin)",
-          email: cleanEmail,
-          password: password,
-          role: "admin",
-          createdAt: new Date().toISOString()
-        };
-        users.push(user);
-      } else {
-        user.password = password; // Automatically update and accept so the owner is never locked out
-      }
-      this.saveUsers(users);
-      this.createSession(user);
-      return user;
-    }
-
-    if (!user) {
-      throw new Error("Compte introuvable. Cliquez sur 'Inscription' pour créer votre compte.");
-    }
-
-    // Strict password verification for other users
-    if (user.password !== password) {
-      throw new Error("Mot de passe incorrect.");
-    }
-
-    this.createSession(user);
-    return user;
+  login() {
+    throw new Error("La connexion locale est désactivée. L'administration utilise Cloudflare Access.");
   },
 
   loginWithGitHub(username = "visiteur") {
@@ -119,27 +68,8 @@ const AuthService = {
     location.reload();
   },
 
-  updatePassword(email, newPassword) {
-    const cleanEmail = email.trim().toLowerCase();
-    const users = this.getUsers();
-    let target = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!target) {
-      if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-        target = {
-          email: ADMIN_EMAIL,
-          password: newPassword,
-          name: "Melek Abdelmaksoud (Admin)",
-          role: "admin"
-        };
-        users.push(target);
-      } else {
-        throw new Error("Compte introuvable avec cette adresse e-mail.");
-      }
-    } else {
-      target.password = newPassword;
-    }
-    this.saveUsers(users);
-    return true;
+  updatePassword() {
+    throw new Error("La gestion des mots de passe locaux est désactivée. Utilisez la protection Cloudflare Access.");
   },
 
   isAdmin() {
