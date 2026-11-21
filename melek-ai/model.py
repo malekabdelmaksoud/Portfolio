@@ -1,13 +1,7 @@
-"""A tiny decoder-only Transformer initialized from scratch.
-
-Byte IDs make the prototype Unicode-safe at the byte-stream level, including Arabic.
-This is a learning/research implementation, not a production LLM.
-"""
+"""A compact decoder-only Transformer initialized from random weights."""
 import torch
 from torch import nn
 from torch.nn import functional as F
-
-VOCAB_SIZE = 256  # UTF-8 byte values
 
 
 class CausalSelfAttention(nn.Module):
@@ -53,14 +47,17 @@ class Block(nn.Module):
 
 
 class MelekGPT(nn.Module):
-    def __init__(self, width=192, heads=4, layers=4, context=256, dropout=0.1):
+    def __init__(self, width=192, heads=4, layers=4, context=256, dropout=0.1, vocab_size=256):
         super().__init__()
+        if vocab_size < 2:
+            raise ValueError("vocab_size must be at least 2")
         self.context = context
-        self.token_embedding = nn.Embedding(VOCAB_SIZE, width)
+        self.vocab_size = vocab_size
+        self.token_embedding = nn.Embedding(vocab_size, width)
         self.position_embedding = nn.Embedding(context, width)
         self.blocks = nn.Sequential(*[Block(width, heads, dropout) for _ in range(layers)])
         self.final_norm = nn.LayerNorm(width)
-        self.lm_head = nn.Linear(width, VOCAB_SIZE, bias=False)
+        self.lm_head = nn.Linear(width, vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding.weight
         self.apply(self._init_weights)
 
@@ -82,7 +79,7 @@ class MelekGPT(nn.Module):
         logits = self.lm_head(self.final_norm(self.blocks(x)))
         loss = None
         if targets is not None:
-            loss = F.cross_entropy(logits.reshape(-1, VOCAB_SIZE), targets.reshape(-1))
+            loss = F.cross_entropy(logits.reshape(-1, self.vocab_size), targets.reshape(-1))
         return logits, loss
 
     @torch.no_grad()
