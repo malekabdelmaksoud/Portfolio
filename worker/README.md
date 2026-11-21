@@ -28,7 +28,7 @@ The migration creates facts/projects tables and imports draft entries with appro
 
 ## 2. Configure Cloudflare Access
 
-Create a self-hosted Access application protecting `/admin.html` and `/api/admin/*` on the API/portfolio hostname. Create an allow policy for the owner email only. Configure:
+Protect the admin page and admin API paths with Cloudflare Access. If the portfolio and API share one hostname, protect `/admin.html` and `/api/admin/*` in the same Access application. If the API is deployed on its own `workers.dev` hostname, create one Access application for the portfolio's `/admin.html` path and another for the API hostname's `/api/admin/*` path. In both policies, allow only the owner email. Do not protect the API Worker's entire hostname, because public `/api/assistant` and `/api/projects` must remain public. Configure:
 - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
 - `ACCESS_AUD`: the Access application's AUD tag
 - `ADMIN_EMAIL`: `melekabdelmaksoud72@gmail.com`
@@ -51,7 +51,7 @@ npm install --save-dev wrangler
 npx wrangler deploy
 ```
 
-This creates a separate Worker hostname. To use same-origin `/api`, add a Worker route for `portfolio-hostname.example/api/*` pointing at this Worker, or set `window.PORTFOLIO_API_BASE` before `script.js` to the API Worker origin and set `ALLOWED_ORIGIN` to the portfolio origin. Do not guess or commit the generated Worker hostname.
+This creates a separate Worker hostname. Recommended: serve the API under the portfolio's same-origin `/api/*` path if your Cloudflare setup supports that route. Otherwise set `window.PORTFOLIO_API_BASE` in `api-config.js` to the deployed API Worker origin, set `ALLOWED_ORIGIN` to the exact portfolio origin, and keep the admin Access app on the API's `/api/admin/*` path. The admin dashboard sends credentials and the Worker enables credentialed CORS for that exact origin. A cross-origin Access setup may require the browser to complete the Access login for the API hostname once. Do not guess or commit the generated Worker hostname.
 
 ## 4. Admin dashboard
 
