@@ -7,7 +7,7 @@ class PublicCorpusFilterTests(unittest.TestCase):
     def test_language_aliases_cover_arabic_french_and_english(self):
         self.assertEqual(LANGUAGE_ALIASES["arabic"], "ar")
         self.assertEqual(LANGUAGE_ALIASES["fr"], "fr")
-        self.assertEqual(LANGUAGE_ALIASES["English"], "en")
+        self.assertEqual(LANGUAGE_ALIASES["english"], "en")
 
     def test_text_is_normalized_and_whitespace_collapsed(self):
         self.assertEqual(clean_text("  " + "Bonjour monde. " * 30), ("Bonjour monde. " * 30).strip())
