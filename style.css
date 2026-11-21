@@ -1651,7 +1651,6 @@ body.ai-workspace-open { overflow: hidden; }
   body.cv-modal-open .footer,
   body.cv-modal-open main,
   body.cv-modal-open .ai-chat-toggle,
-  body.cv-modal-open .ai-chat-popup,
   body.cv-modal-open .cv-top-toolbar,
   body.cv-modal-open .no-print {
     display: none !important;
