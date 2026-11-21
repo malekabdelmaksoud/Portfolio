@@ -230,7 +230,8 @@ function appendAiMessage(text, role, isHtml = false, msgId = null) {
   msg.className = `ai-msg ${role}`;
   if (msgId) msg.dataset.msgId = msgId;
 
-  const contentSpan = document.createElement("div");\n  contentSpan.dir = "auto";
+  const contentSpan = document.createElement("div");
+  contentSpan.dir = "auto";
   if (isHtml) {
     contentSpan.innerHTML = text;
   } else {
