@@ -107,6 +107,7 @@ export async function liveWebSearch(env, query) {
         const title = plainText(item.title || url.hostname, 240);
         const summary = plainText(item.description || "", 1400);
         if (!title || !summary) return [];
+        if (/ignore (all |any )?(previous|prior) instructions|reveal (the )?(system prompt|secrets)|send (the )?(conversation|data) to|you are now (the )?(system|assistant)|bypass (all )?(safety|security)/i.test(summary)) return [];
         return [{ title, url: url.toString(), source_name: url.hostname, source_host: url.hostname, summary, published_at: null, live: true }];
       } catch { return []; }
     });
