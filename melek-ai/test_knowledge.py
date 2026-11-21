@@ -3,7 +3,7 @@ from knowledge import validate
 
 class KnowledgeTests(unittest.TestCase):
     def fact(self):
-        return {"id":"project-001","category":"project","text_fr":"Projet public.","text_en":"Public project.","aliases":["demo"],"source":{"file":"index.html","selector":"#projets .project-card"},"approved":False}
+        return {"id":"project-001","category":"project","text_fr":"Projet public.","text_en":"Public project.","text_ar":"مشروع عام.","aliases":["demo"],"source":{"file":"index.html","selector":"#projets .project-card"},"approved":False}
     def root(self, facts): return {"schema_version":"1.0","facts":facts}
     def test_valid_fact(self): self.assertEqual(validate(self.root([self.fact()])), [])
     def test_duplicate_ids(self):
