@@ -47,11 +47,11 @@ Create **two separate Self-hosted Access applications** on that hostname. Do not
 ### 2. Visitor account application
 
 - Public hostname: `melek-portfolio-api.melekabdelmaksoud72.workers.dev`
-- Paths: `/account.html` and `/api/user/*`
+- Paths: `/account.html`, `/api/models`, `/api/assistant`, and `/api/user/*`
 - Policy: **Allow** authenticated email identities (any verified email).
 - This is safe because every chat-history query is scoped to the email from the signed Access JWT. A visitor cannot read or delete another visitor's chats.
 
-Do not add `/api/assistant`, `/api/projects`, or `/api/health` to either application. Do not use an owner-only policy for the visitor account application.
+Do not add `/api/projects` or `/api/health` to either application. Do not use an owner-only policy for the visitor account application.
 
 ### 3. Configure Worker secrets
 
@@ -80,7 +80,7 @@ The dashboard never asks for a password; Cloudflare Access supplies the identity
 
 The authenticated account workspace loads `/api/models` and posts questions to `/api/assistant`. Workers AI handles general chat; portfolio questions receive only approved D1 facts as grounding. The 23 seeded facts remain unapproved until reviewed in the dashboard.
 
-The portfolio's `api-config.js` already points to the deployed API origin. `ALLOWED_ORIGIN` is configured for the production portfolio.
+The portfolio's `api-config.js` already points to the deployed API origin. `ALLOWED_ORIGIN` allows the portfolio origin, and same-origin API requests from the account workspace are also accepted.
 
 ## Local development
 
