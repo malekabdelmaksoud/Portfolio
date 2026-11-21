@@ -19,14 +19,14 @@ The authenticated visitor workspace uses Workers AI for general conversation. Wh
 
 The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved; portfolio-specific questions abstain when no relevant approved evidence exists. General questions can still be answered conversationally. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-The hosted model catalogue includes GLM-4.7 Flash (recommended free-quota default), Gemma 4, and metered Qwen 3.8, and can be extended server-side with `AI_MODELS_JSON`. The original MelekGPT Transformer in `melek-ai/` remains a separate from-scratch model; its authenticated private inference adapter is implemented, but it remains unavailable until a reviewed training corpus, checkpoint, and private endpoint are configured.
+The hosted model catalogue is restricted to GLM-4.7 Flash and Gemma 4, both available on the Cloudflare Workers Free plan within its shared daily AI quota. Paid live-search providers and arbitrary model overrides are disabled. The original MelekGPT Transformer in `melek-ai/` remains a separate from-scratch model; its private inference adapter is implemented, but it remains unavailable until a reviewed training corpus, checkpoint, and private endpoint are configured.
 
 
 ## Automatic web learning
 
-The AI now has a safe retrieval-based learning pipeline: it refreshes public AI/security sources daily (Cloudflare Blog, OWASP GenAI Security, Hugging Face Blog and arXiv AI/ML), and can perform live web searches for general questions through Cloudflare Web Search. Source links are displayed beneath answers, and the admin dashboard includes a source monitor and manual refresh control.
+The AI has a free retrieval-based learning pipeline: it refreshes public AI/security RSS sources daily (Cloudflare Blog, OWASP GenAI Security, Hugging Face Blog and arXiv AI/ML). Answers can cite matching stored feed entries. No paid live web-search provider or AI Gateway credits are used.
 
-This updates the assistant's searchable knowledge, not its neural weights. Web content is treated as untrusted data, and portfolio facts remain isolated behind explicit admin approval. Live search uses Cloudflare's Ceramic provider at the documented rate of $0.25 per 1,000 searches, is capped at 10 searches per user per hour and 5,000 site-wide per month (about $1.25), and requires AI Gateway credits/provider configuration. See [worker/README.md](worker/README.md) for setup, cost controls, and the D1 migration required to activate it.
+This updates the assistant's searchable knowledge, not its neural weights. Web content is treated as untrusted data, and portfolio facts remain isolated behind explicit admin approval. The project intentionally does not call paid search providers or use AI Gateway credits.
 
 ## Admin and API deployment
 
