@@ -43,6 +43,7 @@ function setLanguage(language) {
   if (typeof ProjectsManager !== "undefined" && typeof ProjectsManager.updateSkills === "function") {
     ProjectsManager.updateSkills();
   }
+  window.dispatchEvent(new Event("portfolio:languagechange"));
 }
 document.querySelectorAll(".lang-btn").forEach(button => {
   button.addEventListener("click", () => setLanguage(button.dataset.lang));
@@ -50,6 +51,41 @@ document.querySelectorAll(".lang-btn").forEach(button => {
 let savedLanguage = "fr";
 try { savedLanguage = localStorage.getItem("portfolio-language") || "fr"; } catch (e) {}
 setLanguage(savedLanguage);
+
+/* ── Approved API-backed project publishing ── */
+const portfolioApiBase = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
+let remotePortfolioProjects = [];
+let remotePortfolioProjectsLoaded = false;
+function renderRemoteProjects() {
+  if (!remotePortfolioProjectsLoaded) return;
+  const grid = document.querySelector("#projets .projects-grid");
+  if (!grid) return;
+  const language = document.documentElement.lang === "en" ? "en" : "fr";
+  grid.replaceChildren();
+  remotePortfolioProjects.forEach((project, index) => {
+    const card = document.createElement("article"); card.className = "project-card";
+    const visual = document.createElement("div"); visual.className = "project-visual visual-" + ["one","two","three","four","five","six","seven"][index % 7];
+    const number = document.createElement("span"); number.textContent = String(index + 1).padStart(2,"0");
+    const symbol = document.createElement("div"); symbol.className = "project-symbol"; symbol.textContent = "↗"; visual.append(number,symbol);
+    const body = document.createElement("div"); body.className = "project-body";
+    const type = document.createElement("p"); type.className = "project-type"; type.textContent = project.type;
+    const title = document.createElement("h3"); title.textContent = project.title;
+    const description = document.createElement("p"); description.textContent = language === "en" ? project.description_en : project.description_fr;
+    const link = document.createElement("a"); link.href = project.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+    link.textContent = language === "en" ? "View project ↗" : "Voir le projet ↗";
+    body.append(type,title,description,link); card.append(visual,body); grid.append(card);
+  });
+}
+async function loadRemoteProjects() {
+  try {
+    const response = await fetch(portfolioApiBase + "/api/projects", {headers:{Accept:"application/json"},credentials:"omit"});
+    if (!response.ok) return;
+    const data = await response.json();
+    if (Array.isArray(data.projects)) { remotePortfolioProjects = data.projects; remotePortfolioProjectsLoaded = true; renderRemoteProjects(); }
+  } catch (_) { /* Keep static project cards until the API is deployed. */ }
+}
+window.addEventListener("portfolio:languagechange", renderRemoteProjects);
+loadRemoteProjects();
 
 /* ── Footer Year ── */
 document.getElementById("year").textContent = new Date().getFullYear();
@@ -186,7 +222,7 @@ function renderChatFromHistory() {
 
   history.forEach(item => {
     // User content is always rendered as text; only trusted assistant markup is interpreted.
-    appendAiMessage(item.text, item.role, item.role === "bot", item.id);
+    appendAiMessage(item.text, item.role, false, item.id);
   });
 }
 
@@ -196,6 +232,7 @@ function appendAiMessage(text, role, isHtml = false, msgId = null) {
   if (msgId) msg.dataset.msgId = msgId;
 
   const contentSpan = document.createElement("div");
+  contentSpan.dir = "auto";
   if (isHtml) {
     contentSpan.innerHTML = text;
   } else {
@@ -252,9 +289,10 @@ function editChatMessage(id, contentSpan) {
       const typing = appendAiMessage("Mise à jour de la réponse...", "bot");
       setTimeout(() => {
         typing.remove();
-        const answer = generateAiAnswer(newText);
-        const botMsg = ChatStore.addMessage("bot", answer);
-        appendAiMessage(answer, "bot", true, botMsg.id);
+        generateAiAnswer(newText).then(answer => {
+          const botMsg = ChatStore.addMessage("bot", answer);
+          appendAiMessage(answer, "bot", false, botMsg.id);
+        });
       }, 350);
     }
   };
@@ -283,21 +321,32 @@ function handleUserQuery(query) {
   appendAiMessage(query, "user", false, userMsgId);
   const typing = appendAiMessage("Réflexion en cours...", "bot");
 
-  setTimeout(() => {
+  (async () => {
+    const answer = await generateAiAnswer(query);
     typing.remove();
-    const answer = generateAiAnswer(query);
     let botMsgId = null;
     if (typeof ChatStore !== "undefined") {
       const savedBot = ChatStore.addMessage("bot", answer);
       botMsgId = savedBot.id;
     }
-    appendAiMessage(answer, "bot", true, botMsgId);
-  }, 350);
+    appendAiMessage(answer, "bot", false, botMsgId);
+  })();
 }
 
-function generateAiAnswer(rawQuery) {
-  if (window.PortfolioAssistant && typeof window.PortfolioAssistant.answer === "function") {
-    return window.PortfolioAssistant.answer(rawQuery);
+async function generateAiAnswer(rawQuery) {
+  try {
+    const previousQuestions = typeof ChatStore !== "undefined"
+      ? ChatStore.getHistory().filter(item => item.role === "user").slice(-5,-1).map(item => String(item.text || "").slice(0,300))
+      : [];
+    const response = await fetch(portfolioApiBase + "/api/assistant", {
+      method: "POST", credentials: "omit",
+      headers: {"content-type":"application/json","accept":"application/json"},
+      body: JSON.stringify({question:String(rawQuery || "").slice(0,800),context:previousQuestions})
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Service indisponible.");
+    return typeof data.answer === "string" ? data.answer : "Aucune réponse disponible.";
+  } catch (_) {
+    return "L'assistant fondé sur les informations approuvées n'est pas encore connecté au serveur. Réessayez après la configuration du service.";
   }
-  return "L'assistant est en cours de chargement. Réessayez dans un instant.";
 }

@@ -1,0 +1,26 @@
+name: Melek AI evidence guard tests
+
+on:
+  push:
+    paths:
+      - "melek-ai/**"
+      - ".github/workflows/melek-ai-tests.yml"
+  pull_request:
+    paths:
+      - "melek-ai/**"
+      - ".github/workflows/melek-ai-tests.yml"
+
+jobs:
+  evidence-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test evidence and knowledge validation
+        working-directory: melek-ai
+        run: python -m unittest -v test_evidence.py test_knowledge.py
+      - name: Validate draft knowledge base
+        working-directory: melek-ai
+        run: python knowledge.py

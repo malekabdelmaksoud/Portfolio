@@ -1,0 +1,19 @@
+name = "melek-portfolio-api"
+main = "src/index.js"
+compatibility_date = "2026-11-21"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "melek-portfolio-db"
+database_id = "15577d7f-b636-4fa6-817c-8f0c77731927"
+migrations_dir = "migrations"
+
+[vars]
+ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
+# ADMIN_EMAIL, ACCESS_ISSUER, and ACCESS_AUD are runtime secrets; never commit them.
+
+[assets]
+directory = "./admin-assets"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]

@@ -1,0 +1,76 @@
+# Portfolio API and admin dashboard
+
+The API is a separate Cloudflare Worker named `melek-portfolio-api`. It is isolated from the existing `portfolio` production Worker.
+
+## Current Cloudflare resource
+
+- D1 database: `melek-portfolio-db`
+- Database ID: `15577d7f-b636-4fa6-817c-8f0c77731927`
+- `wrangler.toml` is already configured with this database ID.
+- The allowed browser origin is configured as `https://portfolio.melekabdelmaksoud72.workers.dev`.
+- No API deployment has been performed yet.
+
+## Deploy through GitHub Actions
+
+The workflow `.github/workflows/deploy-api.yml` is a manual deployment workflow. To authorize it without exposing an API token in chat or in the repository:
+
+1. In Cloudflare, create an API token with the permissions needed for Workers Scripts and D1 (edit), scoped to this account.
+2. In GitHub, open **Settings → Secrets and variables → Actions**.
+3. Add repository secret `CLOUDFLARE_API_TOKEN` with that token.
+4. Add repository variable `CLOUDFLARE_ACCOUNT_ID` with the account ID.
+5. Open **Actions → Deploy portfolio API → Run workflow** and select branch `feature/melek-ai-from-scratch`.
+
+The workflow installs Wrangler, synchronizes the admin assets, applies the D1 migrations remotely, then deploys the Worker. It does not deploy or modify the existing `portfolio` Worker.
+
+## Security model
+
+- Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
+- There is no client-side admin password, role, or localStorage admin session.
+- Visitor assistant reads only D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or invent factual claims.
+- Imported facts start unapproved. The eight seeded projects are already public on the current portfolio, so their visibility is preserved; newly created projects start hidden.
+- Admin API writes validate inputs and accept HTTPS links only.
+
+## Configure Cloudflare Access after deployment
+
+After the Worker is deployed and its `.workers.dev` hostname is known:
+
+1. Create a Cloudflare Access self-hosted application for that hostname.
+2. Protect `/account.html`, `/api/user/*`, `/admin.html`, and `/api/admin/*`. Use Cloudflare Access email one-time PIN (or another verified email identity provider) with an allow policy for authenticated emails. The Worker validates each visitor's signed Access JWT and scopes every chat query to that verified email. Admin API routes additionally require the exact owner email. Do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
+3. Add an allow policy for the owner's exact email address only.
+4. Add these Worker secrets in the Worker Settings → Variables and Secrets page:
+   - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
+   - `ACCESS_AUD`: the Access application's AUD tag
+   - `ADMIN_EMAIL`: the exact email allowed by the Access policy
+
+Never commit the email identity or Access secrets to this public repository.
+
+## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://<api-worker-host>/account.html` and sign in with their email. The page lists their own chats, opens message history, creates a conversation, deletes one conversation, or deletes all their conversations. The Worker derives the owner from the verified Access JWT; it never trusts an email supplied in request JSON. D1 migration `0004_user_chat_history.sql` creates the owner-scoped chat and message tables. All reads, inserts, and deletions include the authenticated email.\n\nThe account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
+
+After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
+- Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
+- Approve or revoke each fact.
+- Create/edit/delete projects, control visibility, and set order.
+
+The dashboard never asks for a password; Cloudflare Access supplies the identity.
+
+## Assistant integration
+
+The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. The 23 seeded facts remain unapproved until reviewed in the dashboard; the assistant intentionally abstains until there is approved evidence.
+
+Once the API hostname is known, set `window.PORTFOLIO_API_BASE` in the portfolio's `api-config.js` to that exact origin. Do not guess or commit a hostname before deployment.
+
+## Local development
+
+```bash
+npm install
+npm run sync-admin
+npx wrangler dev
+```
+
+Access-protected admin routes require a real Cloudflare Access token and cannot be authenticated by a fake local role.
+
+## Important limitations
+
+- This API is a source-bound portfolio assistant and admin CRUD backend, not a general ChatGPT-class model.
+- The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
+- Per-user email login and server-side chat history/deletion are not implemented yet. The current short follow-up context is browser-side only.

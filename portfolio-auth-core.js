@@ -9,144 +9,22 @@
 const ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com";
 
 // ── 1. AUTH & USERS SYSTEM ──
-const AuthService = {
-  getUsers() {
-    try {
-      return JSON.parse(localStorage.getItem("portfolio_registered_users")) || [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  saveUsers(users) {
-    localStorage.setItem("portfolio_registered_users", JSON.stringify(users));
-  },
-
-  getCurrentUser() {
-    try {
-      return JSON.parse(localStorage.getItem("portfolio_active_session")) || null;
-    } catch (e) {
-      return null;
-    }
-  },
-
-  register(name, email, password) {
-    const cleanEmail = email.trim().toLowerCase();
-    const users = this.getUsers();
-
-    if (users.find(u => u.email === cleanEmail)) {
-      throw new Error("Cet e-mail est déjà enregistré. Veuillez vous connecter.");
-    }
-
-    const role = cleanEmail === ADMIN_EMAIL.toLowerCase() ? "admin" : "user";
-    const newUser = {
-      name: name.trim() || cleanEmail.split("@")[0],
-      email: cleanEmail,
-      password: password,
-      role: role,
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    this.saveUsers(users);
-    this.createSession(newUser);
-    return newUser;
-  },
-
-  login(email, password) {
-    const cleanEmail = email.trim().toLowerCase();
-    let users = this.getUsers();
-    let user = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-    // No client-side administrator login: browser storage cannot securely authenticate an owner.
-
-    if (!user) {
-        user = {
-          name: "Melek Abdelmaksoud (Admin)",
-          email: cleanEmail,
-          password: password,
-          role: "admin",
-          createdAt: new Date().toISOString()
-        };
-        users.push(user);
-      } else {
-        user.password = password; // Automatically update and accept so the owner is never locked out
-      }
-      this.saveUsers(users);
-      this.createSession(user);
-      return user;
-    }
-
-    if (!user) {
-      throw new Error("Compte introuvable. Cliquez sur 'Inscription' pour créer votre compte.");
-    }
-
-    // Strict password verification for other users
-    if (user.password !== password) {
-      throw new Error("Mot de passe incorrect.");
-    }
-
-    this.createSession(user);
-    return user;
-  },
-
+const AuthService = Object.freeze({
+  // Legacy browser accounts are deliberately disabled. No password or role is stored client-side.
+  getUsers() { return []; },
+  saveUsers() { throw new Error("Les comptes locaux sont désactivés."); },
+  getCurrentUser() { return null; },
+  register() { throw new Error("La création de comptes locaux est désactivée."); },
+  login() { throw new Error("La connexion locale est désactivée. Utilisez Cloudflare Access pour l'administration."); },
   loginWithGitHub(username = "visiteur") {
-    // Public identity labels are not authentication and never grant admin privileges.
-    const cleanUser = username.trim().toLowerCase();
-    const normalUser = {
-      name: username.trim() || "Visiteur",
-      email: cleanUser ? `${cleanUser}@users.noreply.github.com` : "visiteur@github.com",
-      role: "user",
-      github: cleanUser || "guest",
-      createdAt: new Date().toISOString()
-    };
-    this.createSession(normalUser);
-    return normalUser;
+    const clean = String(username || "visiteur").trim();
+    return { name: clean || "Visiteur", role: "user" };
   },
-
-  createSession(user) {
-    const session = {
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: "tok_" + Date.now()
-    };
-    localStorage.setItem("portfolio_active_session", JSON.stringify(session));
-  },
-
-  logout() {
-    localStorage.removeItem("portfolio_active_session");
-    location.reload();
-  },
-
-  updatePassword(email, newPassword) {
-    const cleanEmail = email.trim().toLowerCase();
-    const users = this.getUsers();
-    let target = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!target) {
-      if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
-        target = {
-          email: ADMIN_EMAIL,
-          password: newPassword,
-          name: "Melek Abdelmaksoud (Admin)",
-          role: "admin"
-        };
-        users.push(target);
-      } else {
-        throw new Error("Compte introuvable avec cette adresse e-mail.");
-      }
-    } else {
-      target.password = newPassword;
-    }
-    this.saveUsers(users);
-    return true;
-  },
-
-  isAdmin() {
-    // Never trust a role stored in localStorage for privileged actions.
-    return false;
-  }
-};
+  createSession() { throw new Error("Les sessions navigateur ne sont pas autorisées."); },
+  logout() { try { localStorage.removeItem("portfolio_active_session"); } catch (_) {} location.reload(); },
+  updatePassword() { throw new Error("Les mots de passe locaux sont désactivés. Utilisez Cloudflare Access."); },
+  isAdmin() { return false; }
+});
 
 // ── 2. PROJECTS STORE & GITHUB AUTO-DESCRIPTION ──
 const ProjectsManager = {

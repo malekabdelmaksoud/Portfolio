@@ -13,6 +13,24 @@ let baseURL;
 before(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (pathname === '/api/projects' && req.method === 'GET') {
+      res.writeHead(503, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'API not configured in static test server' }));
+      return;
+    }
+    if (pathname === '/api/assistant' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        const question = String(JSON.parse(body || '{}').question || '');
+        const answer = /passeport|passport|salaire|salary/i.test(question)
+          ? "Cette information n'est pas présente dans les faits approuvés. Contactez Melek pour confirmation."
+          : (/projet|project|مشروع|المشاريع/i.test(question)
+            ? 'Projets publiés : elearning-platform, projet-php et Opportunity Hunter.'
+            : 'Réponse issue des faits approuvés du portfolio.');
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ answer, sources: [] }));
+      });
+      return;
+    }
     const target = pathname === '/' ? path.join(root, 'index.html') : path.resolve(root, '.' + pathname);
     if (!target.startsWith(root + path.sep)) { res.writeHead(403).end('Forbidden'); return; }
     if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) { res.writeHead(404).end('Not found'); return; }
@@ -33,6 +51,8 @@ after(async () => {
 
 async function openPage() {
   const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  // Keep browser tests isolated from the production API Worker.
+  await page.addInitScript(() => { window.PORTFOLIO_API_BASE = window.location.origin; });
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   return page;
 }
@@ -126,31 +146,126 @@ test('portfolio FAQ assistant answers a project question', async () => {
 });
 
 
-test('portfolio assistant handles Arabic questions using published content', async () => {
+test('portfolio assistant handles Tunisian Arabic through the approved API', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('شنوة المشاريع اللي عملتهم؟'));
-    assert.match(result, /المهارات التقنية/);
-    assert.match(result, /Java|PHP/);
+    await page.locator('#aiChatToggle').click();
+    await page.locator('#aiChatInput').fill('شنو المشاريع متاع ملاك؟');
+    await page.locator('#aiChatSend').click();
+    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes('Projets publiés'));
+    assert.match(await page.locator('#aiChatMessages').innerText(), /elearning-platform|Opportunity Hunter/);
   } finally { await page.close(); }
 });
 
-test('portfolio assistant refuses unsupported personal facts instead of inventing', async () => {
+test('assistant abstains on unsupported private facts', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('Quel est le salaire préféré de Melek et son numéro de passeport ?'));
-    assert.match(result, /pas trouvé|pas.*fiable|contact/i);
+    await page.locator('#aiChatToggle').click();
+    await page.locator('#aiChatInput').fill('Quel est le salaire de Melek et son numéro de passeport ?');
+    await page.locator('#aiChatSend').click();
+    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes("n'est pas présente"));
+    assert.match(await page.locator('#aiChatMessages').innerText(), /Contactez Melek/);
   } finally { await page.close(); }
 });
 
-test('portfolio assistant escapes untrusted text and exposes no remote model endpoint', async () => {
+test('visitor chat does not load the obsolete local engine or a hosted model', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('<img src=x onerror=alert(1)>'));
-    assert.doesNotMatch(result, /<img/i);
-    assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant.answer), 'function');
+    assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant), 'undefined');
     const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
-    assert.ok(scripts.some(src => src.includes('ai-engine.js')));
-    assert.ok(!scripts.some(src => /openai|anthropic|ollama|api\.|huggingface/i.test(src)));
+    assert.ok(!scripts.some(src => src.includes('ai-engine.js')));
+    assert.ok(!scripts.some(src => /openai|anthropic|ollama|huggingface/i.test(src)));
+  } finally { await page.close(); }
+});
+
+test('admin dashboard has no browser password login', async () => {
+  const page = await openPage();
+  try {
+    await page.goto(baseURL + '/admin.html', { waitUntil: 'domcontentloaded' });
+    assert.match(await page.locator('h1').innerText(), /Content studio/);
+    assert.equal(await page.locator('input[type="password"]').count(), 0);
+    assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
+  } finally { await page.close(); }
+});
+
+test('legacy browser authentication cannot create or grant an admin session', async () => {
+  const page = await openPage();
+  try {
+    const result = await page.evaluate(() => {
+      let loginBlocked = false, registerBlocked = false;
+      try { AuthService.login('melekabdelmaksoud72@gmail.com', 'guess'); } catch (_) { loginBlocked = true; }
+      try { AuthService.register('Melek', 'melekabdelmaksoud72@gmail.com', 'guess'); } catch (_) { registerBlocked = true; }
+      return { loginBlocked, registerBlocked, isAdmin: AuthService.isAdmin() };
+    });
+    assert.equal(result.loginBlocked, true);
+    assert.equal(result.registerBlocked, true);
+    assert.equal(result.isAdmin, false);
+  } finally { await page.close(); }
+});
+
+test('admin can approve a fact using the clean multilingual API payload', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  let approvalPayload = null;
+  await page.route('**/api/admin/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url()).pathname;
+    if (url === '/api/admin/session') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: true, user: { email: 'melek@example.test' } }) });
+    }
+    if (url === '/api/admin/facts' && request.method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ facts: [{
+        id: 'skills-001', category: 'skills', text_fr: 'Compétences.', text_en: 'Skills.', text_ar: 'المهارات.',
+        aliases: ['skills'], aliases_json: '["skills"]', source_file: 'index.html', source_selector: '#skills',
+        public_url: '', source: { file: 'index.html', selector: '#skills' }, url: '', approved: false, updated_at: 'now'
+      }] }) });
+    }
+    if (url === '/api/admin/projects') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ projects: [] }) });
+    }
+    if (url === '/api/admin/facts/skills-001' && request.method() === 'PUT') {
+      approvalPayload = request.postDataJSON();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ saved: true, id: 'skills-001' }) });
+    }
+    return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'Not found' }) });
+  });
+  try {
+    await page.goto(baseURL + '/admin.html', { waitUntil: 'domcontentloaded' });
+    await page.locator('.record-actions button').filter({ hasText: 'Approuver' }).click();
+    await page.waitForFunction(() => document.querySelector('#notice').innerText.includes('validation'));
+    assert.equal(approvalPayload.approved, true);
+    assert.equal(approvalPayload.text_ar, 'المهارات.');
+    assert.equal(Object.hasOwn(approvalPayload, 'aliases_json'), false);
+  } finally { await page.close(); }
+});
+
+test('published API projects replace static cards and follow the selected language', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  await page.route('**/api/projects', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ projects: [{
+      id: 'api-project', title: 'API Project', type: 'WEB',
+      description_fr: 'Description française.', description_en: 'English project description.',
+      url: 'https://github.com/example/api-project', sort_order: 1
+    }] })
+  }));
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#projets .project-card h3')?.innerText === 'API Project');
+    assert.match(await page.locator('#projets .project-card p:not(.project-type)').innerText(), /Description française/);
+    await page.locator('.lang-btn[data-lang="en"]').click();
+    assert.match(await page.locator('#projets .project-card p:not(.project-type)').innerText(), /English project description/);
+    assert.equal(await page.locator('#projets .project-card a').getAttribute('href'), 'https://github.com/example/api-project');
+  } finally { await page.close(); }
+});
+
+test('an empty published-project response hides every project card', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  await page.route('**/api/projects', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ projects: [] })
+  }));
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#projets .projects-grid')?.children.length === 0);
+    assert.equal(await page.locator('#projets .project-card').count(), 0);
   } finally { await page.close(); }
 });

@@ -1,0 +1,9 @@
+{
+  "name": "melek-portfolio-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "sync-admin": "node scripts/sync-admin-assets.mjs"
+  }
+}

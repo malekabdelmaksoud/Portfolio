@@ -1,0 +1,566 @@
+{
+  "schema_version": "1.0",
+  "status": "draft_requires_owner_review",
+  "policy": "Drafted from public portfolio HTML. Every fact is unapproved by default. The owner must verify and explicitly approve each exact statement before visitor-facing use.",
+  "facts": [
+    {
+      "id": "profile-001",
+      "category": "profile",
+      "text_fr": "Melek Abdelmaksoud est étudiante en dernière année de Licence en Technologie de l'Informatique à l'ISET de Sidi Bouzid, spécialité Développement Web et Multimédia.",
+      "text_en": "Melek Abdelmaksoud is a final-year Information Technology undergraduate student at ISET Sidi Bouzid, specializing in Web Development and Multimedia.",
+      "aliases": [
+        "études",
+        "formation",
+        "iset",
+        "study",
+        "education",
+        "قراية",
+        "معلومات",
+        "معلومات عن ملاك",
+        "شكون هي",
+        "عرفني"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .about-copy p:first-child"
+      },
+      "approved": false,
+      "text_ar": "ملاك عبد المقصود طالبة في السنة الأخيرة من الإجازة في تكنولوجيا المعلومات بالمعهد العالي للدراسات التكنولوجية بسيدي بوزيد، اختصاص تطوير الويب والوسائط المتعددة."
+    },
+    {
+      "id": "profile-002",
+      "category": "profile",
+      "text_fr": "Le portfolio présente un intérêt pour les applications web, les usages concrets de l'intelligence artificielle et la qualité logicielle.",
+      "text_en": "The portfolio describes an interest in web applications, practical uses of artificial intelligence, and software quality.",
+      "aliases": [
+        "ia",
+        "ai",
+        "intelligence artificielle",
+        "software quality",
+        "جودة البرمجيات",
+        "معلومات",
+        "معلومات عن ملاك",
+        "شكون هي",
+        "عرفني"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .about-copy p:first-child"
+      },
+      "approved": false,
+      "text_ar": "يعرض ملف الأعمال اهتمامًا بتطبيقات الويب والاستخدامات العملية للذكاء الاصطناعي وجودة البرمجيات."
+    },
+    {
+      "id": "location-001",
+      "category": "contact",
+      "text_fr": "La localisation indiquée sur le portfolio est Sfax, Tunisie.",
+      "text_en": "The location shown on the portfolio is Sfax, Tunisia.",
+      "aliases": [
+        "sfax",
+        "tunisie",
+        "location",
+        "صفاقس",
+        "تونس",
+        "تواصل",
+        "اتصل",
+        "كيف نتصل",
+        "بريد"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": ".hero-meta"
+      },
+      "approved": false,
+      "text_ar": "الموقع المذكور في ملف الأعمال هو صفاقس، تونس."
+    },
+    {
+      "id": "education-001",
+      "category": "education",
+      "text_fr": "Licence en Technologie de l'Informatique — ISET de Sidi Bouzid (2024–présent).",
+      "text_en": "Bachelor's degree in Information Technology — ISET Sidi Bouzid (2024–present).",
+      "aliases": [
+        "licence",
+        "bachelor",
+        "iset",
+        "university",
+        "جامعة",
+        "قراية",
+        "الدراسة",
+        "تكوين",
+        "معهد",
+        "شهادات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .education"
+      },
+      "approved": false,
+      "text_ar": "إجازة في تكنولوجيا المعلومات — المعهد العالي للدراسات التكنولوجية بسيدي بوزيد (2024–الآن)."
+    },
+    {
+      "id": "education-002",
+      "category": "education",
+      "text_fr": "Baccalauréat en sciences expérimentales — Lycée Tayeb Mhiri, Sfax (2023–2024).",
+      "text_en": "Baccalaureate in Experimental Sciences — Lycée Tayeb Mhiri, Sfax (2023–2024).",
+      "aliases": [
+        "bac",
+        "lycée",
+        "high school",
+        "قراية",
+        "الدراسة",
+        "تكوين",
+        "جامعة",
+        "معهد",
+        "شهادات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#apropos .education"
+      },
+      "approved": false,
+      "text_ar": "بكالوريا في العلوم التجريبية — معهد الطيب المهيري، صفاقس (2023–2024)."
+    },
+    {
+      "id": "skills-001",
+      "category": "skills",
+      "text_fr": "Langages mentionnés : C, C#, Java, Python, JavaScript et PHP.",
+      "text_en": "Listed programming languages: C, C#, Java, Python, JavaScript, and PHP.",
+      "aliases": [
+        "langages",
+        "programming languages",
+        "python",
+        "java",
+        "php",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsLangagesList"
+      },
+      "approved": false,
+      "text_ar": "لغات البرمجة المذكورة: C و C# و Java و Python و JavaScript و PHP."
+    },
+    {
+      "id": "skills-002",
+      "category": "skills",
+      "text_fr": "Technologies web mentionnées : HTML, CSS et Angular.",
+      "text_en": "Listed web technologies: HTML, CSS, and Angular.",
+      "aliases": [
+        "web",
+        "html",
+        "css",
+        "angular",
+        "frontend",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsWebList"
+      },
+      "approved": false,
+      "text_ar": "تقنيات الويب المذكورة: HTML و CSS و Angular."
+    },
+    {
+      "id": "skills-003",
+      "category": "skills",
+      "text_fr": "Frameworks et outils mentionnés : Laravel, Symfony, Spring Boot, .NET et Android Studio.",
+      "text_en": "Listed frameworks and tools: Laravel, Symfony, Spring Boot, .NET, and Android Studio.",
+      "aliases": [
+        "framework",
+        "laravel",
+        "symfony",
+        "spring boot",
+        "dotnet",
+        "android studio",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsFrameworksList"
+      },
+      "approved": false,
+      "text_ar": "الأطر والأدوات المذكورة: Laravel و Symfony و Spring Boot و .NET و Android Studio."
+    },
+    {
+      "id": "skills-004",
+      "category": "skills",
+      "text_fr": "Systèmes et réseaux : maintenance informatique, câblage réseau et OCS Inventory.",
+      "text_en": "Systems and networking: IT support, network cabling, and OCS Inventory.",
+      "aliases": [
+        "réseaux",
+        "networking",
+        "maintenance",
+        "ocs inventory",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#skillsSystemesList"
+      },
+      "approved": false,
+      "text_ar": "الأنظمة والشبكات: صيانة الحواسيب، تمديد كابلات الشبكات، واستخدام OCS Inventory."
+    },
+    {
+      "id": "experience-001",
+      "category": "experience",
+      "text_fr": "Stage en informatique à l'Hôpital Hédi Chaker, à Sfax : configuration d'une application de soins, découverte du Dossier Médical Informatisé et utilisation d'OCS Inventory.",
+      "text_en": "IT internship at Hôpital Hédi Chaker in Sfax: configuring a care application, exploring the Electronic Medical Record, and using OCS Inventory.",
+      "aliases": [
+        "hôpital",
+        "hopital",
+        "hedi chaker",
+        "dmi",
+        "ocs inventory",
+        "internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(1)"
+      },
+      "approved": false,
+      "text_ar": "تربص في الإعلامية بمستشفى الهادي شاكر في صفاقس: المساهمة في إعداد تطبيق للرعاية، والتعرّف على الملف الطبي الإلكتروني، واستخدام OCS Inventory لجرد المعدات المعلوماتية."
+    },
+    {
+      "id": "experience-002",
+      "category": "experience",
+      "text_fr": "Stage en développement web chez Advanced Computer Solutions (ACS), en janvier 2026.",
+      "text_en": "Web development internship at Advanced Computer Solutions (ACS), in January 2026.",
+      "aliases": [
+        "acs",
+        "advanced computer solutions",
+        "web internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(2)"
+      },
+      "approved": false,
+      "text_ar": "تربص في تطوير الويب لدى Advanced Computer Solutions (ACS) في جانفي 2026."
+    },
+    {
+      "id": "experience-003",
+      "category": "experience",
+      "text_fr": "Stage en réseaux chez Netsys Com Support, de juin à juillet 2025.",
+      "text_en": "Networking internship at Netsys Com Support, from June to July 2025.",
+      "aliases": [
+        "netsys",
+        "network internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(3)"
+      },
+      "approved": false,
+      "text_ar": "تربص في الشبكات لدى Netsys Com Support من جوان إلى جويلية 2025."
+    },
+    {
+      "id": "experience-004",
+      "category": "experience",
+      "text_fr": "Stage en maintenance informatique chez CISEN, de janvier à février 2025.",
+      "text_en": "IT support internship at CISEN, from January to February 2025.",
+      "aliases": [
+        "cisen",
+        "maintenance internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#experiences .timeline-item:nth-child(4)"
+      },
+      "approved": false,
+      "text_ar": "تربص في صيانة الحواسيب لدى CISEN من جانفي إلى فيفري 2025."
+    },
+    {
+      "id": "project-001",
+      "category": "project",
+      "text_fr": "Elearning Platform : plateforme e-learning développée en Java pour la gestion des cours, des inscriptions et du suivi des apprenants.",
+      "text_en": "Elearning Platform: a Java e-learning platform for course management, enrolment, and learner progress tracking.",
+      "aliases": [
+        "elearning",
+        "java",
+        "learning platform",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/elearning-platform",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(1)"
+      },
+      "approved": false,
+      "text_ar": "منصة التعلّم الإلكتروني: منصة مطوّرة بلغة Java لإدارة الدروس والتسجيلات ومتابعة تقدّم المتعلّمين."
+    },
+    {
+      "id": "project-002",
+      "category": "project",
+      "text_fr": "Projet PHP : application web réalisée avec PHP et CSS pour pratiquer le développement web côté serveur.",
+      "text_en": "PHP Project: a web application built with PHP and CSS to practise server-side web development.",
+      "aliases": [
+        "php",
+        "css",
+        "web application",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/projetphp",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(2)"
+      },
+      "approved": false,
+      "text_ar": "مشروع PHP: تطبيق ويب باستخدام PHP و CSS للتدرّب على تطوير الويب من جهة الخادم."
+    },
+    {
+      "id": "project-003",
+      "category": "project",
+      "text_fr": "Application Laravel : application web full-stack mettant en pratique MVC, les migrations et l'authentification.",
+      "text_en": "Laravel Application: a full-stack web application applying MVC, migrations, and authentication.",
+      "aliases": [
+        "laravel",
+        "mvc",
+        "migration",
+        "authentication",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/laravel",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(3)"
+      },
+      "approved": false,
+      "text_ar": "تطبيق Laravel: تطبيق ويب متكامل يطبّق معمارية MVC وعمليات ترحيل قاعدة البيانات والمصادقة."
+    },
+    {
+      "id": "project-004",
+      "category": "project",
+      "text_fr": "Gestion de Magasin : application Java pour l'inventaire des produits, la gestion des stocks et les opérations de vente.",
+      "text_en": "Store Management: a Java application for product inventory, stock management, and sales operations.",
+      "aliases": [
+        "store",
+        "magasin",
+        "inventory",
+        "stock",
+        "vente",
+        "sales",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/tpmagasin",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(4)"
+      },
+      "approved": false,
+      "text_ar": "إدارة متجر: تطبيق Java لجرد المنتجات وإدارة المخزون وعمليات البيع."
+    },
+    {
+      "id": "project-005",
+      "category": "project",
+      "text_fr": "Opportunity Hunter : serveur MCP sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior.",
+      "text_en": "Opportunity Hunter: an MCP server on Cloudflare Workers for searching public internships, final-year projects, apprenticeships, and junior roles.",
+      "aliases": [
+        "opportunity hunter",
+        "mcp",
+        "cloudflare",
+        "jobs",
+        "internships",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/opportunity-hunter",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(6)"
+      },
+      "approved": false,
+      "text_ar": "Opportunity Hunter: خادم MCP يعمل على Cloudflare Workers للبحث عن عروض التربص ومشاريع ختم الدراسة والتدريب بالتناوب ووظائف المبتدئين المنشورة للعموم."
+    },
+    {
+      "id": "language-001",
+      "category": "languages",
+      "text_fr": "Langues affichées : arabe (langue maternelle), français (intermédiaire), anglais (intermédiaire) et espagnol (débutant).",
+      "text_en": "Languages shown: Arabic (native), French (intermediate), English (intermediate), and Spanish (beginner).",
+      "aliases": [
+        "langues",
+        "languages",
+        "arabic",
+        "french",
+        "english",
+        "spanish",
+        "لغات",
+        "اللغات",
+        "شنو اللغات"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": ".language-list"
+      },
+      "approved": false,
+      "text_ar": "اللغات المذكورة: العربية (اللغة الأم)، الفرنسية (متوسط)، الإنجليزية (متوسط)، والإسبانية (مبتدئ)."
+    },
+    {
+      "id": "contact-001",
+      "category": "contact",
+      "text_fr": "Le portfolio propose un contact par e-mail, LinkedIn et GitHub.",
+      "text_en": "The portfolio provides contact through email, LinkedIn, and GitHub.",
+      "aliases": [
+        "contact",
+        "email",
+        "linkedin",
+        "github",
+        "تواصل",
+        "اتصل",
+        "كيف نتصل",
+        "بريد"
+      ],
+      "source": {
+        "file": "index.html",
+        "selector": "#contact"
+      },
+      "approved": false,
+      "text_ar": "يوفّر ملف الأعمال وسائل التواصل عبر البريد الإلكتروني وLinkedIn وGitHub."
+    },
+    {
+      "id": "project-006",
+      "category": "project",
+      "text_fr": "TP Programmation Orientée Objet : travaux pratiques en Java appliquant l'héritage, le polymorphisme et l'encapsulation.",
+      "text_en": "Object-Oriented Programming Labs: Java exercises applying inheritance, polymorphism, and encapsulation.",
+      "aliases": [
+        "java",
+        "poo",
+        "oop",
+        "héritage",
+        "polymorphisme",
+        "encapsulation",
+        "تمارين جافا",
+        "البرمجة كائنية التوجه",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/tp-poo",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(5)"
+      },
+      "approved": false,
+      "text_ar": "أعمال تطبيقية في البرمجة كائنية التوجّه: تمارين Java تطبّق مفاهيم الوراثة وتعدّد الأشكال والتغليف."
+    },
+    {
+      "id": "project-007",
+      "category": "project",
+      "text_fr": "Projet Symfony : application web construite avec Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.",
+      "text_en": "Symfony Project: a web application exploring routing, Twig controllers, and database management with Doctrine.",
+      "aliases": [
+        "symfony",
+        "php",
+        "twig",
+        "doctrine",
+        "مشروع symfony",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/projet-symfony",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(7)"
+      },
+      "approved": false,
+      "text_ar": "مشروع Symfony: تطبيق ويب يستكشف التوجيه ومتحكّمات Twig وإدارة قواعد البيانات باستخدام Doctrine."
+    },
+    {
+      "id": "project-008",
+      "category": "project",
+      "text_fr": "Première Application C# : projet d'initiation à C#, à l'environnement .NET et à la création d'interfaces.",
+      "text_en": "First C# Application: an introductory project exploring C#, the .NET environment, and interface creation.",
+      "aliases": [
+        "c#",
+        "c sharp",
+        "dotnet",
+        ".net",
+        "interfaces",
+        "مشروع سي شارب",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/firstApp",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(8)"
+      },
+      "approved": false,
+      "text_ar": "أول تطبيق C#: مشروع تمهيدي للتعرّف على C# وبيئة .NET وإنشاء الواجهات."
+    }
+  ]
+}
