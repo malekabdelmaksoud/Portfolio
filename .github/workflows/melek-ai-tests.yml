@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dataset streaming dependency
-        run: python -m pip install "datasets>=3.0.0" "Pillow>=10.0.0"
+        run: python -m pip install "datasets>=3.0.0"
       - name: Download bounded public multilingual corpus sample
         working-directory: melek-ai
         run: python download_data.py --out data/train.jsonl --max-per-language 600 --max-scan 200000
@@ -46,7 +46,7 @@ jobs:
       - name: Publish temporary training corpus artifact
         uses: actions/upload-artifact@v4
         with:
-          name: melek-gpt-public-corpus-sample-v4
+          name: melek-gpt-public-corpus-sample-v5
           path: melek-ai/data/train.jsonl
           if-no-files-found: error
           retention-days: 7
