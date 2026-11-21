@@ -63,7 +63,10 @@ In Cloudflare Dashboard → Workers & Pages → `melek-portfolio-api` → Settin
 - `EMAIL_FROM`: verified sender address
 - `OTP_PEPPER`, `SESSION_PEPPER`: independent random runtime secrets
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`: optional Turnstile configuration
-- `AI_MODEL`: optional model override
+- `MELEK_AI_MODEL_VERSION`: truthful model version string
+- `MELEK_AI_TRAINING_STATUS`: `untrained`, `training`, `trained`, or `failed`
+- `MELEK_AI_SERVICE_URL`: independent Melek inference service URL
+- `MELEK_AI_SERVICE_TOKEN`: optional bearer secret for the inference service
 
 The Worker validates admin JWTs against `ACCESS_AUD` and compares the signed email with `ADMIN_EMAIL`. Public visitor identity comes only from a D1-backed HttpOnly, Secure session cookie after native OTP verification.
 

@@ -15,11 +15,11 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 
 ## Assistant: evidence-only by design
 
-The visitor-facing chat uses the Worker API in `worker/`, the server-side D1 session, and Cloudflare Workers AI with approved-facts grounding. If no approved fact matches, it abstains instead of inventing an answer.
+The visitor-facing chat uses the Worker API in `worker/`, the server-side D1 session, and an independently controlled Melek AI inference service when one is configured. Approved-facts retrieval remains the factual grounding layer. If no checkpoint is connected, the UI reports development/unavailability and does not substitute a third-party model.
 
 The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved, so the assistant abstains until the owner reviews and approves reliable statements. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-This is a grounded portfolio assistant. The Workers AI provider is constrained to approved portfolio facts; the separate Transformer experiment in `melek-ai/` is not deployed.
+This is a grounded experimental portfolio assistant. The separate `melek-ai-model/` project is independent original code and is not trained or deployed until a real checkpoint is created locally.
 
 ## Admin and API deployment
 

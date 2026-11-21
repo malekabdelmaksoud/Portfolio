@@ -37,7 +37,7 @@ Base branch at audit: `main`
 3. Visitor account/history is currently coupled to Cloudflare Access, contrary to the final requirement to reserve Access for admin routes only.
 4. The email delivery provider abstraction and actual OTP delivery are not implemented/verified.
 5. Turnstile verification is not implemented in the inspected Worker.
-6. Workers AI is not configured or invoked. The current assistant is not a general LLM.
+6. The previous Workers AI implementation has been removed from the production path. It must not use GLM, Llama or any hosted third-party fallback.
 7. The account chat UI persists user/assistant messages through D1, but its AI request currently calls the public assistant endpoint with `credentials: "omit"`; this is consistent with the existing public evidence-only assistant, not a signed-in AI generation flow.
 8. The account UI history search filters server results by title and message content; the visible list renderer also filters titles locally.
 9. Voice support exists in the public portfolio codebase, but this audit has not yet established that account-workspace voice controls and the requested privacy disclosure are complete.
@@ -82,11 +82,19 @@ The implementation branch now contains:
 - Optional Turnstile verification and public Turnstile site-key configuration.
 - HttpOnly, Secure, `SameSite=None`, `Path=/` session cookies and server-derived user identity for every chat operation.
 - Additive migration `0005_native_auth.sql` preserving existing chats, messages, facts and projects.
-- Workers AI provider abstraction using `env.AI`, `@cf/zai-org/glm-4.7-flash` as the configured candidate, and a known fallback model when the candidate/model call fails.
+- Independent `MelekInferenceAdapter` interface for a separately trained checkpoint. It rejects unmarked or third-party inference responses.
 - Chat and Analyze mode instructions sent to the model, approved-facts grounding, no hidden-chain-of-thought output, and clear shared-quota errors.
 - Chat CRUD with owner predicates, pagination parameters and conversation/message timestamps.
 - Account workspace OTP UI, D1 history, Markdown/code rendering, copy controls, voice recognition disclosure, text-to-speech controls and stop-generation support.
 - System/light/dark theme behavior and manual theme switching.
 
 External verification limitations remain explicit: DNS access to official Cloudflare documentation was unavailable in this environment, so model catalog/pricing eligibility could not be verified remotely. No real email was sent and received. No remote D1 migration or production deployment was run.
+
+## Critical architecture correction — 2026-11-21
+
+The previous implementation's `env.AI` and third-party model fallback path has been removed from production code. The repository now separates the independent `melek-ai-model/` project and a private HTTP inference adapter.
+
+No checkpoint was trained in this execution. The architecture and parameter count are documented as configuration/design facts, not as trained-model performance. The Worker reports Melek AI unavailable when `MELEK_AI_SERVICE_URL` is absent and refuses to substitute GLM, Llama or another hosted model.
+
+The independent project uses original decoder-only Transformer code, UTF-8 byte tokens, JSONL dataset validation, random initialization, checkpoint metadata, generation and evaluation scripts. PyTorch training could not be executed in this environment because installing the runtime exceeded the available disk in the attempted test virtual environment.
 

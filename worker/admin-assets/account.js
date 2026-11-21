@@ -329,6 +329,15 @@
   }
 
   async function load() {
+    try {
+      const statusResponse = await fetch(base + "/api/melek-ai/status", { credentials: "omit", headers: { accept: "application/json" } });
+      if (statusResponse.ok) {
+        const status = await statusResponse.json();
+        $("model-version").textContent = "Model version: " + (status.model_id || "melek-ai-v1");
+        $("training-status").textContent = "Training status: " + (status.training_status || "untrained");
+        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "unavailable");
+      }
+    } catch (_) {}
     await loadTurnstile();
     try {
       const me = await api("/api/user/me");

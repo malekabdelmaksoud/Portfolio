@@ -20,17 +20,18 @@ function environment() {
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
-test("health endpoint checks D1 and reports the native auth and AI modes",async()=>{
+test("health endpoint checks D1 and reports the native auth and Melek AI modes",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/health"),environment());
  const data=await response.json();
- assert.equal(response.status,200);assert.equal(data.assistant,"workers-ai-grounded");
+ assert.equal(response.status,200);assert.equal(data.assistant,"melek-ai-experimental");
  assert.equal(data.auth,"native-email-otp");
 });
 
-test("assistant returns reviewed fact text verbatim",async()=>{
+test("assistant clearly reports that Melek AI is not connected",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),environment());
- const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/Listed programming languages/);assert.deepEqual(data.sources.map(x=>x.id),["skills-001"]);
+ const data=await response.json();assert.equal(response.status,503);
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ assert.match(data.error,/in development/i);
  assert.equal(response.headers.get("access-control-allow-origin"),"https://portfolio.test");
  assert.equal(response.headers.get("access-control-allow-credentials"),"true");
 });
@@ -38,15 +39,15 @@ test("assistant returns reviewed fact text verbatim",async()=>{
 
 test("assistant recognizes Tunisian Arabic project questions",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"شنو المشاريع متاع ملاك"}),environment());
- const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/مشروع Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
+ const data=await response.json();assert.equal(response.status,503);
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
 });
 
 
 test("assistant uses recent topic for a short Arabic follow-up",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
- const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/مشروع Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
+ const data=await response.json();assert.equal(response.status,503);
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
 });
 
 test("assistant never returns an unapproved fact",async()=>{
@@ -98,30 +99,38 @@ test("auth config does not expose Turnstile secret",async()=>{
  assert.doesNotMatch(JSON.stringify(data),/secret/i);
 });
 
-test("chat mode is sent distinctly from analyze mode",async()=>{
- const env={...environment(),AI:{async run(model,input){assert.equal(input.messages[0].role,"system");assert.match(input.messages[0].content,/Chat mode/);return {response:"Concise chat answer"};}}};
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"chat"}),env);
+test("Melek AI status reports development truthfully",async()=>{
+ const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
  const data=await response.json();
  assert.equal(response.status,200);
- assert.equal(data.answer,"Concise chat answer");
+ assert.equal(data.experimental,true);
+ assert.equal(data.trained_from_scratch,false);
+ assert.equal(data.inference_available,false);
+ assert.equal(data.third_party_fallback_disabled,true);
+});
+
+test("chat mode is preserved as a request field",async()=>{
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"chat"}),environment());
+ const data=await response.json();
+ assert.equal(response.status,503);
  assert.equal(data.mode,"chat");
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
 });
 
-test("analyze mode adds the analysis instruction",async()=>{
- const env={...environment(),AI:{async run(model,input){assert.match(input.messages[0].content,/Analyze mode/);return {response:"Structured analysis"};}}};
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"analyze"}),env);
+test("analyze mode is preserved as a request field",async()=>{
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"analyze"}),environment());
  const data=await response.json();
- assert.equal(response.status,200);
- assert.equal(data.answer,"Structured analysis");
+ assert.equal(response.status,503);
  assert.equal(data.mode,"analyze");
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
 });
 
-test("Workers AI quota exhaustion returns a retryable clear error",async()=>{
- const env={...environment(),AI:{async run(){throw new Error("429 quota exhausted");}}};
+test("unavailable independent inference has no third-party fallback",async()=>{
+ const env={...environment(),MELEK_AI_SERVICE_URL:""};
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),env);
  const data=await response.json();
  assert.equal(response.status,503);
- assert.equal(data.code,"SHARED_QUOTA_EXHAUSTED");
- assert.equal(data.retryable,true);
- assert.match(data.error,/conversation history is preserved/i);
+ assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ assert.equal(data.conversation_preserved,true);
+ assert.doesNotMatch(JSON.stringify(data),/@cf\/|GLM|Llama|OpenAI|Gemini/i);
 });

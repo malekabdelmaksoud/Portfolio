@@ -294,37 +294,59 @@ async function rankedFacts(env, question, context = "") {
   return { searchTerms, selected };
 }
 
-class AIProvider {
+class MelekInferenceAdapter {
   constructor(env) { this.env = env; }
 
-  async run(messages, maxTokens) {
-    if (!this.env.AI) throw new Error("Workers AI binding is not configured.");
-    const models = [
-      this.env.AI_MODEL || "@cf/zai-org/glm-4.7-flash",
-      "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
-    ].filter((model, index, list) => model && list.indexOf(model) === index);
-    let lastError;
-    for (const model of models) {
-      try {
-        const output = await this.env.AI.run(model, {
-          messages,
-          max_tokens: maxTokens,
-          temperature: 0.45
-        });
-        const answer = typeof output?.response === "string"
-          ? output.response
-          : typeof output?.result?.response === "string"
-            ? output.result.response
-            : null;
-        if (!answer) throw new Error("Workers AI returned no text.");
-        return { answer: answer.trim(), model };
-      } catch (error) {
-        lastError = error;
-        const text = String(error?.message || error);
-        if (/rate.?limit|429|quota|capacity|402|payment|billing/i.test(text)) throw error;
+  async status() {
+    const base = String(this.env.MELEK_AI_SERVICE_URL || "").replace(/\/$/, "");
+    const result = {
+      experimental: true,
+      model_id: this.env.MELEK_AI_MODEL_VERSION || "melek-ai-v1",
+      training_status: this.env.MELEK_AI_TRAINING_STATUS || "untrained",
+      trained_from_scratch: false,
+      inference_available: false,
+      third_party_fallback_disabled: true
+    };
+    if (!base || result.training_status !== "trained") return result;
+    try {
+      const headers = {};
+      if (this.env.MELEK_AI_SERVICE_TOKEN) headers.authorization = "Bearer " + this.env.MELEK_AI_SERVICE_TOKEN;
+      const response = await fetch(base + "/status", { headers, signal: AbortSignal.timeout(5000) });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.trained_from_scratch === true) {
+        result.trained_from_scratch = true;
+        result.inference_available = data.inference_available === true;
+        result.model_id = data.model_id || result.model_id;
+        result.parameter_count = Number.isInteger(data.parameter_count) ? data.parameter_count : null;
       }
+    } catch (_) {}
+    return result;
+  }
+
+  async run(prompt, mode, maxTokens) {
+    const base = String(this.env.MELEK_AI_SERVICE_URL || "").replace(/\/$/, "");
+    if (!base) throw Object.assign(new Error("Melek AI is in development and no independently trained checkpoint is connected."), { code: "MELEK_AI_NOT_CONNECTED" });
+    const allowed = /^https:\/\//i.test(base) || /^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/i.test(base);
+    if (!allowed) throw Object.assign(new Error("Melek AI service URL is invalid."), { code: "MELEK_AI_SERVICE_INVALID" });
+    const headers = { "content-type": "application/json", "accept": "application/json" };
+    if (this.env.MELEK_AI_SERVICE_TOKEN) headers.authorization = "Bearer " + this.env.MELEK_AI_SERVICE_TOKEN;
+    let response;
+    try {
+      response = await fetch(base + "/generate", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ prompt, mode, max_tokens: maxTokens }),
+        signal: AbortSignal.timeout(30000)
+      });
+    } catch (_) {
+      throw Object.assign(new Error("Melek AI is temporarily unavailable."), { code: "MELEK_AI_UNAVAILABLE" });
     }
-    throw lastError || new Error("Workers AI is unavailable.");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(data.error || "Melek AI inference failed."), { code: "MELEK_AI_UNAVAILABLE" });
+    if (data.trained_from_scratch !== true || typeof data.text !== "string") {
+      throw Object.assign(new Error("The inference service did not return a verified Melek AI checkpoint."), { code: "MELEK_AI_INVALID_CHECKPOINT" });
+    }
+    return { answer: data.text.trim(), model: data.model_id || this.env.MELEK_AI_MODEL_VERSION || "melek-ai-v1" };
   }
 }
 
@@ -357,11 +379,12 @@ async function assistant(request, env) {
     : `You are Melek AI in Chat mode. Use only the approved portfolio facts below. Respond naturally, conversationally and concisely. Do not invent personal information or claim expertise not supported by facts. Maximum 700 tokens.`;
 
   try {
-    const provider = new AIProvider(env);
-    const result = await provider.run([
-      { role: "system", content: system + "\n\nAPPROVED FACTS:\n" + factsText },
-      { role: "user", content: question }
-    ], mode === "analyze" ? 1400 : 700);
+    const adapter = new MelekInferenceAdapter(env);
+    const result = await adapter.run(
+      system + "\n\nAPPROVED FACTS:\n" + factsText + "\n\nQUESTION:\n" + question,
+      mode,
+      mode === "analyze" ? 1400 : 700
+    );
     return json({
       answer: result.answer,
       mode,
@@ -369,23 +392,13 @@ async function assistant(request, env) {
       sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
     });
   } catch (error) {
-    const text = String(error?.message || error);
-    if (/rate.?limit|429|quota|capacity|402|payment|billing/i.test(text)) {
-      return json({
-        error: "The shared AI quota is temporarily exhausted. Your conversation history is preserved. This service may recover automatically; no paid billing was enabled.",
-        code: "SHARED_QUOTA_EXHAUSTED",
-        mode,
-        retryable: true
-      }, 503);
-    }
-    const prefix = arabic ? "حسب المعلومات المنشورة والمعتمدة في Portfolio:" : english ? "According to the approved information published in the portfolio:" : "D'après les informations approuvées publiées dans le portfolio :";
-    const fallback = prefix + "\n" + selected.map(f => f[field]).join("\n");
     return json({
-      answer: fallback,
+      error: error.message || "Melek AI is temporarily unavailable.",
+      code: error.code || "MELEK_AI_UNAVAILABLE",
       mode,
-      fallback: "approved-facts",
-      sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
-    });
+      retryable: true,
+      conversation_preserved: true
+    }, 503);
   }
 }
 
@@ -532,8 +545,9 @@ export default {
     try {
       if (path === "/api/health" && method === "GET") {
         await env.DB.prepare("SELECT 1").first();
-        return withCors(json({ ok: true, service: "portfolio-api", assistant: "workers-ai-grounded", auth: "native-email-otp", admin: "cloudflare-access" }), cors);
+        return withCors(json({ ok: true, service: "portfolio-api", assistant: "melek-ai-experimental", auth: "native-email-otp", admin: "cloudflare-access" }), cors);
       }
+      if (path === "/api/melek-ai/status" && method === "GET") return withCors(json(await new MelekInferenceAdapter(env).status()), cors);
       if (path.startsWith("/api/auth/")) {
         const result = await authRoutes(request, env, path, method);
         if (result) return withCors(result, cors);
