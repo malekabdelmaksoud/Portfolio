@@ -67,6 +67,7 @@ def main():
     seen = set()
     counts = {"en": 0, "fr": 0, "ar": 0, "aeb": 0}
     sources = []
+    common_counts = {"en": 0, "fr": 0, "ar": 0}
 
     def append(text, source, license_name, language, min_length=180):
         text = clean_text(text, min_length=min_length)
@@ -93,8 +94,8 @@ def main():
                     if scanned > args.max_scan:
                         break
                     lang = LANGUAGE_ALIASES.get(str(row.get("language", "")).strip().lower())
-                    if lang not in {"en", "fr", "ar"} or counts[lang] >= args.max_per_language:
-                        if all(counts[key] >= args.max_per_language for key in ("en", "fr", "ar")):
+                    if lang not in {"en", "fr", "ar"} or common_counts[lang] >= min(args.max_per_language, 600):
+                        if all(common_counts[key] >= min(args.max_per_language, 600) for key in ("en", "fr", "ar")):
                             break
                         continue
                     license_name = normalize_license(row.get("license"))
@@ -109,11 +110,86 @@ def main():
                         f" | collection={str(row.get('collection', 'unknown'))[:120]}"
                         f" | creator={str(row.get('creator', 'unknown'))[:160]}"
                     )
-                    append(row.get("text"), source, license_name, lang)
+                    if append(row.get("text"), source, license_name, lang):
+                        common_counts[lang] += 1
                 print(f"Common Corpus scanned={min(scanned, args.max_scan)}; counts={counts}")
                 sources.append("PleIAs/common_corpus")
             except Exception as exc:
                 print(f"WARNING: Common Corpus download stopped: {exc}", file=sys.stderr)
+
+
+        print("Loading OpenAssistant human-reviewed conversation pairs (Apache-2.0)...")
+        try:
+            stream = load_dataset("OpenAssistant/oasst1", split="train", streaming=True)
+            prompt_messages = {}
+
+            def labels_as_map(value):
+                if isinstance(value, dict) and isinstance(value.get("name"), list):
+                    return dict(zip(value.get("name", []), value.get("value", [])))
+                if isinstance(value, list):
+                    return {
+                        item.get("name"): item.get("value")
+                        for item in value
+                        if isinstance(item, dict) and item.get("name")
+                    }
+                return {}
+
+            def accepted_oasst_message(row):
+                if row.get("review_result") is not True or row.get("deleted") is True:
+                    return False
+                if row.get("synthetic") is True or row.get("rank") not in (None, 0):
+                    return False
+                labels = labels_as_map(row.get("labels"))
+                for key in ("spam", "lang_mismatch", "pii", "not_appropriate", "hate_speech", "sexual_content"):
+                    if float(labels.get(key, 0) or 0) > 0:
+                        return False
+                detox = row.get("detoxify") or {}
+                thresholds = {
+                    "toxicity": 0.20,
+                    "severe_toxicity": 0.05,
+                    "obscene": 0.05,
+                    "identity_attack": 0.05,
+                    "insult": 0.10,
+                    "threat": 0.05,
+                    "sexual_explicit": 0.05,
+                }
+                for key, limit in thresholds.items():
+                    if float(detox.get(key, 0) or 0) > limit:
+                        return False
+                return True
+
+            pairs_added = 0
+            for row in stream:
+                language = row.get("lang")
+                if language not in {"en", "fr", "ar"} or counts[language] >= args.max_per_language:
+                    continue
+                if not accepted_oasst_message(row):
+                    continue
+                message_id = row.get("message_id")
+                if row.get("role") == "prompter":
+                    if message_id and isinstance(row.get("text"), str):
+                        prompt_messages[message_id] = row
+                    continue
+                if row.get("role") != "assistant":
+                    continue
+                parent = prompt_messages.get(row.get("parent_id"))
+                if not parent or parent.get("lang") != language:
+                    continue
+                prompt_text = parent.get("text", "")
+                answer_text = row.get("text", "")
+                conversation = f"User: {prompt_text}\nAssistant: {answer_text}"
+                source = (
+                    "OpenAssistant/oasst1"
+                    f" | message_id={str(message_id)[:80]}"
+                    f" | parent_id={str(row.get('parent_id'))[:80]}"
+                    f" | language={language}"
+                )
+                if append(conversation, source, "apache-2.0", language, min_length=120):
+                    pairs_added += 1
+            print(f"OpenAssistant conversation pairs added={pairs_added}; counts={counts}")
+            sources.append("OpenAssistant/oasst1")
+        except Exception as exc:
+            print(f"WARNING: OpenAssistant conversation corpus unavailable: {exc}", file=sys.stderr)
 
         if not args.skip_arabic_legal:
             print("Loading University of Dubai Arabic legal text (CC-BY-4.0)...")
