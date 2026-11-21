@@ -21,7 +21,7 @@ jobs:
           python-version: "3.11"
       - name: Test evidence and knowledge validation
         working-directory: melek-ai
-        run: python -m unittest -v test_evidence.py test_knowledge.py test_dataset.py test_download_data.py
+        run: python -m unittest -v test_evidence.py test_knowledge.py test_dataset.py test_download_data.py test_tokenizer.py
       - name: Validate draft knowledge base
         working-directory: melek-ai
         run: python knowledge.py
@@ -47,10 +47,10 @@ jobs:
       - name: Publish temporary training corpus artifact
         uses: actions/upload-artifact@v4
         with:
-          name: melek-gpt-public-corpus-sample-v7
+          name: melek-gpt-public-corpus-sample-v8
           path: melek-ai/data/train.jsonl
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
 
   train-experimental-checkpoint:
@@ -71,7 +71,7 @@ jobs:
           path: melek-ai/data
       - name: Train original MelekGPT from random initialization
         run: |
-          python melek-ai/train.py --data melek-ai/data/train.jsonl --out melek-ai/checkpoints/melek-ai.pt --steps 2000 --batch-size 8 --context 128 --width 96 --heads 4 --layers 2
+          python melek-ai/train.py --data melek-ai/data/train.jsonl --out melek-ai/checkpoints/melek-ai.pt --steps 5000 --batch-size 8 --context 256 --width 128 --heads 4 --layers 3
       - name: Evaluate held-out text and print sample generations
         run: |
           python melek-ai/evaluate.py --data melek-ai/data/train.jsonl --checkpoint melek-ai/checkpoints/melek-ai.pt
@@ -81,7 +81,7 @@ jobs:
       - name: Publish experimental from-scratch checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: melek-gpt-experimental-checkpoint-v2
+          name: melek-gpt-char-experimental-checkpoint-v3
           path: melek-ai/checkpoints/melek-ai.pt
           if-no-files-found: error
           retention-days: 7
