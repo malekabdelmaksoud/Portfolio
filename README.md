@@ -71,3 +71,8 @@ Open `index.html` directly for the static portfolio. The API-backed chat and pro
 ### Deployment safety
 
 The API deployment workflow is manual-only. It requires an explicit confirmation that the Cloudflare account is on Workers Free; merging a pull request or pushing to `main` cannot deploy or run remote D1 migrations automatically. Never confirm or deploy if the account has been upgraded to Workers Paid.
+
+
+### MelekGPT local hosting without a paid server
+
+The original from-scratch MelekGPT can run on your own computer. Its optional public connection uses a temporary Cloudflare Quick Tunnel (no custom domain or Cloudflare account required); the laptop and tunnel must stay running, and the temporary URL changes after restart. It is not an always-on production host. See [melek-ai/README.md](melek-ai/README.md) for setup. The hosted model list is limited to the two Workers Free-compatible models and the free daily Neurons quota.
