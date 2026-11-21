@@ -5,7 +5,6 @@ from pathlib import Path
 
 LICENSE_ALIASES = {
     "owned": "owned",
-    "permitted": "permitted",
     "public domain": "public-domain",
     "public-domain": "public-domain",
     "us federal public domain": "public-domain",
