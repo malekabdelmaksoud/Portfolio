@@ -2,7 +2,7 @@
 
 This directory contains a **review queue**, not a public runtime data source. Draft facts were extracted from the current public portfolio HTML. All records have `approved: false`; they must not be exposed to visitors until the owner verifies and approves each exact statement.
 
-- `knowledge_base.json`: bilingual French/English facts, search aliases, source file and CSS selector, optional public project URL, approval flag.
+- `knowledge_base.json`: trilingual Arabic/French/English facts, search aliases, source file and CSS selector, optional public project URL, approval flag.
 - `knowledge_schema.json`: JSON Schema contract.
 - `knowledge.py`: dependency-free validator.
 - `test_knowledge.py`: tests for duplicate IDs, provenance, approval type, HTTPS URLs, and unknown fields.
