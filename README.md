@@ -26,7 +26,7 @@ The hosted model catalogue includes GLM-4.7 Flash (recommended free-quota defaul
 
 The AI now has a safe retrieval-based learning pipeline: it refreshes public AI/security sources daily (Cloudflare Blog, OWASP GenAI Security, Hugging Face Blog and arXiv AI/ML), and can perform live web searches for general questions through Cloudflare Web Search. Source links are displayed beneath answers, and the admin dashboard includes a source monitor and manual refresh control.
 
-This updates the assistant's searchable knowledge, not its neural weights. Web content is treated as untrusted data, and portfolio facts remain isolated behind explicit admin approval. Live search uses Cloudflare's Ceramic provider at the documented rate of $0.25 per 1,000 searches and requires AI Gateway credits/provider configuration. See [worker/README.md](worker/README.md) for setup, cost controls, and the D1 migration required to activate it.
+This updates the assistant's searchable knowledge, not its neural weights. Web content is treated as untrusted data, and portfolio facts remain isolated behind explicit admin approval. Live search uses Cloudflare's Ceramic provider at the documented rate of $0.25 per 1,000 searches, is capped at 10 searches per user per hour and 5,000 site-wide per month (about $1.25), and requires AI Gateway credits/provider configuration. See [worker/README.md](worker/README.md) for setup, cost controls, and the D1 migration required to activate it.
 
 ## Admin and API deployment
 
