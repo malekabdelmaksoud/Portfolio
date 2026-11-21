@@ -21,3 +21,11 @@ CREATE TABLE IF NOT EXISTS web_learning_runs (
   finished_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_web_learning_runs_finished ON web_learning_runs(finished_at DESC);
+
+-- Bound live-search spend per authenticated visitor.
+CREATE TABLE IF NOT EXISTS web_search_usage (
+  id TEXT PRIMARY KEY,
+  user_email TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_web_search_usage_user_time ON web_search_usage(user_email,created_at);
