@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dataset streaming dependency
-        run: python -m pip install "datasets>=3.0.0"
+        run: python -m pip install "datasets==3.6.0" "pyarrow==19.0.1"
       - name: Download bounded public multilingual corpus sample
         working-directory: melek-ai
         run: python download_data.py --out data/train.jsonl --max-per-language 1500 --max-scan 200000
