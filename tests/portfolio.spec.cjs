@@ -13,6 +13,22 @@ let baseURL;
 before(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (pathname === '/api/projects' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ projects: [] }));
+      return;
+    }
+    if (pathname === '/api/assistant' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        const question = String(JSON.parse(body || '{}').question || '');
+        const answer = /projet|project|مشروع|المشاريع/i.test(question)
+          ? 'Projets publiés : elearning-platform, projet-php et Opportunity Hunter.'
+          : 'Réponse issue des faits approuvés du portfolio.';
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ answer, sources: [] }));
+      });
+      return;
+    }
     const target = pathname === '/' ? path.join(root, 'index.html') : path.resolve(root, '.' + pathname);
     if (!target.startsWith(root + path.sep)) { res.writeHead(403).end('Forbidden'); return; }
     if (!fs.existsSync(target) || fs.statSync(target).isDirectory()) { res.writeHead(404).end('Not found'); return; }
@@ -152,5 +168,15 @@ test('portfolio assistant escapes untrusted text and exposes no remote model end
     const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
     assert.ok(scripts.some(src => src.includes('ai-engine.js')));
     assert.ok(!scripts.some(src => /openai|anthropic|ollama|api\.|huggingface/i.test(src)));
+  } finally { await page.close(); }
+});
+
+test('admin dashboard has no browser password login', async () => {
+  const page = await openPage();
+  try {
+    await page.goto(baseURL + '/admin.html', { waitUntil: 'domcontentloaded' });
+    assert.match(await page.locator('h1').innerText(), /Content studio/);
+    assert.equal(await page.locator('input[type="password"]').count(), 0);
+    assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
   } finally { await page.close(); }
 });
