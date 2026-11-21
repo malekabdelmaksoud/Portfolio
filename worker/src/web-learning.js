@@ -87,4 +87,32 @@ export async function refreshWebKnowledge(env, fetcher = fetch) {
     .bind(crypto.randomUUID(), items.length, saved, JSON.stringify(failed)).run();
   return { fetched: items.length, saved, failed };
 }
+export async function liveWebSearch(env, query) {
+  if (env.WEB_SEARCH_ENABLED !== "true" || typeof env.AI?.websearch !== "function") return [];
+  const q = String(query || "").replace(/\\s+/g, " ").trim().slice(0, 1000);
+  if (q.length < 8) return [];
+  try {
+    const response = await env.AI.websearch({
+      gatewayId: env.WEB_SEARCH_GATEWAY || "default",
+      query: q,
+      provider: "ceramic",
+      limit: 4
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (Array.isArray(data.items) ? data.items : []).slice(0, 4).flatMap(item => {
+      try {
+        const url = new URL(String(item.url || ""));
+        if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return [];
+        const title = plainText(item.title || url.hostname, 240);
+        const summary = plainText(item.description || "", 1400);
+        if (!title || !summary) return [];
+        return [{ title, url: url.toString(), source_name: url.hostname, source_host: url.hostname, summary, published_at: null, live: true }];
+      } catch { return []; }
+    });
+  } catch {
+    // Live search is best-effort; the scheduled RSS knowledge base remains available.
+    return [];
+  }
+}
 export { FEEDS, parseFeed, plainText };
