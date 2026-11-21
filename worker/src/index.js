@@ -150,7 +150,11 @@ async function userChatRoute(request,env,path,method,identity) {
   const chatMatch=path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
   if(path==="/api/user/me" && method==="GET") return json({authenticated:true,user:identity});
   if(path==="/api/user/chats" && method==="GET") {
-    const {results=[]}=await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE user_email=? ORDER BY updated_at DESC LIMIT 100").bind(identity.email).all();
+    const query=(new URL(request.url).searchParams.get("q")||"").trim().slice(0,120);
+    const pattern="%"+query+"%";
+    const {results=[]}=query
+      ? await env.DB.prepare("SELECT DISTINCT c.id,c.title,c.created_at,c.updated_at FROM chats c LEFT JOIN chat_messages m ON m.chat_id=c.id AND m.user_email=c.user_email WHERE c.user_email=? AND (c.title LIKE ? OR m.content LIKE ?) ORDER BY c.updated_at DESC LIMIT 100").bind(identity.email,pattern,pattern).all()
+      : await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE user_email=? ORDER BY updated_at DESC LIMIT 100").bind(identity.email).all();
     return json({chats:results});
   }
   if(path==="/api/user/chats" && method==="POST") {
