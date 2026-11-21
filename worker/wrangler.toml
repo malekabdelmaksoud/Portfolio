@@ -13,3 +13,8 @@ migrations_dir = "migrations"
 [vars]
 ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com"
 # Set ACCESS_ISSUER, ACCESS_AUD, and ALLOWED_ORIGIN as secrets/vars after configuring Cloudflare Access.
+
+[assets]
+directory = "./admin-assets"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
