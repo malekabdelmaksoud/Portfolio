@@ -334,6 +334,48 @@
     } catch (error) { toast(error.message); }
   }
 
+  async function loadGoogleSignIn() {
+    try {
+      const config = await api("/api/auth/config");
+      if (!config.googleClientId) {
+        $("google-signin").hidden = true;
+        $("email-divider").hidden = false;
+        return;
+      }
+      await new Promise((resolve, reject) => {
+        if (window.google?.accounts?.id) return resolve();
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Google sign-in could not load."));
+        document.head.append(script);
+      });
+      window.google.accounts.id.initialize({
+        client_id: config.googleClientId,
+        callback: async response => {
+          $("auth-error").textContent = "";
+          try {
+            await api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: response.credential }) });
+            await load();
+          } catch (error) { $("auth-error").textContent = error.message; }
+        }
+      });
+      window.google.accounts.id.renderButton($("google-signin"), {
+        theme: "outline",
+        size: "large",
+        shape: "pill",
+        text: "continue_with",
+        width: 320
+      });
+      $("email-divider").hidden = false;
+    } catch (error) {
+      $("google-signin").hidden = true;
+      $("auth-error").textContent = error.message;
+    }
+  }
+
   async function load() {
     try {
       const statusResponse = await fetch(base + "/api/melek-ai/status", { credentials: "omit", headers: { accept: "application/json" } });
@@ -345,6 +387,7 @@
       }
     } catch (_) {}
     await loadTurnstile();
+    await loadGoogleSignIn();
     try {
       const me = await api("/api/user/me");
       showApp();

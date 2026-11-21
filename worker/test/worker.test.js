@@ -177,6 +177,13 @@ test("auth config does not expose Turnstile secret",async()=>{
  assert.doesNotMatch(JSON.stringify(data),/secret/i);
 });
 
+test("API origin is allowed and Google sign-in fails closed when unconfigured",async()=>{
+ const response=await worker.fetch(new Request("https://api.test/api/auth/google",{method:"POST",headers:{"content-type":"application/json","Origin":"https://api.test"},body:'{"credential":"test"}'}),environment());
+ const data=await response.json();
+ assert.equal(response.status,503);
+ assert.equal(data.code,"GOOGLE_NOT_CONFIGURED");
+});
+
 test("Melek AI status reports development truthfully",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
  const data=await response.json();

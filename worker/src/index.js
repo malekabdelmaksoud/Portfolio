@@ -33,14 +33,16 @@ function safeId(value) {
 
 function allowedOrigin(request, env) {
   const origin = request.headers.get("Origin");
-  const allowed = (env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/, "");
-  return !origin || origin === allowed;
+  if (!origin) return true;
+  const requestOrigin = new URL(request.url).origin;
+  const configured = String(env.ALLOWED_ORIGIN || requestOrigin).split(",").map(value => value.trim().replace(/\/$/, "")).filter(Boolean);
+  return configured.includes(origin) || origin === requestOrigin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
-  const allowed = (env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/, "");
-  return origin === allowed ? {
+  const allowed = allowedOrigin(request, env);
+  return allowed && origin ? {
     "access-control-allow-origin": origin,
     "vary": "Origin",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
@@ -512,7 +514,7 @@ async function getSession(request, env) {
 
 async function authRoutes(request, env, path, method) {
   if (path === "/api/auth/config" && method === "GET") {
-    return json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY || null });
+    return json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY || null, googleClientId: env.GOOGLE_CLIENT_ID || null });
   }
   if (path === "/api/auth/request" && method === "POST") {
     const body = await readBody(request, 4000);
@@ -566,6 +568,35 @@ async function authRoutes(request, env, path, method) {
     await env.DB.prepare("INSERT INTO users(id,email,last_login_at) VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET last_login_at=CURRENT_TIMESTAMP").bind(crypto.randomUUID(), email).run();
     const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE email=?").bind(email).first();
     if (!user) throw new Error("Could not create the user session.");
+    const token = await randomToken(32);
+    const tokenHash = await sha256Hex(token + ":" + (env.SESSION_PEPPER || ""));
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, tokenHash, expires).run();
+    return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(token, env) });
+  }
+  if (path === "/api/auth/google" && method === "POST") {
+    if (!env.GOOGLE_CLIENT_ID) return json({ error: "Google sign-in is not configured.", code: "GOOGLE_NOT_CONFIGURED" }, 503);
+    const body = await readBody(request, 4000);
+    const credential = String(body.credential || "").trim();
+    if (!credential) return json({ error: "Google credential is required.", code: "INVALID_GOOGLE_CREDENTIAL" }, 400);
+    let verification;
+    try {
+      verification = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential), { signal: AbortSignal.timeout(8000) });
+    } catch (_) {
+      return json({ error: "Google sign-in is temporarily unavailable.", code: "GOOGLE_UNAVAILABLE" }, 502);
+    }
+    const google = await verification.json().catch(() => ({}));
+    if (!verification.ok || google.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com", "https://accounts.google.com"].includes(google.iss) || !(google.email_verified === "true" || google.email_verified === true)) {
+      return json({ error: "The Google identity could not be verified.", code: "INVALID_GOOGLE_CREDENTIAL" }, 401);
+    }
+    const email = String(google.email || "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: "Google returned an invalid email address.", code: "INVALID_GOOGLE_EMAIL" }, 400);
+    const name = String(google.name || email).trim().slice(0, 120);
+    await env.DB.prepare(
+      "INSERT INTO users(id,email,display_name,last_login_at) VALUES(?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,last_login_at=CURRENT_TIMESTAMP"
+    ).bind(crypto.randomUUID(), email, name).run();
+    const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE email=?").bind(email).first();
+    if (!user) throw new Error("Could not create the Google user session.");
     const token = await randomToken(32);
     const tokenHash = await sha256Hex(token + ":" + (env.SESSION_PEPPER || ""));
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

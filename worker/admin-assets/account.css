@@ -13,6 +13,9 @@
 .auth-primary{border:0;background:#dce8ff;color:#10151e;font-weight:700}
 .auth-secondary{border:1px solid #303844;background:transparent;color:#aab3c2}
 .auth-error{min-height:20px;color:#e9a9a9;font-size:12px;margin:14px 0 0;text-align:left}
+.google-signin{display:flex;justify-content:center;margin:14px 0 4px}
+.email-divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:#7f8896;font-size:11px}
+.email-divider::before,.email-divider::after{content:"";height:1px;background:#303844;flex:1}
 #turnstile-wrap{min-height:1px;margin-top:12px}
 .composer-controls{display:flex;align-items:center;gap:7px}
 .mode-btn[aria-pressed="true"]{background:#263246;border-color:#3d5275;color:#d3e2ff}

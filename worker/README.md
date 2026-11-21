@@ -67,6 +67,7 @@ In Cloudflare Dashboard → Workers & Pages → `melek-portfolio-api` → Settin
 - `MELEK_AI_TRAINING_STATUS`: `untrained`, `training`, `trained`, or `failed`
 - `MELEK_AI_SERVICE_URL`: independent Melek inference service URL
 - `MELEK_AI_SERVICE_TOKEN`: optional bearer secret for the inference service
+- `GOOGLE_CLIENT_ID`: Google OAuth Web application client ID for the Sign in with Google button
 
 The Worker validates admin JWTs against `ACCESS_AUD` and compares the signed email with `ADMIN_EMAIL`. Public visitor identity comes only from a D1-backed HttpOnly, Secure session cookie after native OTP verification.
 
