@@ -28,6 +28,13 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(count, 8)
         self.assertEqual(visible, 8)
 
+
+    def test_seeded_projects_have_real_technology_labels(self):
+        labels = dict(self.db.execute("SELECT id, type FROM projects").fetchall())
+        self.assertEqual(labels["project-001"], "JAVA · E-LEARNING")
+        self.assertEqual(labels["project-005"], "TYPESCRIPT · MCP · CLOUDFLARE")
+        self.assertEqual(labels["project-008"], "C# · .NET")
+
     def test_new_project_default_is_hidden(self):
         self.db.execute(
             "INSERT INTO projects(id,title,type,description_fr,description_en,url) VALUES(?,?,?,?,?,?)",
