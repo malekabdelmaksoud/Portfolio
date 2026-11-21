@@ -26,7 +26,7 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
 - There is no client-side admin password, role, or localStorage admin session.
-- Visitor assistant reads only D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or invent factual claims.
+- Visitor assistant requires a verified Cloudflare Access identity and uses Workers AI for general conversation. When a question concerns Melek or her portfolio, only approved D1 facts are supplied as evidence; unapproved drafts are never retrieved.
 - Imported facts start unapproved. The eight existing project cards remain published; newly created projects start hidden.
 - Admin API writes validate inputs and accept HTTPS links only.
 
@@ -66,7 +66,7 @@ The Worker validates admin JWTs against `ACCESS_AUD` and additionally compares t
 
 Never commit the email identity or Access secrets to this public repository.
 
-## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
+## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is the authenticated chat workspace. Its assistant and model catalogue require the visitor's verified Cloudflare Access identity. Conversations and messages are persisted per email identity.\n\n## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
@@ -77,7 +77,7 @@ The dashboard never asks for a password; Cloudflare Access supplies the identity
 
 ## Assistant integration
 
-The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. The 23 seeded facts remain unapproved until reviewed in the dashboard; the assistant intentionally abstains until there is approved evidence.
+The authenticated account workspace loads `/api/models` and posts questions to `/api/assistant`. Workers AI handles general chat; portfolio questions receive only approved D1 facts as grounding. The 23 seeded facts remain unapproved until reviewed in the dashboard.
 
 The portfolio's `api-config.js` already points to the deployed API origin. `ALLOWED_ORIGIN` is configured for the production portfolio.
 
@@ -93,6 +93,6 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 
 ## Important limitations
 
-- This API is a source-bound portfolio assistant and admin CRUD backend, not a general ChatGPT-class model.
+- Workers AI is usage-priced. The default Gemma model is listed at $0.10 per million input tokens and $0.30 per million output tokens; Qwen 3.8 is $0.45/$3.20 per million. Review current Cloudflare pricing and account limits before public launch. The model catalogue can be changed with the server-side `AI_MODELS_JSON` variable; never expose provider credentials to the browser.
 - The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
 - Server-side owner-scoped chat-history APIs and D1 tables exist, but the public chat composer is not yet connected to signed-in account persistence.
