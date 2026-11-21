@@ -69,7 +69,8 @@ Never commit the email identity or Access secrets to this public repository.
 ## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is the authenticated chat workspace. Its assistant and model catalogue require the visitor's verified Cloudflare Access identity. Conversations and messages are persisted per email identity.\n\n## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
-- Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
+- Create/edit/delete facts, source references, aliases, and Arabic/French/English text, including future education, skills, experience, projects, certificates, and achievements.
+- New knowledge facts are saved as unapproved by default; the owner must review and explicitly approve them before the assistant can use them.
 - Approve or revoke each fact.
 - Create/edit/delete projects, control visibility, and set order.
 
