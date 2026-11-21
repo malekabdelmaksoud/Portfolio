@@ -1,4 +1,4 @@
-import { liveWebSearch, refreshWebKnowledge } from "./web-learning.js";
+import { refreshWebKnowledge } from "./web-learning.js";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 function abstentionFor(question) {
   if (/[\u0600-\u06ff]/.test(question)) return "المعلومة هاذي موش موجودة في المعلومات المنشورة والمعتمدة في Portfolio. تنجم تتصل بملاك للتأكد.";
@@ -9,27 +9,15 @@ const STOP = new Set("a an the and or is are was were what who where when why ho
 let jwksCache;
 const enc = new TextEncoder();
 
-const DEFAULT_AI_MODELS = [
-  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash · Free daily quota", description: "Fast multilingual chat. Included in Cloudflare's daily free Neurons allocation." },
-  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 · Free quota", description: "General conversation and everyday questions; subject to account quota." },
-  { id: "@cf/qwen/qwen3.8-27b", label: "Qwen 3.8 · Metered", description: "Advanced reasoning and vision; usage can consume the shared quota or incur charges." }
-];
+// Strict free-plan allowlist. Never add metered models or permit environment overrides.
+const DEFAULT_AI_MODELS = Object.freeze([
+  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash · Free plan", description: "Available within Cloudflare Workers AI's 10,000-Neuron daily free allocation." },
+  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 · Free plan", description: "Available within the same shared daily free allocation." }
+]);
 function getAiModels(env) {
-  let models = DEFAULT_AI_MODELS;
-  try {
-    if (env.AI_MODELS_JSON) {
-      const configured = JSON.parse(env.AI_MODELS_JSON);
-      if (Array.isArray(configured) && configured.length) {
-        const valid = configured.filter(x => x && typeof x.id === "string" && /^@cf\/[a-z0-9._/-]+$/i.test(x.id)
-          && typeof x.label === "string" && x.label.trim()).slice(0, 8)
-          .map(x => ({ id: x.id, label: x.label.slice(0, 60), description: String(x.description || "").slice(0, 120), available: true }));
-        if (valid.length) models = valid;
-      }
-    }
-  } catch {}
   return [
     { id: "melek-gpt-local", label: env.MELEK_AI_URL && env.MELEK_AI_TOKEN ? "MelekGPT · Your custom model" : "MelekGPT · Custom model (not connected)", description: "Your original Transformer trained from scratch. Experimental; requires its private inference service.", available: Boolean(env.MELEK_AI_URL && env.MELEK_AI_TOKEN) },
-    ...models
+    ...DEFAULT_AI_MODELS.map(model => ({ ...model, available: true }))
   ];
 }
 function isPortfolioQuestion(question) {
@@ -172,27 +160,14 @@ async function assistant(request, env, identity) {
   const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
   let webSources=[];
   if(!portfolioIntent) {
-    let liveResults=[];
-    if(env.WEB_SEARCH_ENABLED==="true"&&identity?.email){
-      const [usage,monthlyUsage]=await Promise.all([
-        env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE user_email=? AND created_at>=datetime('now','-1 hour')").bind(identity.email).first(),
-        env.DB.prepare("SELECT COUNT(*) AS total FROM web_search_usage WHERE created_at>=datetime('now','start of month')").first()
-      ]);
-      if((usage?.total||0)<10&&(monthlyUsage?.total||0)<5000){
-        await env.DB.prepare("INSERT INTO web_search_usage(id,user_email) VALUES(?,?)").bind(crypto.randomUUID(),identity.email).run();
-        liveResults=await liveWebSearch(env,question);
-      }
-    }
+    // Free automatic learning only: retrieve from the daily RSS index, never paid live-search providers.
     const {results:webRows=[]}=await env.DB.prepare("SELECT title,url,source_name,source_host,summary,published_at,fetched_at FROM web_knowledge WHERE status='active' ORDER BY COALESCE(published_at,fetched_at) DESC LIMIT 120").all();
     const rankedWeb=webRows.map(item=>{
       const hay=terms(item.title+" "+item.summary+" "+item.source_name);
       const matched=[...queryTerms].filter(t=>hay.has(t));
       return {item,matched:matched.length,score:matched.length/Math.max(1,queryTerms.size)};
     }).filter(x=>x.matched>0).sort((a,b)=>b.score-a.score||b.matched-a.matched);
-    const seen=new Set();
-    webSources=[...liveResults,...rankedWeb.slice(0,3).map(x=>x.item)].filter(item=>{
-      if(seen.has(item.url))return false;seen.add(item.url);return true;
-    }).slice(0,5);
+    webSources=rankedWeb.slice(0,3).map(x=>x.item);
   }
   const evidence=selected.map((f,i)=>[
     (i+1)+". ["+f.category+"]","Arabic: "+(f.text_ar||""),"French: "+(f.text_fr||""),"English: "+(f.text_en||""),
@@ -306,7 +281,7 @@ async function adminRoute(request, env, path, method) {
       env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 10").all(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first()
     ]);
-    return json({total:count?.total||0,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",searchLimitPerUserPerHour:10,items:items.results||[],runs:runs.results||[]});
+    return json({total:count?.total||0,searchMode:"daily-rss-only",items:items.results||[],runs:runs.results||[]});
   }
   if(path==="/api/admin/learning/refresh" && method==="POST") {
     const result=await refreshWebKnowledge(env);
@@ -384,7 +359,7 @@ export default {
           env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first(),
           env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 1").first()
         ]);
-        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",searchLimitPerUserPerHour:10,searchLimitPerMonth:5000,sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
+        return withCors(json({enabled:true,searchMode:"daily-rss-only",sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
       }
       if(path==="/api/assistant" && method==="POST") {
         const identity=await verifyAccessIdentity(request,env);
