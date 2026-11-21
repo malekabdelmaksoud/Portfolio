@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
 import { webcrypto, createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 function environment() {
   const facts=[
@@ -182,6 +184,16 @@ test("API origin is allowed and Google sign-in fails closed when unconfigured",a
  const data=await response.json();
  assert.equal(response.status,503);
  assert.equal(data.code,"GOOGLE_NOT_CONFIGURED");
+});
+
+test("separate login and registration pages support password manager fields",async()=>{
+ const login=readFileSync(resolve(process.cwd(),"..","login.html"),"utf8");
+ const register=readFileSync(resolve(process.cwd(),"..","register.html"),"utf8");
+ assert.match(login,/autocomplete="username"/);
+ assert.match(login,/autocomplete="current-password"/);
+ assert.match(login,/forgot-password/);
+ assert.match(register,/autocomplete="new-password"/);
+ assert.match(register,/login\.html/);
 });
 
 test("email password registration and login create a private session",async()=>{

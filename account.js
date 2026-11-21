@@ -305,8 +305,8 @@
   }
 
   function showAuth() {
-    $("auth-screen").hidden = false;
-    $("app-shell").hidden = true;
+    const next = encodeURIComponent(location.pathname + location.search);
+    location.replace("login.html?next=" + next);
   }
 
   function showApp() {

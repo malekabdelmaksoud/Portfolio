@@ -319,7 +319,7 @@ async function runAudit() {
     const aiOpenLink = await page.$('#aiWorkspaceNewTab');
     const aiLauncherOk = Boolean(aiEntry && aiOverlay && aiFrame && aiOpenLink &&
       (await aiEntry.getAttribute('type')) === 'button' &&
-      (await aiOpenLink.getAttribute('href')).endsWith('/account.html'));
+      (await aiOpenLink.getAttribute('href')).endsWith('/login.html'));
     recordTest("Phase 3: AI Assistant", "Floating Button Opens Full AI Workspace", aiLauncherOk);
     recordTest("Phase 3: AI Assistant", "Legacy Mini Chat Removed", await page.$('#aiChatPopup') === null);
 

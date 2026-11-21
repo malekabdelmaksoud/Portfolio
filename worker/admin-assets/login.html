@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in — Melek AI</title>
+  <link rel="stylesheet" href="auth-pages.css">
+  <script src="api-config.js"></script>
+  <script defer src="auth-pages.js"></script>
+</head>
+<body data-auth-page="login">
+  <main class="auth-page">
+    <a class="auth-brand" href="https://portfolio.melekabdelmaksoud72.workers.dev/">M<span>.</span> AI</a>
+    <section class="auth-card">
+      <p class="eyebrow">PRIVATE AI WORKSPACE</p>
+      <h1>Welcome back</h1>
+      <p class="auth-copy">Sign in to access Melek AI and your private conversations.</p>
+      <div id="google-signin" class="google-signin"></div>
+      <div class="divider"><span>or continue with email</span></div>
+      <form id="login-form">
+        <label for="login-email">Email address</label>
+        <input id="login-email" name="email" type="email" autocomplete="username" maxlength="254" required>
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required>
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+      <button class="text-link" id="forgot-password" type="button">Forgot password?</button>
+      <section class="reset-panel" id="reset-panel" hidden>
+        <h2>Reset password</h2>
+        <form id="reset-request-form">
+          <label for="reset-email">Email address</label>
+          <input id="reset-email" name="email" type="email" autocomplete="username" maxlength="254" required>
+          <div id="reset-turnstile"></div>
+          <button class="primary" type="submit">Send reset code</button>
+        </form>
+        <form id="reset-verify-form" hidden>
+          <label for="reset-code">Six-digit code</label>
+          <input id="reset-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <label for="reset-password">New password</label>
+          <input id="reset-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          <button class="primary" type="submit">Set new password</button>
+        </form>
+        <p class="error" id="reset-error" role="alert"></p>
+      </section>
+      <p class="auth-switch">New here? <a href="register.html">Create an account</a></p>
+      <p class="error" id="auth-error" role="alert"></p>
+    </section>
+  </main>
+</body>
+</html>

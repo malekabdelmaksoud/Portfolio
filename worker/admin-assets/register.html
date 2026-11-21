@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Create account — Melek AI</title>
+  <link rel="stylesheet" href="auth-pages.css">
+  <script src="api-config.js"></script>
+  <script defer src="auth-pages.js"></script>
+</head>
+<body data-auth-page="register">
+  <main class="auth-page">
+    <a class="auth-brand" href="https://portfolio.melekabdelmaksoud72.workers.dev/">M<span>.</span> AI</a>
+    <section class="auth-card">
+      <p class="eyebrow">PRIVATE AI WORKSPACE</p>
+      <h1>Create your account</h1>
+      <p class="auth-copy">Create one account to use Melek AI and keep your chat history private.</p>
+      <div id="google-signin" class="google-signin"></div>
+      <div class="divider"><span>or register with email</span></div>
+      <form id="register-form">
+        <label for="register-name">Name</label>
+        <input id="register-name" name="name" type="text" autocomplete="name" maxlength="120" required>
+        <label for="register-email">Email address</label>
+        <input id="register-email" name="email" type="email" autocomplete="username" maxlength="254" required>
+        <label for="register-password">Password</label>
+        <input id="register-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+        <button class="primary" type="submit">Create account</button>
+      </form>
+      <p class="auth-switch">Already have an account? <a href="login.html">Sign in</a></p>
+      <p class="error" id="auth-error" role="alert"></p>
+    </section>
+  </main>
+</body>
+</html>
