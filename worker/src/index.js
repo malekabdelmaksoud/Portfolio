@@ -27,7 +27,7 @@ function getAiModels(env) {
   return DEFAULT_AI_MODELS;
 }
 function isPortfolioQuestion(question) {
-  return /\b(melek|malek|portfolio|curriculum|resume|cv|projects?|skills?|education|stud(?:y|ies)|experience|internship|contact|certificate|degree)\b|ملاك|مالك|بروفيل|سيرة|مشاريع|مشروع|مهارات|خبرات|تجارب|قراية|دراسة|شهادة|تربص|ستاج|اتصال|تواصل/i.test(normalize(question));
+  return /\b(melek|malek|portfolio|curriculum|resume|cv|projects?|skills?|education|stud(?:y|ies)|experience|internship|contact|certificate|degree)\b|ملاك|مالك|بروفيل|سيرة|مشاريع|مشروع|مهارات|خبرات|تجارب|قراية|دراسة|شهادة|تربص|ستاج|اتصال|تواصل|صاحب|صاحبة|مالكة|صاحب الموقع|صاحبة الموقع|who is she|who is he|owner|this person/i.test(normalize(question));
 }
 
 
