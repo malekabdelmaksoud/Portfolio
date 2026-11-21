@@ -40,6 +40,13 @@ test("assistant recognizes Tunisian Arabic project questions",async()=>{
  assert.match(data.answer,/Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
 });
 
+
+test("assistant uses recent topic for a short Arabic follow-up",async()=>{
+ const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(data.answer,/Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
+});
+
 test("assistant never returns an unapproved fact",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Tell me the secret private draft"}),environment());
  const data=await response.json();assert.equal(response.status,200);
