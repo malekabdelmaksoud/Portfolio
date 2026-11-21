@@ -13,7 +13,7 @@ from typing import Iterable
 
 # Common function words are excluded so they cannot create misleading matches.
 _STOP_WORDS = set("""
-a an the and or but is are was were be been being to of in on at for from with
+a an the and or but project projects projet projets portfolio portfolios is are was were be been being to of in on at for from with
 about what which who where when why how does do did can could would should i me my
 you your he she it we they this that these those please tell give show
 le la les un une des du de et ou mais est sont a au aux en dans sur pour par avec
