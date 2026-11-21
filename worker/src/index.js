@@ -9,6 +9,7 @@ let jwksCache;
 const enc = new TextEncoder();
 
 const DEFAULT_AI_MODELS = [
+  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash · Free", description: "Fast multilingual chat, reasoning, and coding." },
   { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 · Balanced", description: "General conversation and everyday questions." },
   { id: "@cf/qwen/qwen3.8-27b", label: "Qwen 3.8 · Advanced", description: "Deeper reasoning and technical explanations." }
 ];
