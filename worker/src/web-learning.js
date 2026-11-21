@@ -82,4 +82,4 @@ export async function refreshWebKnowledge(env, fetcher = fetch) {
     .bind(crypto.randomUUID(), fetched, saved, JSON.stringify(failed)).run();
   return { fetched, saved, failed };
 }
-export { FEEDS };
+export { FEEDS, parseFeed, plainText };
