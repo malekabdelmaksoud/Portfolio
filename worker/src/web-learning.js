@@ -42,8 +42,10 @@ function parseFeed(xml, feed) {
     } catch { continue; }
     const summary = plainText(tagValue(block, "summary") || tagValue(block, "description") || tagValue(block, "content"), 3200);
     if (!title || !summary || summary.length < 60) continue;
-    const published = plainText(tagValue(block, "published") || tagValue(block, "updated") || tagValue(block, "pubDate"), 80);
-    items.push({ title, url: url.toString(), summary, source: feed.name, published_at: published || null, host: url.hostname });
+    const publishedRaw = plainText(tagValue(block, "published") || tagValue(block, "updated") || tagValue(block, "pubDate"), 80);
+    const publishedDate = publishedRaw ? new Date(publishedRaw) : null;
+    const published = publishedDate && Number.isFinite(publishedDate.getTime()) ? publishedDate.toISOString() : null;
+    items.push({ title, url: url.toString(), summary, source: feed.name, published_at: published, host: url.hostname });
   }
   return items;
 }
