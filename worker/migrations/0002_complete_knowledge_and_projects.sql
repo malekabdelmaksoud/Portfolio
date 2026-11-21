@@ -1,4 +1,27 @@
 -- Refresh Arabic aliases and import the complete project list. All records remain unapproved/hidden.
+UPDATE facts SET aliases_json='["études","formation","iset","study","education","قراية","معلومات","معلومات عن ملاك","شكون هي","عرفني"]' WHERE id='profile-001';
+UPDATE facts SET aliases_json='["ia","ai","intelligence artificielle","software quality","جودة البرمجيات","معلومات","معلومات عن ملاك","شكون هي","عرفني"]' WHERE id='profile-002';
+UPDATE facts SET aliases_json='["sfax","tunisie","location","صفاقس","تونس","تواصل","اتصل","كيف نتصل","بريد"]' WHERE id='location-001';
+UPDATE facts SET aliases_json='["licence","bachelor","iset","university","جامعة","قراية","الدراسة","تكوين","معهد","شهادات"]' WHERE id='education-001';
+UPDATE facts SET aliases_json='["bac","lycée","high school","قراية","الدراسة","تكوين","جامعة","معهد","شهادات"]' WHERE id='education-002';
+UPDATE facts SET aliases_json='["langages","programming languages","python","java","php","مهارات","المهارات","تقنيات","التقنيات","لغات البرمجة","شنو تعرف"]' WHERE id='skills-001';
+UPDATE facts SET aliases_json='["web","html","css","angular","frontend","مهارات","المهارات","تقنيات","التقنيات","لغات البرمجة","شنو تعرف"]' WHERE id='skills-002';
+UPDATE facts SET aliases_json='["framework","laravel","symfony","spring boot","dotnet","android studio","مهارات","المهارات","تقنيات","التقنيات","لغات البرمجة","شنو تعرف"]' WHERE id='skills-003';
+UPDATE facts SET aliases_json='["réseaux","networking","maintenance","ocs inventory","مهارات","المهارات","تقنيات","التقنيات","لغات البرمجة","شنو تعرف"]' WHERE id='skills-004';
+UPDATE facts SET aliases_json='["hôpital","hopital","hedi chaker","dmi","ocs inventory","internship","ستاج","تربص","تجارب","الخبرة","الخبرات"]' WHERE id='experience-001';
+UPDATE facts SET aliases_json='["acs","advanced computer solutions","web internship","ستاج","تربص","تجارب","الخبرة","الخبرات"]' WHERE id='experience-002';
+UPDATE facts SET aliases_json='["netsys","network internship","ستاج","تربص","تجارب","الخبرة","الخبرات"]' WHERE id='experience-003';
+UPDATE facts SET aliases_json='["cisen","maintenance internship","ستاج","تربص","تجارب","الخبرة","الخبرات"]' WHERE id='experience-004';
+UPDATE facts SET aliases_json='["elearning","java","learning platform","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-001';
+UPDATE facts SET aliases_json='["php","css","web application","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-002';
+UPDATE facts SET aliases_json='["laravel","mvc","migration","authentication","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-003';
+UPDATE facts SET aliases_json='["store","magasin","inventory","stock","vente","sales","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-004';
+UPDATE facts SET aliases_json='["opportunity hunter","mcp","cloudflare","jobs","internships","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-005';
+UPDATE facts SET aliases_json='["langues","languages","arabic","french","english","spanish","لغات","اللغات","شنو اللغات"]' WHERE id='language-001';
+UPDATE facts SET aliases_json='["contact","email","linkedin","github","تواصل","اتصل","كيف نتصل","بريد"]' WHERE id='contact-001';
+UPDATE facts SET aliases_json='["java","poo","oop","héritage","polymorphisme","encapsulation","تمارين جافا","البرمجة كائنية التوجه","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-006';
+UPDATE facts SET aliases_json='["symfony","php","twig","doctrine","مشروع symfony","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-007';
+UPDATE facts SET aliases_json='["c#","c sharp","dotnet",".net","interfaces","مشروع سي شارب","مشروع","مشاريع","المشاريع","اعمال","أعمال","شنو المشاريع"]' WHERE id='project-008';
 INSERT OR IGNORE INTO facts(id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url,approved) VALUES('profile-001','profile','Melek Abdelmaksoud est étudiante en dernière année de Licence en Technologie de l''Informatique à l''ISET de Sidi Bouzid, spécialité Développement Web et Multimédia.','Melek Abdelmaksoud is a final-year Information Technology undergraduate student at ISET Sidi Bouzid, specializing in Web Development and Multimedia.','["études","formation","iset","study","education","قراية","معلومات","معلومات عن ملاك","شكون هي","عرفني"]','index.html','#apropos .about-copy p:first-child',NULL,0);
 INSERT OR IGNORE INTO facts(id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url,approved) VALUES('profile-002','profile','Le portfolio présente un intérêt pour les applications web, les usages concrets de l''intelligence artificielle et la qualité logicielle.','The portfolio describes an interest in web applications, practical uses of artificial intelligence, and software quality.','["ia","ai","intelligence artificielle","software quality","جودة البرمجيات","معلومات","معلومات عن ملاك","شكون هي","عرفني"]','index.html','#apropos .about-copy p:first-child',NULL,0);
 INSERT OR IGNORE INTO facts(id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url,approved) VALUES('location-001','contact','La localisation indiquée sur le portfolio est Sfax, Tunisie.','The location shown on the portfolio is Sfax, Tunisia.','["sfax","tunisie","location","صفاقس","تونس","تواصل","اتصل","كيف نتصل","بريد"]','index.html','.hero-meta',NULL,0);
