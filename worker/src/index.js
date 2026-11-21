@@ -151,9 +151,8 @@ async function assistant(request, env) {
   const question=String(body.question||"").trim().slice(0,1200);
   const attachmentText=String(body.attachmentText||"").slice(0,10000);
   if(!question&&!attachmentText) return json({error:"A question or readable attachment is required."},400);
-  if(!env.AI || typeof env.AI.run!=="function") return json({error:"The AI model service is not configured yet."},503);
   const models=getAiModels(env);
-  const defaultModel=models.find(x=>x.id===env.AI_DEFAULT_MODEL)?.id || models[0].id;
+  const defaultModel=models.find(x=>x.id===env.AI_DEFAULT_MODEL && x.available!==false)?.id || models.find(x=>x.id!=="melek-gpt-local" && x.available!==false)?.id || models[0].id;
   const selectedModel=models.find(x=>x.id===String(body.model||defaultModel));
   if(!selectedModel) return json({error:"This AI model is not available."},400);
   if(selectedModel.available===false) return json({error:"MelekGPT is not connected yet. Configure the private MELEK_AI_URL and MELEK_AI_TOKEN secrets after training and hosting your checkpoint."},503);
@@ -196,7 +195,7 @@ async function assistant(request, env) {
       const result=await upstream.json();
       answer=String(result?.choices?.[0]?.message?.content??result?.answer??"").trim();
     }else{
-      if(!env.AI || typeof env.AI.run!=="function") return json({error:"The AI model service is not configured yet."},503);
+      if(!env.AI || typeof env.AI.run!=="function") return json({error:"The Cloudflare AI service is not configured yet."},503);
       const result=await env.AI.run(selectedModel.id,{messages,max_tokens:1100,temperature:0.35});
       answer=String(result?.response??result?.output_text??result?.choices?.[0]?.message?.content??"").trim();
     }
@@ -330,7 +329,7 @@ export default {
       if(path==="/api/models" && method==="GET") {
         await verifyAccessIdentity(request,env);
         const models=getAiModels(env);
-        return withCors(json({models,defaultModel:models.find(x=>x.id===env.AI_DEFAULT_MODEL)?.id||models[0].id,available:!!env.AI}),cors);
+        return withCors(json({models,defaultModel:models.find(x=>x.id===env.AI_DEFAULT_MODEL && x.available!==false)?.id||models.find(x=>x.id!=="melek-gpt-local" && x.available!==false)?.id||models[0].id,available:!!env.AI || models.some(x=>x.id==="melek-gpt-local" && x.available)}),cors);
       }
       if(path==="/api/assistant" && method==="POST") {
         await verifyAccessIdentity(request,env);
