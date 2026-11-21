@@ -52,7 +52,7 @@ Only use content you own or are allowed to train on. Do not add private personal
 
 ## Download public, license-filtered data
 
-The repository includes a bounded downloader for selected public corpora. It streams a sample from OpenAssistant conversations (English, French), a Tunisian chatbot instruction dataset, PleIAs Common Corpus, the University of Dubai Arabic legal text, and a CC-BY Tunisian proverb corpus. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read `data/SOURCES.md` before downloading; raw Tunisian social-media text was excluded after sample inspection found abusive content.
+The repository includes a bounded downloader for selected public corpora: OpenAssistant conversations, PleIAs Common Corpus, University of Dubai Arabic legal text, Tunisian proverbs, and LINAGORA FineWeb2 Tunisian Arabic. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, filters obvious email/phone patterns, and applies a FineWeb2 language-confidence threshold. Read `data/SOURCES.md` before downloading; unreviewed social-media corpora and sources with unclear licensing are excluded.
 
 ```bash
 python download_data.py --out data/train.jsonl --max-per-language 1500 --max-scan 200000
@@ -107,4 +107,4 @@ The server loads only a checkpoint marked `trained_from_scratch` and requires be
 
 ## Current status
 
-The architecture and private inference adapter are implemented, but no trained checkpoint is present in this repository and no live model endpoint is configured. Therefore MelekGPT is deliberately shown as unavailable until you train it and configure the private service. This is honest status, not a claim that training has already completed.
+The architecture, public-data pipeline, and private inference adapter are implemented. An earlier byte-level experimental checkpoint was trained and evaluated but rejected for serving because generated samples were poor. The improved Unicode-character checkpoint is being trained and evaluated in CI. No live model endpoint is configured, so MelekGPT remains unavailable in the website selector until a checkpoint passes review and a private service is configured.
