@@ -9,23 +9,23 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 - Responsive portfolio with French/English switching.
 - Project showcase and CV viewer.
 - Browser voice input/output where supported.
-- Portfolio chat UI connected to a same-origin `/api/assistant` endpoint.
+- Authenticated Melek AI workspace, available in a portfolio modal or full page, with private per-user chat history and model selection.
 - API-backed project publishing and an admin dashboard (Cloudflare Access setup is still pending).
-- No hosted LLM/API is used by the assistant.
+- Conversational AI powered server-side by Cloudflare Workers AI; provider keys and model configuration are never exposed in the browser.
 
 ## Assistant: evidence-only by design
 
-The visitor-facing chat does **not** use the old browser-only retrieval engine or a pretrained model. It sends questions to the Worker API in `worker/`, which retrieves only facts explicitly approved in D1 and returns their reviewed French/English text verbatim. If no approved fact matches, it abstains instead of inventing an answer.
+The authenticated visitor workspace uses Workers AI for general conversation. When a question concerns Melek or her portfolio, the Worker retrieves only explicitly approved D1 facts and supplies them as grounding context. If relevant approved evidence is missing, the assistant must say so instead of inventing personal facts.
 
 The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved, so the assistant abstains until the owner reviews and approves reliable statements. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
+The model catalogue currently offers Gemma 4 and Qwen 3.8 and can be extended server-side with `AI_MODELS_JSON`. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
 
 ## Admin and API deployment
 
 See [worker/README.md](worker/README.md) for D1 creation, migrations, Cloudflare Access configuration, API deployment, and admin usage.
 
-The API Worker and D1 database have been provisioned and deployed. The production portfolio is live at the URL above, and the root `api-config.js` points to the deployed API Worker. The API Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. **Remaining setup:** configure Cloudflare Access for `/admin.html`, `/api/admin/*`, `/account.html`, and `/api/user/*`, then set the Worker secrets `ACCESS_ISSUER`, `ACCESS_AUD`, and `ADMIN_EMAIL`. Keep `/api/assistant`, `/api/projects`, and `/api/health` public. The API's `ALLOWED_ORIGIN` is set to the exact production portfolio origin.
+The API Worker and D1 database have been provisioned and deployed. The production portfolio is live at the URL above, and the root `api-config.js` points to the deployed API Worker. The API Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. **Remaining setup:** configure Cloudflare Access for `/admin.html`, `/api/admin/*`, `/account.html`, `/api/models`, `/api/assistant`, and `/api/user/*`, then set the Worker secrets `ACCESS_ISSUER`, `ACCESS_AUD`, and `ADMIN_EMAIL`. Keep `/api/projects` and `/api/health` public. The API's `ALLOWED_ORIGIN` is set to the exact production portfolio origin.
 
 ## Security
 
