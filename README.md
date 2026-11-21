@@ -32,7 +32,7 @@ The API Worker and D1 database have been provisioned and deployed. The productio
 - No admin password, role, or privileged session is trusted in browser storage.
 - Legacy local login, registration, and password-reset methods are disabled.
 - Admin API verifies Cloudflare Access JWT signature, issuer, audience, expiry, and the exact allowed email.
-- Public assistant queries can read only approved facts; hidden projects are not returned.
+- The assistant and model catalogue require verified visitor identity; portfolio-specific answers use approved facts only, and hidden projects are not returned.
 - Never commit Access credentials, tokens, database secrets, or private visitor data.
 
 ## Repository layout
@@ -50,7 +50,7 @@ tests/                                Browser regression tests
 
 ## Local static preview
 
-Open `index.html` directly for the static portfolio. The API-backed chat and project publishing require the Worker and D1 to be deployed; without them, the chat intentionally explains that the approved-information service is not connected and static project cards remain visible.
+Open `index.html` directly for the static portfolio. The API-backed chat and project publishing require the Worker and D1 to be deployed; without them, the authenticated AI workspace and project publishing are unavailable while static project cards remain visible.
 
 ## Tests
 
