@@ -296,7 +296,7 @@ async function adminRoute(request, env, path, method) {
       env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 10").all(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first()
     ]);
-    return json({total:count?.total||0,items:items.results||[],runs:runs.results||[]});
+    return json({total:count?.total||0,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",items:items.results||[],runs:runs.results||[]});
   }
   if(path==="/api/admin/learning/refresh" && method==="POST") {
     const result=await refreshWebKnowledge(env);
