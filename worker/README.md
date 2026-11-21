@@ -28,7 +28,7 @@ The migrations create facts/projects tables, import 23 unapproved trilingual fac
 
 ## 2. Configure Cloudflare Access
 
-Protect the admin page and admin API paths with Cloudflare Access. If the portfolio and API share one hostname, protect `/admin.html` and `/api/admin/*` in the same Access application. If the API is deployed on its own `workers.dev` hostname, create one Access application for the portfolio's `/admin.html` path and another for the API hostname's `/api/admin/*` path. In both policies, allow only the owner email. Do not protect the API Worker's entire hostname, because public `/api/assistant` and `/api/projects` must remain public. Configure:
+Protect the admin page and admin API paths with Cloudflare Access. The Worker bundles the admin dashboard as static assets, so it is served from the API Worker's own hostname. Create one hostname/path Access application protecting that Worker hostname's `/admin.html` and `/api/admin/*` paths, with an allow policy for the owner email only. Do not protect the entire Worker, because public `/api/assistant` and `/api/projects` must remain public. Configure:
 - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
 - `ACCESS_AUD`: the Access application's AUD tag
 - `ADMIN_EMAIL`: `melekabdelmaksoud72@gmail.com`
@@ -48,14 +48,15 @@ npx wrangler secret put ALLOWED_ORIGIN
 
 ```bash
 npm install --save-dev wrangler
+npm run sync-admin
 npx wrangler deploy
 ```
 
-This creates a separate Worker hostname. Recommended: serve the API under the portfolio's same-origin `/api/*` path if your Cloudflare setup supports that route. Otherwise set `window.PORTFOLIO_API_BASE` in `api-config.js` to the deployed API Worker origin, set `ALLOWED_ORIGIN` to the exact portfolio origin, and keep the admin Access app on the API's `/api/admin/*` path. The admin dashboard sends credentials and the Worker enables credentialed CORS for that exact origin. A cross-origin Access setup may require the browser to complete the Access login for the API hostname once. Do not guess or commit the generated Worker hostname.
+This creates a separate Worker hostname. Before deployment, run `npm run sync-admin` to copy the root admin UI into `worker/admin-assets`. The API Worker serves `/admin.html`, `/admin.css`, `/admin.js`, and `/api-config.js` from its own origin; its admin API calls are therefore same-origin and protected by the same Access application. Set `window.PORTFOLIO_API_BASE` in the root portfolio's `api-config.js` to the deployed API Worker origin so the public chat/project UI can call `/api/assistant` and `/api/projects`. Set `ALLOWED_ORIGIN` to the exact portfolio origin. The root `/admin.html` redirects to the protected dashboard on the API Worker once that origin is configured. Do not guess or commit the generated Worker hostname.
 
 ## 4. Admin dashboard
 
-After the Access application and API route are configured, open `/admin.html`. It supports:
+After deploying and configuring Cloudflare Access, open `https://<your-api-worker-host>/admin.html` (or the portfolio's `/admin.html` redirect once `api-config.js` is set). It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
 - Approve or revoke each fact.
 - Create/edit/delete projects, control visibility, and set order.
