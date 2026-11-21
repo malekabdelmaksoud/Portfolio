@@ -16,6 +16,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Run Worker API tests
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Worker API and browser script checks
         working-directory: worker
         run: node --check src/index.js && node --check ../admin.js && node --check ../script.js && node --check ../portfolio-auth-core.js && node --test test/*.test.js
+      - name: Validate D1 migrations using SQLite
+        working-directory: worker
+        run: python -m unittest -v test_migrations.py
