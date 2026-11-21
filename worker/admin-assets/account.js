@@ -1,7 +1,7 @@
 (() => {
   const base=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
   const $=id=>document.getElementById(id);
-  let active=null,mode="chat",sending=false,chats=[],searchSequence=0;
+  let active=null,mode="chat",sending=false,chats=[],searchSequence=0,availableModels=[];
   const api=async(path,options={})=>{
     const response=await fetch(base+path,{...options,credentials:"include",headers:{"content-type":"application/json","accept":"application/json",...(options.headers||{})}});
     if(response.status===401||response.status===403)throw new Error("Votre session Cloudflare Access n'est pas active. Rechargez la page et terminez la connexion par e-mail.");
@@ -53,21 +53,50 @@
   async function deleteChat(id){if(!confirm("Supprimer définitivement cette conversation ?"))return;try{await api("/api/user/chats/"+encodeURIComponent(id),{method:"DELETE"});if(active===id){active=null;$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();}await refreshChats();toast("Conversation supprimée.");}catch(e){toast(e.message);}}
   function setMode(next){mode=next;$("mode-chat").classList.toggle("selected",mode==="chat");$("mode-analyze").classList.toggle("selected",mode==="analyze");$("mode-hint").textContent=mode==="chat"?"Réponses directes et concises":"Réponse structurée et analyse détaillée";$("mobile-mode").textContent=mode==="chat"?"Chat":"Analyze";}
   async function sendMessage(event){
-    event.preventDefault();const input=$("chat-input"),question=input.value.trim();if(!question||sending)return;sending=true;$("send-message").disabled=true;input.value="";input.style.height="auto";
+    event.preventDefault();const input=$("chat-input"),question=input.value.trim();if(!question||sending)return;
+    sending=true;$("send-message").disabled=true;input.value="";input.style.height="auto";
+    let pending=null;
     try{
       if(!active)await createChat(question.slice(0,64));
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:question})});addMessage("user",question);
-      const pending=addMessage("assistant",mode==="analyze"?"Analyse en cours…":"Réponse en cours…",false);
-      const context=[...$("messages").querySelectorAll(".message")].slice(-8,-1).map(n=>n.querySelector(".message-text")?.textContent||"");
-      const response=await fetch(base+"/api/assistant",{method:"POST",credentials:"omit",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({question,mode,context})});
-      const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Le service AI est indisponible.");
-      const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";pending.remove();
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});addMessage("assistant",answer);await refreshChats();
-    }catch(e){toast(e.message);input.value=question;}
+      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:question})});
+      addMessage("user",question);
+      const history=[...$("messages").children].slice(0,-1).slice(-8).map(node=>({
+        role:node.classList.contains("user")?"user":"assistant",
+        content:node.querySelector(".message-text")?.textContent||""
+      })).filter(item=>item.content.trim());
+      pending=addMessage("assistant",mode==="analyze"?"Analyse en cours…":"Réponse en cours…",false);
+      const data=await api("/api/assistant",{method:"POST",body:JSON.stringify({
+        question,mode,model:$("model-select").value||undefined,history
+      })});
+      const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";
+      pending.remove();pending=null;
+      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});
+      addMessage("assistant",answer);await refreshChats();
+    }catch(e){if(pending)pending.remove();toast(e.message);input.value=question;}
     finally{sending=false;$("send-message").disabled=false;input.focus();}
   }
+  async function loadModels(){
+    const select=$("model-select");
+    try{
+      const data=await api("/api/models");
+      availableModels=Array.isArray(data.models)?data.models:[];
+      select.replaceChildren();
+      availableModels.forEach(model=>{
+        const option=document.createElement("option");option.value=model.id;option.textContent=model.label;
+        if(model.description)option.title=model.description;select.append(option);
+      });
+      const saved=localStorage.getItem("melek-ai-model");
+      const preferred=availableModels.some(model=>model.id===saved)?saved:data.defaultModel;
+      if(preferred)select.value=preferred;
+      select.disabled=!data.available||!availableModels.length;
+      if(!data.available)toast("Le service AI n'est pas encore configuré.");
+    }catch(e){
+      select.replaceChildren();const option=document.createElement("option");option.value="";option.textContent="Modèles indisponibles";select.append(option);select.disabled=true;
+      throw e;
+    }
+  }
   async function load(){
-    try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await refreshChats();if(chats.length)await openChat(chats[0].id);}
+    try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);}
     catch(e){$("identity").textContent="Connexion requise";$("status").textContent=e.message;toast(e.message);}
   }
   $("new-chat").addEventListener("click",async()=>{try{active=null;await createChat();$("chat-input").focus();}catch(e){toast(e.message);}});
@@ -75,6 +104,7 @@
   $("chat-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chat-form").requestSubmit();}});
   $("chat-input").addEventListener("input",()=>{$("chat-input").style.height="auto";$("chat-input").style.height=Math.min($("chat-input").scrollHeight,180)+"px";});
   $("mode-chat").addEventListener("click",()=>setMode("chat"));$("mode-analyze").addEventListener("click",()=>setMode("analyze"));
+  $("model-select").addEventListener("change",()=>{try{localStorage.setItem("melek-ai-model",$("model-select").value);}catch(_){}});
   $("history-search").addEventListener("input",async e=>{const sequence=++searchSequence,q=e.target.value.trim();if(!q){await refreshChats();return;}try{const data=await api("/api/user/chats?q="+encodeURIComponent(q));if(sequence===searchSequence){chats=data.chats||[];renderList();}}catch(err){toast(err.message);}});
   $("delete-all").addEventListener("click",async()=>{if(!confirm("Supprimer tout votre historique ? Cette action est irréversible."))return;try{await api("/api/user/chats",{method:"DELETE"});active=null;chats=[];$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();renderList();toast("Historique supprimé.");}catch(e){toast(e.message);}});
   $("sidebar-toggle").addEventListener("click",()=>{
