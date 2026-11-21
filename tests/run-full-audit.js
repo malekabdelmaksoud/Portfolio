@@ -312,19 +312,16 @@ async function runAudit() {
     // ══════════════════════════════════════════════════════════
     // PHASE 3 — AI FEATURES TESTING
     // ══════════════════════════════════════════════════════════
-    // Test 25: AI entry opens the full workspace (history + New Chat + modes).
+    // Floating AI launcher opens the full-screen workspace.
     const aiEntry = await page.$('#aiChatToggle');
-    const aiEntryHref = aiEntry ? await aiEntry.getAttribute('href') : '';
-    const aiEntryOk = Boolean(aiEntryHref && aiEntryHref.endsWith('/account.html') && aiEntryHref.includes('melek-portfolio-api'));
-    recordTest("Phase 3: AI Assistant", "AI Entry Routes to Full Workspace", aiEntryOk, aiEntryHref || "AI entry link missing");
-
-    // Test 26: The old popup is retired so users cannot land in the reduced legacy chat.
-    const legacyPopupExists = await page.$('#aiChatPopup') !== null;
-    recordTest("Phase 3: AI Assistant", "Legacy Mini Chat Removed", !legacyPopupExists);
-
-    // Test 27: AI entry remains visible and accessible.
-    const aiEntryAccessible = aiEntry && await aiEntry.isVisible() && (await aiEntry.getAttribute('aria-label'));
-    recordTest("Phase 3: AI Assistant", "AI Workspace Entry Is Accessible", Boolean(aiEntryAccessible));
+    const aiOverlay = await page.$('#aiWorkspaceOverlay');
+    const aiFrame = await page.$('#aiWorkspaceFrame');
+    const aiOpenLink = await page.$('#aiWorkspaceNewTab');
+    const aiLauncherOk = Boolean(aiEntry && aiOverlay && aiFrame && aiOpenLink &&
+      (await aiEntry.getAttribute('type')) === 'button' &&
+      (await aiOpenLink.getAttribute('href')).endsWith('/account.html'));
+    recordTest("Phase 3: AI Assistant", "Floating Button Opens Full AI Workspace", aiLauncherOk);
+    recordTest("Phase 3: AI Assistant", "Legacy Mini Chat Removed", await page.$('#aiChatPopup') === null);
 
     // ══════════════════════════════════════════════════════════
     // PHASE 5 — UI/UX AND RESPONSIVENESS TESTING
