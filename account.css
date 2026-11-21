@@ -13,6 +13,12 @@
 .auth-primary{border:0;background:#dce8ff;color:#10151e;font-weight:700}
 .auth-secondary{border:1px solid #303844;background:transparent;color:#aab3c2}
 .auth-error{min-height:20px;color:#e9a9a9;font-size:12px;margin:14px 0 0;text-align:left}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.auth-tab{height:40px;border:1px solid #303844;border-radius:9px;background:#0d1014;color:#aab3c2;cursor:pointer}
+.auth-tab.active{background:#263246;border-color:#4b607f;color:#dce8ff}
+.auth-card form label+input,.auth-card form input+label{margin-top:10px}
+.otp-details{margin-top:12px;text-align:left;border-top:1px solid #303844;padding-top:10px;color:#98a2b1}
+.otp-details summary{cursor:pointer;font-size:12px}
 .google-signin{display:flex;justify-content:center;margin:14px 0 4px}
 .email-divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:#7f8896;font-size:11px}
 .email-divider::before,.email-divider::after{content:"";height:1px;background:#303844;flex:1}

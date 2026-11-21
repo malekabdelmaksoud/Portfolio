@@ -401,6 +401,49 @@
     }
   }
 
+  document.querySelectorAll("[data-auth-tab]").forEach(button => {
+    button.addEventListener("click", () => {
+      const register = button.dataset.authTab === "register";
+      $("login-form").hidden = register;
+      $("register-form").hidden = !register;
+      $("auth-login-tab").classList.toggle("active", !register);
+      $("auth-register-tab").classList.toggle("active", register);
+      $("auth-error").textContent = "";
+      (register ? $("register-email") : $("login-email")).focus();
+    });
+  });
+
+  $("login-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    $("auth-error").textContent = "";
+    try {
+      await api("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: $("login-email").value.trim(),
+          password: $("login-password").value
+        })
+      });
+      await load();
+    } catch (error) { $("auth-error").textContent = error.message; }
+  });
+
+  $("register-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    $("auth-error").textContent = "";
+    try {
+      await api("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("register-name").value.trim(),
+          email: $("register-email").value.trim(),
+          password: $("register-password").value
+        })
+      });
+      await load();
+    } catch (error) { $("auth-error").textContent = error.message; }
+  });
+
   $("otp-request-form").addEventListener("submit", async event => {
     event.preventEvent = true;
     event.preventDefault();

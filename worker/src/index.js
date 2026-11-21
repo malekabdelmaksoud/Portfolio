@@ -498,6 +498,35 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
+function bytesToBase64url(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function base64urlToBytes(value) {
+  const base64 = String(value).replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+  return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+}
+
+async function hashPassword(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const saltBytes = base64urlToBytes(salt);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+  return bytesToBase64url(new Uint8Array(bits));
+}
+
 async function getSession(request, env) {
   const cookie = request.headers.get("Cookie") || "";
   const match = cookie.match(/(?:^|;\s*)__Host-portfolio_session=([^;]+)/);
@@ -515,6 +544,54 @@ async function getSession(request, env) {
 async function authRoutes(request, env, path, method) {
   if (path === "/api/auth/config" && method === "GET") {
     return json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY || null, googleClientId: env.GOOGLE_CLIENT_ID || null });
+  }
+  if (path === "/api/auth/register" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    const name = String(body.name || "").trim().slice(0, 120);
+    if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: "A valid email address is required.", code: "INVALID_EMAIL" }, 400);
+    if (password.length < 8 || password.length > 128) return json({ error: "Password must contain 8 to 128 characters.", code: "INVALID_PASSWORD" }, 400);
+    const ip = await sha256Hex(ipFrom(request));
+    if (!await abuseCheck(env, "register-ip:" + ip, "register-ip", 10, 3600)) return json({ error: "Too many registration attempts. Try again later.", code: "REGISTER_LIMIT" }, 429);
+    const existing = await env.DB.prepare("SELECT id,password_hash FROM users WHERE email=?").bind(email).first();
+    if (existing?.password_hash) return json({ error: "An account already exists for this email.", code: "EMAIL_EXISTS" }, 409);
+    const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+    const salt = bytesToBase64url(saltBytes);
+    const passwordHash = await hashPassword(password, salt);
+    if (existing) {
+      await env.DB.prepare(
+        "UPDATE users SET display_name=?,password_salt=?,password_hash=?,last_login_at=CURRENT_TIMESTAMP WHERE id=?"
+      ).bind(name || existing.email || email, salt, passwordHash, existing.id).run();
+    } else {
+      await env.DB.prepare(
+        "INSERT INTO users(id,email,display_name,password_salt,password_hash,last_login_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)"
+      ).bind(crypto.randomUUID(), email, name || email, salt, passwordHash).run();
+    }
+    const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE email=?").bind(email).first();
+    const token = await randomToken(32);
+    const tokenHash = await sha256Hex(token + ":" + (env.SESSION_PEPPER || ""));
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, tokenHash, expires).run();
+    return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(token, env) });
+  }
+  if (path === "/api/auth/login" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    if (!EMAIL_RE.test(email) || !password) return json({ error: "Email and password are required.", code: "INVALID_CREDENTIALS" }, 400);
+    const ip = await sha256Hex(ipFrom(request));
+    if (!await abuseCheck(env, "login-ip:" + ip, "login-ip", 20, 600)) return json({ error: "Too many login attempts. Try again later.", code: "LOGIN_LIMIT" }, 429);
+    const user = await env.DB.prepare("SELECT id,email,display_name,password_salt,password_hash FROM users WHERE email=?").bind(email).first();
+    if (!user?.password_salt || !user.password_hash) return json({ error: "Email or password is incorrect.", code: "INVALID_CREDENTIALS" }, 401);
+    const candidate = await hashPassword(password, user.password_salt);
+    if (!timingSafeEqual(candidate, user.password_hash)) return json({ error: "Email or password is incorrect.", code: "INVALID_CREDENTIALS" }, 401);
+    await env.DB.prepare("UPDATE users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?").bind(user.id).run();
+    const token = await randomToken(32);
+    const tokenHash = await sha256Hex(token + ":" + (env.SESSION_PEPPER || ""));
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, tokenHash, expires).run();
+    return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(token, env) });
   }
   if (path === "/api/auth/request" && method === "POST") {
     const body = await readBody(request, 4000);

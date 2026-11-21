@@ -184,6 +184,22 @@ test("API origin is allowed and Google sign-in fails closed when unconfigured",a
  assert.equal(data.code,"GOOGLE_NOT_CONFIGURED");
 });
 
+test("email password registration and login create a private session",async()=>{
+ const env=authEnvironment({SESSION_PEPPER:"test-pepper"});
+ const registered=await worker.fetch(authRequest("/api/auth/register",{name:"Visitor","email":"visitor@example.test",password:"StrongPass123"}),env);
+ const registeredData=await registered.json();
+ assert.equal(registered.status,200,JSON.stringify(registeredData));
+ assert.equal(registeredData.authenticated,true);
+ assert.equal(env.__users[0].email,"visitor@example.test");
+ const loggedOut=await worker.fetch(authRequest("/api/auth/login",{email:"visitor@example.test",password:"wrongpass"}),env);
+ assert.equal(loggedOut.status,401);
+ const loggedIn=await worker.fetch(authRequest("/api/auth/login",{email:"visitor@example.test",password:"StrongPass123"}),env);
+ const loggedInData=await loggedIn.json();
+ assert.equal(loggedIn.status,200);
+ assert.equal(loggedInData.authenticated,true);
+ assert.match(loggedIn.headers.get("set-cookie")||"",/HttpOnly/);
+});
+
 test("Melek AI status reports development truthfully",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
  const data=await response.json();
@@ -607,7 +623,10 @@ function authEnvironment(overrides = {}) {
           challenge.consumed_at = "2026-01-01 00:00:00";
           return { meta: { changes: 1 } };
         } else if (sql.includes("INSERT INTO users")) {
-          if (!users.some(u => u.email === params[1])) users.push({ id: params[0], email: params[1], display_name: null });
+          if (!users.some(u => u.email === params[1])) {
+            if (params.length >= 5) users.push({ id: params[0], email: params[1], display_name: params[2], password_salt: params[3], password_hash: params[4] });
+            else users.push({ id: params[0], email: params[1], display_name: null });
+          }
         } else if (sql.includes("INSERT INTO auth_sessions")) {
           sessions.push({ id: params[0], user_id: params[1], token_hash: params[2], expires_at: params[3] });
         } else if (sql.includes("DELETE FROM auth_sessions WHERE token_hash=?")) {
