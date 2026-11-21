@@ -96,4 +96,4 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 
 - Workers AI includes 10,000 free Neurons per day on Workers Free and Paid; usage above that requires Workers Paid and is billed at $0.011 per 1,000 Neurons. The model catalogue lists Gemma 4 at $0.10 per million input tokens and $0.30 per million output tokens, and Qwen 3.8 at $0.45/$3.20 per million. Monitor actual Neuron use and review current pricing before public launch. The model catalogue can be changed with the server-side `AI_MODELS_JSON` variable; never expose provider credentials to the browser.
 - The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
-- Server-side owner-scoped chat-history APIs and D1 tables exist, but the public chat composer is not yet connected to signed-in account persistence.
+- The browser-based Cloudflare Access sign-in flow and cross-origin iframe behavior still need verification in the production account configuration.
