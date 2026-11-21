@@ -138,19 +138,27 @@ def main():
             try:
                 dataset_name = "HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset"
                 stream = load_dataset(dataset_name, split="train", streaming=True)
+                image_columns = [name for name, feature in stream.features.items() if feature.__class__.__name__ == "Image"]
+                if image_columns:
+                    stream = stream.remove_columns(image_columns)
                 for row in stream:
                     if counts["aeb"] >= args.max_per_language:
                         break
-                    parts = [
-                        row.get("tunisan_proverb"),
-                        row.get("context"),
-                        row.get("proverb_arabic_explaination"),
-                    ]
+                    parts = [row.get("tunisan_proverb"), row.get("context")]
                     text = "\n".join(part.strip() for part in parts if isinstance(part, str) and part.strip())
                     if not safe_tunisian_text(text):
                         continue
                     source = f"{dataset_name} | proverb={str(row.get('tunisan_proverb', 'unknown'))[:300]}"
                     append(text, source, "cc-by-4.0", "aeb", min_length=50)
+                    explanation = row.get("proverb_arabic_explaination")
+                    if safe_tunisian_text(explanation or ""):
+                        append(
+                            explanation,
+                            f"{dataset_name} | Arabic explanation for={str(row.get('tunisan_proverb', 'unknown'))[:300]}",
+                            "cc-by-4.0",
+                            "ar",
+                            min_length=50,
+                        )
                 sources.append(dataset_name)
             except Exception as exc:
                 print(f"WARNING: Tunisian proverb corpus unavailable: {exc}", file=sys.stderr)
