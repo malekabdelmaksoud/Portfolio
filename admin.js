@@ -55,7 +55,7 @@ function editProject(p){
  form.elements.id.readOnly=!!p;form.scrollIntoView({behavior:"smooth",block:"center"});
 }
 async function saveFact(e){
- e.preventDefault();const form=e.currentTarget,d=formData(form),f={id:d.id.trim(),category:d.category,text_fr:d.text_fr.trim(),text_en:d.text_en.trim(),text_ar:d.text_ar.trim(),aliases:d.aliases.split(",").map(x=>x.trim()).filter(Boolean),source:{file:d.source_file.trim(),selector:d.source_selector.trim()},url:d.url.trim(),approved:form.elements.approved.checked};
+ e.preventDefault();const form=e.currentTarget,d=formData(form),f={id:d.id.trim(),category:d.category,text_fr:d.text_fr.trim(),text_en:d.text_en.trim(),text_ar:d.text_ar.trim(),aliases:d.aliases.split(/[,،]/).map(x=>x.trim()).filter(Boolean),source:{file:d.source_file.trim(),selector:d.source_selector.trim()},url:d.url.trim(),approved:form.elements.approved.checked};
  try{await api(state.editingFact?"/api/admin/facts/"+encodeURIComponent(state.editingFact):"/api/admin/facts",{method:state.editingFact?"PUT":"POST",body:JSON.stringify(f)});form.hidden=true;notice("Information enregistrée.");await load();}catch(err){notice(err.message,true);}
 }
 async function saveProject(e){
