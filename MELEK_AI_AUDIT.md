@@ -71,3 +71,22 @@ Base branch at audit: `main`
 5. UI polish and responsive/system-theme behavior.
 6. Run local tests and provide exact manual steps for email provider secrets, Turnstile configuration, D1 migration, and deployment.
 
+## Implementation verification snapshot — 2026-11-21
+
+The implementation branch now contains:
+
+- Native email OTP request/verify/logout routes with D1 challenges and D1 server-side sessions.
+- OTP codes stored only as HMAC/SHA-256 hashes with an `OTP_PEPPER` environment secret, 10-minute expiry, single-use consumption, and five-attempt protection.
+- Per-email and per-IP abuse windows, plus per-IP assistant burst protection.
+- An email-provider abstraction using Resend; Resend credentials and sender identity remain runtime secrets.
+- Optional Turnstile verification and public Turnstile site-key configuration.
+- HttpOnly, Secure, `SameSite=None`, `Path=/` session cookies and server-derived user identity for every chat operation.
+- Additive migration `0005_native_auth.sql` preserving existing chats, messages, facts and projects.
+- Workers AI provider abstraction using `env.AI`, `@cf/zai-org/glm-4.7-flash` as the configured candidate, and a known fallback model when the candidate/model call fails.
+- Chat and Analyze mode instructions sent to the model, approved-facts grounding, no hidden-chain-of-thought output, and clear shared-quota errors.
+- Chat CRUD with owner predicates, pagination parameters and conversation/message timestamps.
+- Account workspace OTP UI, D1 history, Markdown/code rendering, copy controls, voice recognition disclosure, text-to-speech controls and stop-generation support.
+- System/light/dark theme behavior and manual theme switching.
+
+External verification limitations remain explicit: DNS access to official Cloudflare documentation was unavailable in this environment, so model catalog/pricing eligibility could not be verified remotely. No real email was sent and received. No remote D1 migration or production deployment was run.
+

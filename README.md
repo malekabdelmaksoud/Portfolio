@@ -15,17 +15,17 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 
 ## Assistant: evidence-only by design
 
-The visitor-facing chat does **not** use the old browser-only retrieval engine or a pretrained model. It sends questions to the Worker API in `worker/`, which retrieves only facts explicitly approved in D1 and returns their reviewed French/English text verbatim. If no approved fact matches, it abstains instead of inventing an answer.
+The visitor-facing chat uses the Worker API in `worker/`, the server-side D1 session, and Cloudflare Workers AI with approved-facts grounding. If no approved fact matches, it abstains instead of inventing an answer.
 
 The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved, so the assistant abstains until the owner reviews and approves reliable statements. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
+This is a grounded portfolio assistant. The Workers AI provider is constrained to approved portfolio facts; the separate Transformer experiment in `melek-ai/` is not deployed.
 
 ## Admin and API deployment
 
 See [worker/README.md](worker/README.md) for D1 creation, migrations, Cloudflare Access configuration, API deployment, and admin usage.
 
-The API Worker and D1 database have been provisioned and deployed. The production portfolio is live at the URL above, and the root `api-config.js` points to the deployed API Worker. The API Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. **Remaining setup:** configure Cloudflare Access for `/admin.html`, `/api/admin/*`, `/account.html`, and `/api/user/*`, then set the Worker secrets `ACCESS_ISSUER`, `ACCESS_AUD`, and `ADMIN_EMAIL`. Keep `/api/assistant`, `/api/projects`, and `/api/health` public. The API's `ALLOWED_ORIGIN` is set to the exact production portfolio origin.
+The API Worker and D1 database have been provisioned. The API Worker hosts `/account.html` and `/admin.html`. Cloudflare Access must protect only `/admin.html` and `/api/admin/*`; public visitor accounts use native email OTP and D1 sessions. Configure `ACCESS_ISSUER`, `ACCESS_AUD`, `ADMIN_EMAIL`, `RESEND_API_KEY`, `EMAIL_FROM`, `SESSION_PEPPER`, `OTP_PEPPER`, and, optionally, Turnstile variables. Keep `/api/assistant`, `/api/projects`, `/api/health`, and the authentication routes public or correctly CORS-protected.
 
 ## Security
 

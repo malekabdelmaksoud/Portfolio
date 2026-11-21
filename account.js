@@ -1,95 +1,475 @@
 (() => {
-  const base=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
-  const $=id=>document.getElementById(id);
-  let active=null,mode="chat",sending=false,chats=[],searchSequence=0;
-  const api=async(path,options={})=>{
-    const response=await fetch(base+path,{...options,credentials:"include",headers:{"content-type":"application/json","accept":"application/json",...(options.headers||{})}});
-    if(response.status===401||response.status===403)throw new Error("Votre session Cloudflare Access n'est pas active. Rechargez la page et terminez la connexion par e-mail.");
-    const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Erreur du serveur.");return data;
-  };
-  function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>$("toast").classList.remove("show"),3000);}
-  function escapeHTML(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-  function renderText(value){return escapeHTML(value).split("\n").map(line=>"<p>"+line+"</p>").join("");}
-  function addMessage(role,content,withActions=true){
-    const node=document.createElement("article");node.className="message "+(role==="user"?"user":"assistant");
-    const avatar=document.createElement("div");avatar.className="message-avatar";avatar.textContent=role==="user"?"M":"AI";
-    const body=document.createElement("div");body.className="message-body";
-    const label=document.createElement("div");label.className="message-role";label.textContent=role==="user"?"You":"Melek AI";
-    const text=document.createElement("div");text.className="message-text";text.innerHTML=renderText(content);
-    body.append(label,text);
-    if(role==="assistant"&&withActions){const actions=document.createElement("div");actions.className="message-actions";const copy=document.createElement("button");copy.type="button";copy.textContent="Copier";copy.addEventListener("click",()=>navigator.clipboard?.writeText(content).then(()=>toast("Réponse copiée."),()=>toast("Copie indisponible.")));actions.append(copy);body.append(actions);}
-    node.append(avatar,body);$("messages").append(node);$("messages").scrollTop=$("messages").scrollHeight;return node;
+  "use strict";
+  const base = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
+  const $ = id => document.getElementById(id);
+  let active = null;
+  let mode = "chat";
+  let sending = false;
+  let chats = [];
+  let searchSequence = 0;
+  let abortController = null;
+  let turnstileToken = "";
+  const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+
+  function applyTheme(theme) {
+    if (theme === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("portfolio-theme", theme); } catch (_) {}
   }
-  function groupFor(value){const d=new Date(String(value).endsWith("Z")?value:value+"Z"),n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate()),day=new Date(d.getFullYear(),d.getMonth(),d.getDate()),diff=Math.round((today-day)/86400000);return diff<=0?"Today":diff===1?"Yesterday":diff<7?"Previous 7 days":"Older";}
-  function renderList(){
-    const list=$("chat-list");list.replaceChildren();const query=$("history-search").value.trim().toLowerCase(),filtered=chats.filter(c=>(c.title||"").toLowerCase().includes(query));
-    if(!filtered.length){const p=document.createElement("p");p.className="list-empty";p.textContent=query?"Aucun résultat.":"Aucune conversation pour le moment.";list.append(p);return;}
-    ["Today","Yesterday","Previous 7 days","Older"].forEach(group=>{
-      const items=filtered.filter(c=>groupFor(c.updated_at)===group);if(!items.length)return;
-      const heading=document.createElement("div");heading.className="history-group";heading.textContent=group;list.append(heading);
-      items.forEach(chat=>{
-        const button=document.createElement("div");button.setAttribute("role","button");button.tabIndex=0;button.className="chat-item"+(chat.id===active?" active":"");
-        const title=document.createElement("span");title.className="chat-name";title.textContent=chat.title||"New chat";
-        const menu=document.createElement("button");menu.type="button";menu.className="chat-menu";menu.textContent="···";menu.title="Options";
-        menu.addEventListener("click",async e=>{e.stopPropagation();const action=prompt("Tapez rename pour renommer ou delete pour supprimer :","rename");if(action==="rename"){const next=prompt("Nouveau titre :",chat.title);if(next?.trim())try{await api("/api/user/chats/"+encodeURIComponent(chat.id),{method:"PUT",body:JSON.stringify({title:next.trim()})});await refreshChats();if(active===chat.id)$("conversation-head").textContent=next.trim();}catch(err){toast(err.message);}}else if(action==="delete")await deleteChat(chat.id);});
-        button.append(title,menu);button.addEventListener("click",()=>openChat(chat.id));button.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openChat(chat.id);}});list.append(button);
+  let accountTheme = "system";
+  try { accountTheme = localStorage.getItem("portfolio-theme") || "system"; } catch (_) {}
+  applyTheme(accountTheme);
+  $("account-theme").addEventListener("click", () => {
+    accountTheme = accountTheme === "system" ? "dark" : accountTheme === "dark" ? "light" : "system";
+    applyTheme(accountTheme);
+  });
+
+  const api = async (path, options = {}) => {
+    const response = await fetch(base + path, {
+      ...options,
+      credentials: "include",
+      headers: { "content-type": "application/json", "accept": "application/json", ...(options.headers || {}) }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) throw Object.assign(new Error(data.error || "Email sign-in is required."), { auth: true });
+    if (!response.ok) throw new Error(data.error || "The server could not complete this request.");
+    return data;
+  };
+
+  function toast(message) {
+    $("toast").textContent = message;
+    $("toast").classList.add("show");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => $("toast").classList.remove("show"), 3500);
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function markdown(value) {
+    const text = escapeHTML(value);
+    const blocks = text.split(/```([a-z0-9_-]*)\n?([\s\S]*?)```/gi);
+    let html = "";
+    for (let i = 0; i < blocks.length; i += 3) {
+      html += blocks[i].split("\n").map(line =>
+        line ? "<p>" + line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>") + "</p>" : ""
+      ).join("");
+      if (blocks[i + 1] !== undefined) {
+        const code = blocks[i + 2] || "";
+        html += `<div class="code-block"><div class="code-toolbar"><span>${escapeHTML(blocks[i + 1] || "code")}</span><button type="button" data-copy-code="${escapeHTML(code)}">Copy</button></div><pre><code>${code}</code></pre></div>`;
+      }
+    }
+    return html;
+  }
+
+  function formatTime(value) {
+    if (!value) return "";
+    const date = new Date(value.endsWith("Z") ? value : value + "Z");
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function addMessage(role, content, withActions = true, createdAt = null) {
+    const node = document.createElement("article");
+    node.className = "message " + (role === "user" ? "user" : "assistant");
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+    avatar.textContent = role === "user" ? "M" : "AI";
+    const body = document.createElement("div");
+    body.className = "message-body";
+    const label = document.createElement("div");
+    label.className = "message-role";
+    label.textContent = role === "user" ? "You" : "Melek AI";
+    const text = document.createElement("div");
+    text.className = "message-text";
+    text.innerHTML = markdown(content);
+    body.append(label, text);
+    if (createdAt) {
+      const time = document.createElement("time");
+      time.className = "message-time";
+      time.textContent = formatTime(createdAt);
+      body.append(time);
+    }
+    if (role === "assistant" && withActions) {
+      const actions = document.createElement("div");
+      actions.className = "message-actions";
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.textContent = "Copy";
+      copy.addEventListener("click", () => navigator.clipboard?.writeText(content).then(() => toast("Response copied."), () => toast("Copy unavailable.")));
+      const speak = document.createElement("button");
+      speak.type = "button";
+      speak.textContent = "Play";
+      speak.addEventListener("click", () => speakText(content));
+      const pause = document.createElement("button");
+      pause.type = "button";
+      pause.textContent = "Pause";
+      pause.addEventListener("click", () => speechSynthesis?.pause());
+      const resume = document.createElement("button");
+      resume.type = "button";
+      resume.textContent = "Resume";
+      resume.addEventListener("click", () => speechSynthesis?.resume());
+      const stop = document.createElement("button");
+      stop.type = "button";
+      stop.textContent = "Stop";
+      stop.addEventListener("click", () => speechSynthesis?.cancel());
+      actions.append(copy, speak, pause, resume, stop);
+      body.append(actions);
+    }
+    node.append(avatar, body);
+    $("messages").append(node);
+    node.querySelectorAll("[data-copy-code]").forEach(button => button.addEventListener("click", () => {
+      navigator.clipboard?.writeText(button.dataset.copyCode).then(() => toast("Code copied."));
+    }));
+    $("messages").scrollTop = $("messages").scrollHeight;
+    return node;
+  }
+
+  function groupFor(value) {
+    const d = new Date(String(value).endsWith("Z") ? value : value + "Z");
+    const n = new Date();
+    const today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((today - day) / 86400000);
+    return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? "Previous 7 days" : "Older";
+  }
+
+  function renderList() {
+    const list = $("chat-list");
+    list.replaceChildren();
+    const query = $("history-search").value.trim().toLower();
+    const filtered = chats.filter(c => (c.title || "").toLower().includes(query));
+    if (!filtered.length) {
+      const p = document.createElement("p");
+      p.className = "list-empty";
+      p.textContent = query ? "No results." : "No conversations yet.";
+      list.append(p);
+      return;
+    }
+    ["Today","Yesterday","Previous 7 days","Older"].forEach(group => {
+      const items = filtered.filter(c => groupFor(c.updated_at) === group);
+      if (!items.length) return;
+      const heading = document.createElement("div");
+      heading.className = "history-group";
+      heading.textContent = group;
+      list.append(heading);
+      items.forEach(chat => {
+        const button = document.createElement("div");
+        button.setAttribute("role", "button");
+        button.tabIndex = 0;
+        button.className = "chat-item" + (chat.id === active ? " active" : "");
+        const title = document.createElement("span");
+        title.className = "chat-name";
+        title.textContent = chat.title || "New chat";
+        const menu = document.createElement("button");
+        menu.type = "button";
+        menu.className = "chat-menu";
+        menu.textContent = "···";
+        menu.title = "Conversation options";
+        menu.addEventListener("click", async event => {
+          event.stopPropagation();
+          const action = prompt("Type rename or delete:", "rename");
+          if (action === "rename") {
+            const next = prompt("New title:", chat.title);
+            if (next?.trim()) {
+              try {
+                await api("/api/user/chats/" + encodeURIComponent(chat.id), { method: "PUT", body: JSON.stringify({ title: next.trim() }) });
+                await refreshChats();
+                if (active === chat.id) $("conversation-head").textContent = next.trim();
+              } catch (error) { toast(error.message); }
+            }
+          } else if (action === "delete") await deleteChat(chat.id);
+        });
+        button.append(title, menu);
+        button.addEventListener("click", () => openChat(chat.id));
+        button.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openChat(chat.id); }
+        });
+        list.append(button);
       });
     });
   }
-  async function refreshChats(){const data=await api("/api/user/chats");chats=data.chats||[];renderList();}
-  async function openChat(id){
-    try{
-      if(window.innerWidth<=760)$("sidebar").classList.remove("mobile-open");
-      const data=await api("/api/user/chats/"+encodeURIComponent(id));
-      active=id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title||"Conversation";
-      $("messages").replaceChildren();(data.messages||[]).forEach(m=>addMessage(m.role,m.content));
-      renderList();$("messages").scrollTop=$("messages").scrollHeight;
-    }catch(e){toast(e.message);}
+
+  async function refreshChats() {
+    const data = await api("/api/user/chats");
+    chats = data.chats || [];
+    renderList();
   }
-  async function createChat(title="New chat"){
-    if(window.innerWidth<=760)$("sidebar").classList.remove("mobile-open");
-    const data=await api("/api/user/chats",{method:"POST",body:JSON.stringify({title})});active=data.chat.id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title;$("messages").replaceChildren();await refreshChats();return data.chat;
+
+  async function openChat(id) {
+    if (window.innerWidth <= 760) $("sidebar").classList.remove("mobile-open");
+    const data = await api("/api/user/chats/" + encodeURIComponent(id));
+    active = id;
+    $("welcome").hidden = true;
+    $("conversation").hidden = false;
+    $("conversation-head").textContent = data.chat.title || "Conversation";
+    $("messages").replaceChildren();
+    (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at));
+    renderList();
+    $("messages").scrollTop = $("messages").scrollHeight;
   }
-  async function deleteChat(id){if(!confirm("Supprimer définitivement cette conversation ?"))return;try{await api("/api/user/chats/"+encodeURIComponent(id),{method:"DELETE"});if(active===id){active=null;$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();}await refreshChats();toast("Conversation supprimée.");}catch(e){toast(e.message);}}
-  function setMode(next){mode=next;$("mode-chat").classList.toggle("selected",mode==="chat");$("mode-analyze").classList.toggle("selected",mode==="analyze");$("mode-hint").textContent=mode==="chat"?"Réponses directes et concises":"Réponse structurée et analyse détaillée";$("mobile-mode").textContent=mode==="chat"?"Chat":"Analyze";}
-  async function sendMessage(event){
-    event.preventDefault();const input=$("chat-input"),question=input.value.trim();if(!question||sending)return;sending=true;$("send-message").disabled=true;input.value="";input.style.height="auto";
-    try{
-      if(!active)await createChat(question.slice(0,64));
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:question})});addMessage("user",question);
-      const pending=addMessage("assistant",mode==="analyze"?"Analyse en cours…":"Réponse en cours…",false);
-      const context=[...$("messages").querySelectorAll(".message")].slice(-8,-1).map(n=>n.querySelector(".message-text")?.textContent||"");
-      const response=await fetch(base+"/api/assistant",{method:"POST",credentials:"omit",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({question,mode,context})});
-      const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Le service AI est indisponible.");
-      const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";pending.remove();
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});addMessage("assistant",answer);await refreshChats();
-    }catch(e){toast(e.message);input.value=question;}
-    finally{sending=false;$("send-message").disabled=false;input.focus();}
+
+  async function createChat(title = "New chat") {
+    const data = await api("/api/user/chats", { method: "POST", body: JSON.stringify({ title }) });
+    active = data.chat.id;
+    $("welcome").hidden = true;
+    $("conversation").hidden = false;
+    $("conversation-head").textContent = data.chat.title;
+    $("messages").replaceChildren();
+    await refreshChats();
+    return data.chat;
   }
-  async function load(){
-    try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await refreshChats();if(chats.length)await openChat(chats[0].id);}
-    catch(e){$("identity").textContent="Connexion requise";$("status").textContent=e.message;toast(e.message);}
+
+  async function deleteChat(id) {
+    if (!confirm("Permanently delete this conversation?")) return;
+    await api("/api/user/chats/" + encodeURIComponent(id), { method: "DELETE" });
+    if (active === id) {
+      active = null;
+      $("conversation").hidden = true;
+      $("welcome").hidden = false;
+      $("messages").replaceChildren();
+    }
+    await refreshChats();
+    toast("Conversation deleted.");
   }
-  $("new-chat").addEventListener("click",async()=>{try{active=null;await createChat();$("chat-input").focus();}catch(e){toast(e.message);}});
-  $("chat-form").addEventListener("submit",sendMessage);
-  $("chat-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chat-form").requestSubmit();}});
-  $("chat-input").addEventListener("input",()=>{$("chat-input").style.height="auto";$("chat-input").style.height=Math.min($("chat-input").scrollHeight,180)+"px";});
-  $("mode-chat").addEventListener("click",()=>setMode("chat"));$("mode-analyze").addEventListener("click",()=>setMode("analyze"));
-  $("history-search").addEventListener("input",async e=>{const sequence=++searchSequence,q=e.target.value.trim();if(!q){await refreshChats();return;}try{const data=await api("/api/user/chats?q="+encodeURIComponent(q));if(sequence===searchSequence){chats=data.chats||[];renderList();}}catch(err){toast(err.message);}});
-  $("delete-all").addEventListener("click",async()=>{if(!confirm("Supprimer tout votre historique ? Cette action est irréversible."))return;try{await api("/api/user/chats",{method:"DELETE"});active=null;chats=[];$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();renderList();toast("Historique supprimé.");}catch(e){toast(e.message);}});
-  $("sidebar-toggle").addEventListener("click",()=>{
-    if(window.innerWidth<=760){$("sidebar").classList.remove("mobile-open");}
-    else{$("sidebar").classList.toggle("collapsed");}
+
+  function setMode(next) {
+    mode = next;
+    $("mode-chat").classList.toggle("selected", mode === "chat");
+    $("mode-analyze").classList.toggle("selected", mode === "analyze");
+    $("mode-hint").textContent = mode === "chat" ? "Direct, concise answers" : "Detailed, structured analysis";
+    $("mobile-mode").textContent = mode === "chat" ? "Chat" : "Analyze";
+  }
+
+  async function sendMessage(event) {
+    event.preventDefault();
+    const input = $("chat-input");
+    const question = input.value.trim();
+    if (!question || sending) return;
+    sending = true;
+    $("send-message").disabled = true;
+    $("stop-generation").hidden = false;
+    input.value = "";
+    input.style.height = "auto";
+    abortController = new AbortController();
+    try {
+      if (!active) await createChat(question.slice(0, 64));
+      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
+      addMessage("user", question);
+      const pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
+      const context = [...$("messages").querySelectorAll(".message")].slice(-8, -1).map(node => node.querySelector(".message-text")?.textContent || "");
+      const response = await fetch(base + "/api/assistant", {
+        method: "POST",
+        credentials: "include",
+        signal: abortController.signal,
+        headers: { "content-type": "application/json", "accept": "application/json" },
+        body: JSON.stringify({ question, mode, context })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
+      const answer = typeof data.answer === "string" ? data.answer : "No response available.";
+      pending.remove();
+      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
+      addMessage("assistant", answer);
+      await refreshChats();
+    } catch (error) {
+      if (error.name !== "AbortError") toast(error.message);
+      else toast("Generation stopped.");
+    } finally {
+      sending = false;
+      abortController = null;
+      $("send-message").disabled = false;
+      $("stop-generation").hidden = true;
+      input.focus();
+    }
+  }
+
+  function speakText(text) {
+    if (!("speechSynthesis" in window)) {
+      toast("Text-to-speech is unavailable in this browser.");
+      return;
+    }
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = document.documentElement.lang || "fr";
+    speechSynthesis.speak(utterance);
+  }
+
+  function showAuth() {
+    $("auth-screen").hidden = false;
+    $("app-shell").hidden = true;
+  }
+
+  function showApp() {
+    $("auth-screen").hidden = true;
+    $("app-shell").hidden = false;
+  }
+
+  async function loadTurnstile() {
+    try {
+      const config = await api("/api/auth/config");
+      if (!config.turnstileSiteKey) return;
+      await new Promise((resolve, reject) => {
+        if (window.turnstile) return resolve();
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Turnstile could not load."));
+        document.head.append(script);
+      });
+      window.turnstile.render("turnstile-wrap", {
+        sitekey: config.turnstileSiteKey,
+        callback: token => { turnstileToken = token; },
+        "expired-callback": () => { turnstileToken = ""; }
+      });
+    } catch (error) { toast(error.message); }
+  }
+
+  async function load() {
+    await loadTurnstile();
+    try {
+      const me = await api("/api/user/me");
+      showApp();
+      $("identity").textContent = me.user.email;
+      $("status").textContent = "Verified · private history";
+      await refreshChats();
+      if (chats.length) await openChat(chats[0].id);
+    } catch (error) {
+      showAuth();
+      $("auth-error").textContent = error.auth ? "Enter your email to receive a sign-in code." : error.message;
+    }
+  }
+
+  $("otp-request-form").addEventListener("submit", async event => {
+    event.preventEvent = true;
+    event.preventDefault();
+    const email = $("otp-email").value.trim();
+    $("auth-error").textContent = "";
+    try {
+      await api("/api/auth/request", { method: "POST", body: JSON.stringify({ email, turnstileToken }) });
+      $("otp-request-form").hidden = true;
+      $("otp-verify-form").hidden = false;
+      $("otp-code").focus();
+    } catch (error) { $("auth-error").textContent = error.message; }
   });
-  $("mobile-menu").addEventListener("click",()=>$("sidebar").classList.toggle("mobile-open"));
-  document.addEventListener("click",e=>{
-    if(window.innerWidth<=760&&$("sidebar").classList.contains("mobile-open")){
-      if(!e.target.closest("#sidebar")&&!e.target.closest("#mobile-menu")){
-        $("sidebar").classList.remove("mobile-open");
-      }
+  $("otp-verify-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    const email = $("otp-email").value.trim();
+    const code = $("otp-code").value.trim();
+    $("auth-error").textContent = "";
+    try {
+      await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ email, code }) });
+      await load();
+    } catch (error) { $("auth-error").textContent = error.message; }
+  });
+  $("otp-back").addEventListener("click", () => {
+    $("otp-verify-form").hidden = true;
+    $("otp-request-form").hidden = false;
+    $("otp-code").value = "";
+  });
+  $("logout").addEventListener("click", async () => {
+    try {
+      await api("/api/auth/logout", { method: "POST", body: "{}" });
+      active = null;
+      chats = [];
+      showAuth();
+      $("otp-request-form").hidden = false;
+      $("otp-verify-form").hidden = true;
+      $("otp-email").value = "";
+      $("otp-code").value = "";
+    } catch (error) { toast(error.message); }
+  });
+
+  $("new-chat").addEventListener("click", async () => {
+    try {
+      active = null;
+      await createChat();
+      $("chat-input").focus();
+    } catch (error) { toast(error.message); }
+  });
+  $("chat-form").addEventListener("submit", sendMessage);
+  $("chat-input").addEventListener("keydown", event => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      $("chat-form").requestSubmit();
     }
   });
-  document.querySelectorAll("[data-prompt]").forEach(button=>button.addEventListener("click",()=>{$("chat-input").value=button.dataset.prompt;$("chat-input").focus();}));
-  document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("new-chat").click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="f"){e.preventDefault();$("history-search").focus();}});
+  $("chat-input").addEventListener("input", () => {
+    $("chat-input").style.height = "auto";
+    $("chat-input").style.height = Math.min($("chat-input").scrollHeight, 180) + "px";
+  });
+  $("mode-chat").addEventListener("click", () => setMode("chat"));
+  $("mode-analyze").addEventListener("click", () => setMode("analyze"));
+  $("stop-generation").addEventListener("click", () => abortController?.abort());
+  $("history-search").addEventListener("input", async event => {
+    const sequence = ++searchSequence;
+    const query = event.target.value.trim();
+    if (!query) { await refreshChats(); return; }
+    try {
+      const data = await api("/api/user/chats?q=" + encodeURIComponent(query));
+      if (sequence === searchSequence) { chats = data.chats || []; renderList(); }
+    } catch (error) { toast(error.message); }
+  });
+  $("delete-all").addEventListener("click", async () => {
+    if (!confirm("Delete all of your conversation history?")) return;
+    await api("/api/user/chats", { method: "DELETE" });
+    active = null;
+    chats = [];
+    $("conversation").hidden = true;
+    $("welcome").hidden = false;
+    $("messages").replaceChildren();
+    renderList();
+    toast("History deleted.");
+  });
+  $("sidebar-toggle").addEventListener("click", () => {
+    if (window.innerWidth <= 760) $("sidebar").classList.remove("mobile-open");
+    else $("sidebar").classList.toggle("collapsed");
+  });
+  $("mobile-menu").addEventListener("click", () => $("sidebar").classList.toggle("mobile-open"));
+  document.addEventListener("click", event => {
+    if (window.innerWidth <= 760 && $("sidebar").classList.contains("mobile-open")) {
+      if (!event.target.closest("#sidebar") && !event.target.closest("#mobile-menu")) $("sidebar").classList.remove("mobile-open");
+    }
+  });
+  document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => {
+    $("chat-input").value = button.dataset.prompt;
+    $("chat-input").focus();
+  }));
+
+  $("mic-button").addEventListener("click", () => {
+    $("voice-disclosure").hidden = false;
+    if (!speech) {
+      toast("Speech recognition is unsupported in this browser.");
+      return;
+    }
+    if (recognition) { recognition.stop(); return; }
+    recognition = new speech();
+    recognition.lang = document.documentElement.lang === "en" ? "en-US" : "fr-FR";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onstart = () => { $("mic-button").classList.add("recording"); toast("Recording started."); };
+    recognition.onresult = event => {
+      let finalText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+      }
+      if (finalText) $("chat-input").value = ($("chat-input").value + " " + finalText).trim();
+    };
+    recognition.onerror = event => toast("Speech recognition error: " + event.error);
+    recognition.onend = () => {
+      recognition = null;
+      $("mic-button").classList.remove("recording");
+      $("chat-input").focus();
+    };
+    recognition.start();
+  });
+
+  document.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); $("new-chat").click(); }
+  });
+
   load();
 })();

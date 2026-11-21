@@ -20,9 +20,11 @@ function environment() {
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
-test("health endpoint checks D1 and reports the safe assistant mode",async()=>{
+test("health endpoint checks D1 and reports the native auth and AI modes",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/health"),environment());
- assert.equal(response.status,200);assert.equal((await response.json()).assistant,"approved-facts-only");
+ const data=await response.json();
+ assert.equal(response.status,200);assert.equal(data.assistant,"workers-ai-grounded");
+ assert.equal(data.auth,"native-email-otp");
 });
 
 test("assistant returns reviewed fact text verbatim",async()=>{
@@ -80,9 +82,46 @@ test("admin API refuses requests without Cloudflare Access identity",async()=>{
  assert.equal(response.status,401);
 });
 
-test("per-user chat endpoints require a verified email Access identity",async()=>{
+test("per-user chat endpoints require a native verified session",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/user/chats"),environment());
  assert.equal(response.status,401);
  const data=await response.json();
- assert.match(data.error,/sign-in is not configured/i);
+ assert.match(data.error,/Email sign-in is required/i);
+});
+
+test("auth config does not expose Turnstile secret",async()=>{
+ const env={...environment(),TURNSTILE_SITE_KEY:"0x-test-public-site-key",TURNSTILE_SECRET:"secret"};
+ const response=await worker.fetch(new Request("https://api.test/api/auth/config"),env);
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.turnstileSiteKey,"0x-test-public-site-key");
+ assert.doesNotMatch(JSON.stringify(data),/secret/i);
+});
+
+test("chat mode is sent distinctly from analyze mode",async()=>{
+ const env={...environment(),AI:{async run(model,input){assert.equal(input.messages[0].role,"system");assert.match(input.messages[0].content,/Chat mode/);return {response:"Concise chat answer"};}}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"chat"}),env);
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.answer,"Concise chat answer");
+ assert.equal(data.mode,"chat");
+});
+
+test("analyze mode adds the analysis instruction",async()=>{
+ const env={...environment(),AI:{async run(model,input){assert.match(input.messages[0].content,/Analyze mode/);return {response:"Structured analysis"};}}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"analyze"}),env);
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.answer,"Structured analysis");
+ assert.equal(data.mode,"analyze");
+});
+
+test("Workers AI quota exhaustion returns a retryable clear error",async()=>{
+ const env={...environment(),AI:{async run(){throw new Error("429 quota exhausted");}}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),env);
+ const data=await response.json();
+ assert.equal(response.status,503);
+ assert.equal(data.code,"SHARED_QUOTA_EXHAUSTED");
+ assert.equal(data.retryable,true);
+ assert.match(data.error,/conversation history is preserved/i);
 });

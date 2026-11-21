@@ -45,12 +45,12 @@ Create **two separate Self-hosted Access applications** on that hostname. Do not
 - Policy: **Allow** only the owner's exact verified email address.
 - Use Cloudflare Access email one-time PIN or another verified identity provider.
 
-### 2. Public visitor authentication (target architecture)
+### 2. Public visitor authentication
 
 - Do NOT create a Cloudflare Access application for `/account.html` or `/api/user/*`.
 - Public accounts must use native email OTP and server-side D1 sessions implemented by the Worker.
 - Cloudflare Access seats are reserved for the administrator application only.
-- Until native OTP is implemented and deployed, the existing visitor account endpoints still require the legacy Access JWT flow; do not remove that flow before the replacement is tested and ready.
+- Public accounts use native email OTP and D1 sessions. Do not attach Cloudflare Access to `/account.html` or `/api/user/*`.
 
 ### 3. Configure Worker secrets
 
@@ -58,14 +58,22 @@ In Cloudflare Dashboard → Workers & Pages → `melek-portfolio-api` → Settin
 
 - `ACCESS_ISSUER`: `https://YOUR-TEAM.cloudflareaccess.com`
 - `ACCESS_AUD`: the **Admin application's** AUD tag
-- `ACCESS_USER_AUD`: the **Visitor account application's** AUD tag
 - `ADMIN_EMAIL`: the owner's exact verified email address
+- `RESEND_API_KEY`: runtime secret for the Resend free-tier email provider
+- `EMAIL_FROM`: verified sender address
+- `OTP_PEPPER`, `SESSION_PEPPER`: independent random runtime secrets
+- `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`: optional Turnstile configuration
+- `AI_MODEL`: optional model override
 
-The Worker validates admin JWTs against `ACCESS_AUD` and additionally compares the signed email with `ADMIN_EMAIL`. Visitor endpoints validate JWTs against `ACCESS_USER_AUD`, verify issuer/signature/expiry, and derive the owner email from the signed claims.
+The Worker validates admin JWTs against `ACCESS_AUD` and compares the signed email with `ADMIN_EMAIL`. Public visitor identity comes only from a D1-backed HttpOnly, Secure session cookie after native OTP verification.
 
 Never commit the email identity or Access secrets to this public repository.
 
-## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
+## Visitor accounts and private chat history
+
+Visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html`, request an email OTP, and verify it. The Worker creates a D1-backed server session and owner-scoped chat history. Migration `0005_native_auth.sql` adds users, OTP challenges, abuse windows and sessions without changing existing chats or messages.
+
+## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.

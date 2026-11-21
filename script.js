@@ -48,6 +48,23 @@ function setLanguage(language) {
 document.querySelectorAll(".lang-btn").forEach(button => {
   button.addEventListener("click", () => setLanguage(button.dataset.lang));
 });
+function applyTheme(theme) {
+  if (theme === "system") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) toggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : theme === "light" ? "Use system theme" : "Switch to dark theme");
+  try { localStorage.setItem("portfolio-theme", theme); } catch (_) {}
+}
+let savedTheme = "system";
+try { savedTheme = localStorage.getItem("portfolio-theme") || "system"; } catch (_) {}
+applyTheme(savedTheme);
+document.getElementById("theme-toggle")?.addEventListener("click", () => {
+  const current = localStorage.getItem("portfolio-theme") || "system";
+  applyTheme(current === "system" ? "dark" : current === "dark" ? "light" : "system");
+});
 let savedLanguage = "fr";
 try { savedLanguage = localStorage.getItem("portfolio-language") || "fr"; } catch (e) {}
 setLanguage(savedLanguage);

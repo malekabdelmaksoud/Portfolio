@@ -9,9 +9,13 @@ database_name = "melek-portfolio-db"
 database_id = "15577d7f-b636-4fa6-817c-8f0c77731927"
 migrations_dir = "migrations"
 
+[ai]
+binding = "AI"
+
 [vars]
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
-# ADMIN_EMAIL, ACCESS_ISSUER, ACCESS_AUD, and ACCESS_USER_AUD are runtime secrets; never commit them.
+# AI_MODEL, TURNSTILE_SECRET, TURNSTILE_SITE_KEY, RESEND_API_KEY, EMAIL_FROM, SESSION_PEPPER,
+# OTP_PEPPER, ACCESS_ISSUER, ACCESS_AUD, and ADMIN_EMAIL are runtime secrets.
 
 [assets]
 directory = "./admin-assets"
