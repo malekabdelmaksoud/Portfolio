@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ## Prepare data
 
-Download a bounded, provenance-aware public corpus sample (English, French, Arabic and Tunisian Derja) with `python download_data.py --out data/train.jsonl`. The downloader only accepts a strict allowlist of public-domain, CC0, CC-BY-4.0, MIT and Apache-2.0 data and records source identifiers. Review [data/SOURCES.md](data/SOURCES.md) before use. You can also add your own JSONL documents with non-empty `text`, `source` and a supported license:
+Download a bounded, provenance-aware public corpus sample (English, French, Arabic and Tunisian Derja) with `python download_data.py --out data/train.jsonl`. The downloader only accepts a strict allowlist of public-domain, CC0, CC-BY-4.0, ODC-By-1.0, MIT and Apache-2.0 data and records source identifiers. Review [data/SOURCES.md](data/SOURCES.md) before use. You can also add your own JSONL documents with non-empty `text`, `source` and a supported license:
 
 ```json
 {"text":"Example training text written by the project owner.","source":"owner-authored","license":"owned"}
