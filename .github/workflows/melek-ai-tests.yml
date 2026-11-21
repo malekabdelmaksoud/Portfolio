@@ -46,7 +46,7 @@ jobs:
       - name: Publish temporary training corpus artifact
         uses: actions/upload-artifact@v4
         with:
-          name: melek-gpt-public-corpus-sample-v6
+          name: melek-gpt-public-corpus-sample-v7
           path: melek-ai/data/train.jsonl
           if-no-files-found: error
           retention-days: 7
@@ -66,7 +66,7 @@ jobs:
       - name: Download verified public corpus artifact
         uses: actions/download-artifact@v4
         with:
-          name: melek-gpt-public-corpus-sample-v6
+          name: melek-gpt-public-corpus-sample-v7
           path: melek-ai/data
       - name: Train original MelekGPT from random initialization
         run: |
@@ -80,7 +80,7 @@ jobs:
       - name: Publish experimental from-scratch checkpoint
         uses: actions/upload-artifact@v4
         with:
-          name: melek-gpt-experimental-checkpoint
+          name: melek-gpt-experimental-checkpoint-v2
           path: melek-ai/checkpoints/melek-ai.pt
           if-no-files-found: error
           retention-days: 7
