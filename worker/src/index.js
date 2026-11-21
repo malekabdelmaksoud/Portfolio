@@ -93,7 +93,10 @@ async function assistant(request, env) {
   try { body=await readBody(request,4000); } catch { return json({error:"Invalid request body."},400); }
   const question=String(body.question||"").trim().slice(0,800);
   const q=terms(question);
-  if(!q.size) return json({answer:/[\u0600-\u06ff]/.test(question)?"اسأل سؤال واضح ومحدد.":"Please ask a specific question.",sources:[]});
+  const context=Array.isArray(body.context)?body.context.slice(-4).filter(x=>typeof x==="string").map(x=>x.slice(0,300)).join(" "):"";
+  const isFollowUp=/\b(more|details|explain|elaborate|encore|explique|plus)\b|زيد|زيدني|فسرلي|فصلي/i.test(normalize(question));
+  const searchTerms=isFollowUp && context ? terms(context+" "+question) : q;
+  if(!searchTerms.size) return json({answer:/[\u0600-\u06ff]/.test(question)?"اسأل سؤال واضح ومحدد.":"Please ask a specific question.",sources:[]});
   const {results=[]}=await env.DB.prepare("SELECT id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
   if(!results.length) return json({answer:abstentionFor(question),sources:[]});
   const ranked=results.map(f=>{
