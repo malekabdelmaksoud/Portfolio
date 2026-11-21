@@ -19,7 +19,7 @@ The authenticated visitor workspace uses Workers AI for general conversation. Wh
 
 The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved; portfolio-specific questions abstain when no relevant approved evidence exists. General questions can still be answered conversationally. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-The model catalogue currently offers Gemma 4 and Qwen 3.8 and can be extended server-side with `AI_MODELS_JSON`. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
+The hosted model catalogue includes GLM-4.7 Flash (recommended free-quota default), Gemma 4, and metered Qwen 3.8, and can be extended server-side with `AI_MODELS_JSON`. The original MelekGPT Transformer in `melek-ai/` remains a separate from-scratch model; its authenticated private inference adapter is implemented, but it remains unavailable until a reviewed training corpus, checkpoint, and private endpoint are configured.
 
 ## Admin and API deployment
 
