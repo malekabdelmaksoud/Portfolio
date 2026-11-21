@@ -2,6 +2,7 @@ name: Melek AI evidence guard tests
 
 on:
   push:
+    branches: [main]
     paths:
       - "melek-ai/**"
       - ".github/workflows/melek-ai-tests.yml"
