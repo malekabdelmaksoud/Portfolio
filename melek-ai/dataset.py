@@ -57,7 +57,7 @@ def load_documents(path: Path) -> list[str]:
             if license_name not in ALLOWED_LICENSES:
                 raise ValueError(
                     f"Line {line_number} has an unsupported or unclear license; "
-                    "use owned, public-domain, CC0-1.0, CC-BY-4.0, MIT, or Apache-2.0"
+                    "use owned, public-domain, CC0-1.0, CC-BY-4.0, ODC-By-1.0, MIT, or Apache-2.0"
                 )
             normalized = text.strip()
             fingerprint = normalized.casefold()
