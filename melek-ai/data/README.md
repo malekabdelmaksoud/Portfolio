@@ -1,11 +1,14 @@
 # Training data
 
-Place your own or explicitly permitted text records in `train.jsonl`, one JSON object per line:
+The corpus downloader obtains a bounded sample from public Hugging Face datasets with explicit provenance and license metadata:
 
-```json
-{"text":"A paragraph you wrote or have permission to use.","source":"owner-authored","license":"owned"}
+```bash
+pip install -r requirements.txt
+python download_data.py --out data/train.jsonl --max-per-language 1200 --max-scan 150000
 ```
 
-Allowed license values are `owned`, `permitted`, and `public-domain`. Do not include visitor conversations, private personal data, passwords, API keys, or unapproved portfolio facts. The current Transformer is a tiny byte-level research model, not a pretrained foundation model. A few portfolio facts are not enough to teach it general conversation. Build a substantial, varied, reviewed corpus and evaluate it before serving it to visitors.
+Every JSONL row contains `text`, `source`, `license`, and `language`. The downloader keeps only an allowlist of public-domain, CC0, CC-BY-4.0, MIT and Apache-2.0 data, records source identifiers, deduplicates text and filters obvious email/phone patterns. Automatic filters are not a substitute for reviewing samples.
 
-The actual dataset and checkpoints are git-ignored.
+See [SOURCES.md](SOURCES.md) for source repositories, license conditions, attribution and exclusions. The downloaded corpus and checkpoints are git-ignored; do not commit them.
+
+Never include visitor chats, private personal data, passwords, API keys, or unapproved portfolio facts. The current Transformer is a tiny byte-level research model, not a pretrained foundation model. A few portfolio facts are not enough to teach it general conversation.
