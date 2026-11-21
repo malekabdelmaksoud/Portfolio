@@ -8,6 +8,18 @@ function environment(){
  return{DB,ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test"};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
+
+function base64url(value){return Buffer.from(value).toString("base64url");}
+async function accessToken(){
+ const pair=await crypto.subtle.generateKey({name:"RSASSA-PKCS1-v1_5",modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:"SHA-256"},true,["sign","verify"]);
+ const jwk=await crypto.subtle.exportKey("jwk",pair.publicKey);jwk.kid="test-key";jwk.alg="RS256";jwk.use="sig";
+ const header=base64url(JSON.stringify({alg:"RS256",kid:"test-key"}));
+ const payload=base64url(JSON.stringify({iss:"https://access.test",aud:["visitor-aud"],exp:Math.floor(Date.now()/1000)+300,email:"visitor@example.test"}));
+ const signingInput=header+"."+payload;
+ const signature=await crypto.subtle.sign("RSASSA-PKCS1-v1_5",pair.privateKey,new TextEncoder().encode(signingInput));
+ return{token:signingInput+"."+base64url(signature),jwk};
+}
+
 test("health endpoint checks D1 and reports authenticated assistant mode",async()=>{
  const r=await worker.fetch(new Request("https://api.test/api/health"),environment());assert.equal(r.status,200);
  const d=await r.json();assert.equal(d.ok,true);assert.equal(d.assistant,"authenticated-llm");
@@ -33,4 +45,24 @@ test("admin API refuses requests without Cloudflare Access identity",async()=>{
 test("per-user chat endpoints require a verified email Access identity",async()=>{
  const r=await worker.fetch(new Request("https://api.test/api/user/chats"),environment());assert.equal(r.status,401);
  assert.match((await r.json()).error,/sign-in is not configured/i);
+});
+
+test("original MelekGPT can be selected through its authenticated private inference adapter",async()=>{
+ const {token,jwk}=await accessToken();
+ const previousFetch=globalThis.fetch;
+ globalThis.fetch=async input=>{
+  const url=String(input);
+  if(url==="https://access.test/certs")return new Response(JSON.stringify({keys:[jwk]}),{status:200});
+  if(url==="https://melek-model.test/v1/chat/completions")return new Response(JSON.stringify({choices:[{message:{content:"MelekGPT test response"}}]}),{status:200});
+  throw new Error("Unexpected network request: "+url);
+ };
+ try{
+  const env={...environment(),ACCESS_ISSUER:"https://access.test",ACCESS_USER_AUD:"visitor-aud",ACCESS_JWKS_URL:"https://access.test/certs",MELEK_AI_URL:"https://melek-model.test/v1/chat/completions",MELEK_AI_TOKEN:"test-secret"};
+  const req=new Request("https://api.test/api/assistant",{method:"POST",headers:{"content-type":"application/json",Origin:"https://portfolio.test","CF-Access-Jwt-Assertion":token},body:JSON.stringify({question:"Explain a simple algorithm",model:"melek-gpt-local"})});
+  const response=await worker.fetch(req,env);
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.equal(data.model,"melek-gpt-local");
+  assert.equal(data.answer,"MelekGPT test response");
+ }finally{globalThis.fetch=previousFetch;}
 });
