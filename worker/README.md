@@ -131,3 +131,8 @@ The scheduled trigger and D1 migration are code changes only until deployed. App
 ### Free web knowledge only
 
 The Worker does not call Cloudflare Web Search, Ceramic, AI Gateway, or any paid search API. It refreshes a fixed allowlist of public RSS/Atom feeds once daily and retrieves matching stored summaries for general questions. Feed refresh is best-effort and remains subject to Workers Free and D1 Free quotas. If those quotas are reached, refresh or chat requests can fail until the quota resets; the application must never upgrade automatically or fall back to a paid provider. No search-provider credits or API keys are required.
+
+
+### Deployment safety
+
+The GitHub Actions deployment workflow is manual-only and requires the `confirm_workers_free` checkbox. The workflow does not deploy on pushes or merges. Only confirm it after checking the Cloudflare dashboard shows Workers Free; never upgrade to Paid for this project.
