@@ -101,8 +101,8 @@ async function assistant(request, env) {
   if(!results.length) return json({answer:abstentionFor(question),sources:[]});
   const ranked=results.map(f=>{
     const hay=terms([f.text_fr,f.text_en,...parseJson(f.aliases_json,[])].join(" "));
-    const matched=[...q].filter(t=>hay.has(t));
-    return {fact:f,coverage:matched.length/q.size};
+    const matched=[...searchTerms].filter(t=>hay.has(t));
+    return {fact:f,coverage:matched.length/searchTerms.size};
   }).filter(x=>x.coverage>=0.5).sort((a,b)=>b.coverage-a.coverage);
   if(!ranked.length) return json({answer:abstentionFor(question),sources:[]});
   const selected=[];
