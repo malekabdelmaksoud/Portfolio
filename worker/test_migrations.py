@@ -57,6 +57,18 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(own, [("Private question",)])
         self.assertEqual(other, [])
 
+    def test_new_certification_and_achievement_categories_are_supported(self):
+        self.db.execute(
+            "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
+            ("cert-001", "certifications", "Certificat", "Certificate", "admin", "reviewed", "شهادة")
+        )
+        self.db.execute(
+            "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
+            ("achievement-001", "achievements", "Réalisation", "Achievement", "admin", "reviewed", "إنجاز")
+        )
+        rows = self.db.execute("SELECT category, approved FROM facts WHERE id IN (?,?) ORDER BY id", ("achievement-001", "cert-001")).fetchall()
+        self.assertEqual(rows, [("achievements", 0), ("certifications", 0)])
+
     def test_fact_approval_defaults_to_false(self):
         self.db.execute(
             "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
