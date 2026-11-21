@@ -164,7 +164,7 @@ test('AI workspace modal closes with its close button and Escape key', async () 
   } finally { await page.close(); }
 });
 
-test('visitor chat does not load the obsolete local engine or a hosted model', async () => {
+test('new AI workspace does not load the obsolete local engine or a hosted model', async () => {
   const page = await openPage();
   try {
     assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant), 'undefined');
