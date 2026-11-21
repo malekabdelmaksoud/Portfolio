@@ -28,6 +28,7 @@ function corsHeaders(request, env) {
   const allowed=(env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/,"");
   return origin===allowed ? {"access-control-allow-origin":origin,"vary":"Origin","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,CF-Access-Jwt-Assertion"} : {};
 }
+function withCors(response, cors) { const headers=new Headers(response.headers); for(const [k,v] of Object.entries(cors)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 async function readBody(request, max=16000) {
   const raw=await request.text();
   if(raw.length>max) throw new Error("Request body is too large.");
@@ -167,18 +168,18 @@ export default {
     try {
       if(path==="/api/health" && method==="GET") {
         await env.DB.prepare("SELECT 1").first();
-        return json({ok:true,service:"portfolio-api",assistant:"approved-facts-only",admin:"cloudflare-access"},200,cors);
+        return withCors(json({ok:true,service:"portfolio-api",assistant:"approved-facts-only",admin:"cloudflare-access"}),cors);
       }
-      if(path==="/api/assistant" && method==="POST") return await assistant(request,env);
+      if(path==="/api/assistant" && method==="POST") return withCors(await assistant(request,env),cors);
       if(path==="/api/projects" && method==="GET") {
         const {results=[]}=await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
-        return json({projects:results},200,cors);
+        return withCors(json({projects:results}),cors);
       }
-      if(path.startsWith("/api/admin/")) return await adminRoute(request,env,path,method);
-      return json({error:"Not found."},404,cors);
+      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
+      return withCors(json({error:"Not found."},404),cors);
     } catch(error) {
       const status=/Access authentication|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
-      return json({error:status===401?error.message:"The server could not complete this request."},status,cors);
+      return withCors(json({error:status===401?error.message:"The server could not complete this request."},status),cors);
     }
   }
 };
