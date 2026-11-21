@@ -38,8 +38,8 @@ def format_messages(messages):
             continue
         content = item.get("content")
         if isinstance(content, str) and content.strip():
-            parts.append(f'{item["role"]}: {content[:1800]}')
-    parts.append("assistant:")
+            parts.append(f'{item["role"].capitalize()}: {content[:1800]}')
+    parts.append("Assistant:")
     return "\n\n".join(parts)
 
 
