@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Portfolio knowledge base",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "policy",
+    "facts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "status": {
+      "type": "string"
+    },
+    "policy": {
+      "type": "string"
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "text_fr",
+          "text_en",
+          "aliases",
+          "source",
+          "approved"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+-[0-9]{3}$"
+          },
+          "category": {
+            "enum": [
+              "profile",
+              "contact",
+              "education",
+              "skills",
+              "experience",
+              "project",
+              "languages"
+            ]
+          },
+          "text_fr": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text_en": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "source": {
+            "type": "object",
+            "required": [
+              "file",
+              "selector"
+            ],
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "selector": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "approved": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
