@@ -14,8 +14,6 @@ migrations_dir = "migrations"
 
 [vars]
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
-WEB_SEARCH_ENABLED = "true"
-WEB_SEARCH_GATEWAY = "default"
 # ADMIN_EMAIL, ACCESS_ISSUER, ACCESS_AUD, and ACCESS_USER_AUD are runtime secrets; never commit them.
 
 [ai]
