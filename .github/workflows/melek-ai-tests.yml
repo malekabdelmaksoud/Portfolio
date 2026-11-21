@@ -74,7 +74,7 @@ jobs:
       - name: Download verified public corpus artifact
         uses: actions/download-artifact@v4
         with:
-          name: melek-gpt-public-corpus-sample-v7
+          name: melek-gpt-public-corpus-sample-v8
           path: melek-ai/data
       - name: Train original MelekGPT from random initialization
         run: |
@@ -91,4 +91,4 @@ jobs:
           name: melek-gpt-char-experimental-checkpoint-v3
           path: melek-ai/checkpoints/melek-ai.pt
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
