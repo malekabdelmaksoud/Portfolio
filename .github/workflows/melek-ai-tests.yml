@@ -18,6 +18,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Test strict evidence-only answers
+      - name: Test evidence and knowledge validation
         working-directory: melek-ai
-        run: python -m unittest -v test_evidence.py
+        run: python -m unittest -v test_evidence.py test_knowledge.py
+      - name: Validate draft knowledge base
+        working-directory: melek-ai
+        run: python knowledge.py
