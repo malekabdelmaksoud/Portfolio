@@ -1,1 +1,2 @@
-torch>=2.3.0\ndatasets>=3.0.0\n
+torch>=2.3.0
+datasets>=3.0.0
