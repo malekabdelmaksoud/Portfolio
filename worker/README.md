@@ -59,9 +59,10 @@ In Cloudflare Dashboard → Workers & Pages → `melek-portfolio-api` → Settin
 
 - `ACCESS_ISSUER`: `https://YOUR-TEAM.cloudflareaccess.com`
 - `ACCESS_AUD`: the **Admin application's** AUD tag
+- `ACCESS_USER_AUD`: the **Visitor account application's** AUD tag
 - `ADMIN_EMAIL`: the owner's exact verified email address
 
-The Worker validates the admin JWT against `ACCESS_AUD` and additionally compares the signed email with `ADMIN_EMAIL`. Visitor endpoints validate the signed JWT issuer/signature/expiry and derive the owner email from its claims. The visitor app uses its own Access policy, but visitor identity validation currently shares the configured issuer and JWT verification logic.
+The Worker validates admin JWTs against `ACCESS_AUD` and additionally compares the signed email with `ADMIN_EMAIL`. Visitor endpoints validate JWTs against `ACCESS_USER_AUD`, verify issuer/signature/expiry, and derive the owner email from the signed claims.
 
 Never commit the email identity or Access secrets to this public repository.
 
