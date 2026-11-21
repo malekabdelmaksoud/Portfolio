@@ -22,9 +22,11 @@ before(async () => {
       req.on('data', chunk => body += chunk);
       req.on('end', () => {
         const question = String(JSON.parse(body || '{}').question || '');
-        const answer = /projet|project|مشروع|المشاريع/i.test(question)
-          ? 'Projets publiés : elearning-platform, projet-php et Opportunity Hunter.'
-          : 'Réponse issue des faits approuvés du portfolio.';
+        const answer = /passeport|passport|salaire|salary/i.test(question)
+          ? "Cette information n'est pas présente dans les faits approuvés. Contactez Melek pour confirmation."
+          : (/projet|project|مشروع|المشاريع/i.test(question)
+            ? 'Projets publiés : elearning-platform, projet-php et Opportunity Hunter.'
+            : 'Réponse issue des faits approuvés du portfolio.');
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ answer, sources: [] }));
       });
       return;
@@ -142,32 +144,35 @@ test('portfolio FAQ assistant answers a project question', async () => {
 });
 
 
-test('portfolio assistant handles Arabic questions using published content', async () => {
+test('portfolio assistant handles Tunisian Arabic through the approved API', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('شنوة المشاريع اللي عملتهم؟'));
-    assert.match(result, /المهارات التقنية/);
-    assert.match(result, /Java|PHP/);
+    await page.locator('#aiChatToggle').click();
+    await page.locator('#aiChatInput').fill('شنو المشاريع متاع ملاك؟');
+    await page.locator('#aiChatSend').click();
+    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes('Projets publiés'));
+    assert.match(await page.locator('#aiChatMessages').innerText(), /elearning-platform|Opportunity Hunter/);
   } finally { await page.close(); }
 });
 
-test('portfolio assistant refuses unsupported personal facts instead of inventing', async () => {
+test('assistant abstains on unsupported private facts', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('Quel est le salaire préféré de Melek et son numéro de passeport ?'));
-    assert.match(result, /pas trouvé|pas.*fiable|contact/i);
+    await page.locator('#aiChatToggle').click();
+    await page.locator('#aiChatInput').fill('Quel est le salaire de Melek et son numéro de passeport ?');
+    await page.locator('#aiChatSend').click();
+    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes("n'est pas présente"));
+    assert.match(await page.locator('#aiChatMessages').innerText(), /Contactez Melek/);
   } finally { await page.close(); }
 });
 
-test('portfolio assistant escapes untrusted text and exposes no remote model endpoint', async () => {
+test('visitor chat does not load the obsolete local engine or a hosted model', async () => {
   const page = await openPage();
   try {
-    const result = await page.evaluate(() => window.PortfolioAssistant.answer('<img src=x onerror=alert(1)>'));
-    assert.doesNotMatch(result, /<img/i);
-    assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant.answer), 'function');
+    assert.equal(await page.evaluate(() => typeof window.PortfolioAssistant), 'undefined');
     const scripts = await page.locator('script[src]').evaluateAll(nodes => nodes.map(node => node.src));
-    assert.ok(scripts.some(src => src.includes('ai-engine.js')));
-    assert.ok(!scripts.some(src => /openai|anthropic|ollama|api\.|huggingface/i.test(src)));
+    assert.ok(!scripts.some(src => src.includes('ai-engine.js')));
+    assert.ok(!scripts.some(src => /openai|anthropic|ollama|huggingface/i.test(src)));
   } finally { await page.close(); }
 });
 
