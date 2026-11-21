@@ -14,7 +14,7 @@ before(async () => {
   server = http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
     if (pathname === '/api/projects' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ projects: [] }));
+      res.writeHead(503, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'API not configured in static test server' }));
       return;
     }
     if (pathname === '/api/assistant' && req.method === 'POST') {
@@ -253,5 +253,17 @@ test('published API projects replace static cards and follow the selected langua
     await page.locator('.lang-btn[data-lang="en"]').click();
     assert.match(await page.locator('#projets .project-card p:not(.project-type)').innerText(), /English project description/);
     assert.equal(await page.locator('#projets .project-card a').getAttribute('href'), 'https://github.com/example/api-project');
+  } finally { await page.close(); }
+});
+
+test('an empty published-project response hides every project card', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  await page.route('**/api/projects', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ projects: [] })
+  }));
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#projets .projects-grid')?.children.length === 0);
+    assert.equal(await page.locator('#projets .project-card').count(), 0);
   } finally { await page.close(); }
 });
