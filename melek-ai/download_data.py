@@ -19,10 +19,8 @@ PII_PATTERNS = (
     re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
     re.compile(r"(?<!\w)(?:\+?\d[\d .()/-]{7,}\d)(?!\w)"),
 )
-TUNISIAN_BLOCKLIST = (
-    "قحبة", "شرموطة", "منيك", "منيوك", "كس", "زبل", "متلاوث",
-    "منبوز", "اضرب القطوسة", "طاعة النساء", "طاعه النساء",
-)
+TUNISIAN_BLOCKLIST = ("قحبة", "شرموطة", "منيك", "منيوك", "زبل", "زبلت", "متلاوث", "منبوز")
+TUNISIAN_BLOCKED_PHRASES = ("اضرب القطوسة", "طاعة النساء", "طاعه النساء")
 
 
 def clean_text(value, min_length=180):
@@ -40,7 +38,12 @@ def clean_text(value, min_length=180):
 def safe_tunisian_text(value):
     normalized = unicodedata.normalize("NFKC", value).replace("ـ", "").casefold()
     normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
-    return not any(term in normalized for term in TUNISIAN_BLOCKLIST)
+    if any(phrase in normalized for phrase in TUNISIAN_BLOCKED_PHRASES):
+        return False
+    for term in TUNISIAN_BLOCKLIST:
+        if re.search(rf"(?<![\\u0600-\\u06FF]){re.escape(term)}(?![\\u0600-\\u06FF])", normalized):
+            return False
+    return True
 
 
 def record_key(text):
