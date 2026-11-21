@@ -9,6 +9,8 @@ LICENSE_ALIASES = {
     "public domain": "public-domain",
     "public-domain": "public-domain",
     "us federal public domain": "public-domain",
+    "public domain (us)": "public-domain",
+    "public domain mark 1.0": "public-domain",
     "cc0": "cc0-1.0",
     "cc0 1.0": "cc0-1.0",
     "cc0-1.0": "cc0-1.0",
