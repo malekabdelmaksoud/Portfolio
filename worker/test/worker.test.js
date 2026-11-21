@@ -51,6 +51,13 @@ test("assistant abstains when there is no matching approved evidence",async()=>{
  const data=await response.json();assert.equal(data.sources.length,0);assert.match(data.answer,/not present/i);
 });
 
+
+test("assistant abstains in Tunisian Arabic when evidence is missing",async()=>{
+ const response=await worker.fetch(request("/api/assistant",{question:"شنو رقم جواز سفر ملاك؟"}),environment());
+ const data=await response.json();assert.equal(data.sources.length,0);
+ assert.match(data.answer,/المعلومة هاذي موش موجودة/);
+});
+
 test("public projects endpoint exposes only visible projects",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/projects"),environment());
  const data=await response.json();assert.equal(data.projects.length,1);assert.equal(data.projects[0].id,"project-001");
