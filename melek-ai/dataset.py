@@ -1,13 +1,33 @@
-"""Validate and split owner-provided MelekGPT training documents.
-
-This module intentionally uses only the Python standard library so corpus checks
-can run in CI without installing PyTorch or reading private training data.
-"""
+"""Validate, deduplicate, and split provenance-aware MelekGPT documents."""
 import json
 import random
 from pathlib import Path
 
-ALLOWED_LICENSES = {"owned", "permitted", "public-domain"}
+LICENSE_ALIASES = {
+    "owned": "owned",
+    "permitted": "permitted",
+    "public domain": "public-domain",
+    "public-domain": "public-domain",
+    "us federal public domain": "public-domain",
+    "cc0": "cc0-1.0",
+    "cc0 1.0": "cc0-1.0",
+    "cc0-1.0": "cc0-1.0",
+    "cc by 4.0": "cc-by-4.0",
+    "cc-by-4.0": "cc-by-4.0",
+    "cc by 4": "cc-by-4.0",
+    "mit": "mit",
+    "mit license": "mit",
+    "apache 2.0": "apache-2.0",
+    "apache-2.0": "apache-2.0",
+}
+ALLOWED_LICENSES = set(LICENSE_ALIASES.values())
+
+
+def normalize_license(value: str) -> str | None:
+    if not isinstance(value, str):
+        return None
+    key = " ".join(value.strip().lower().replace("_", " ").split())
+    return LICENSE_ALIASES.get(key)
 
 
 def load_documents(path: Path) -> list[str]:
@@ -25,14 +45,15 @@ def load_documents(path: Path) -> list[str]:
                 raise ValueError(f"Line {line_number} must contain a JSON object")
             text = row.get("text")
             source = row.get("source")
-            license_name = row.get("license")
+            license_name = normalize_license(row.get("license"))
             if not isinstance(text, str) or not text.strip():
                 raise ValueError(f"Line {line_number} needs non-empty text")
             if not isinstance(source, str) or not source.strip():
                 raise ValueError(f"Line {line_number} needs a non-empty source")
-            if not isinstance(license_name, str) or license_name not in ALLOWED_LICENSES:
+            if license_name not in ALLOWED_LICENSES:
                 raise ValueError(
-                    f"Line {line_number} needs license owned, permitted, or public-domain"
+                    f"Line {line_number} has an unsupported or unclear license; "
+                    "use owned, public-domain, CC0-1.0, CC-BY-4.0, MIT, or Apache-2.0"
                 )
             normalized = text.strip()
             fingerprint = normalized.casefold()
