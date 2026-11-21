@@ -68,6 +68,7 @@ class MigrationTests(unittest.TestCase):
     def test_repository_import_indexes_exist_and_original_projects_are_insert_only(self):
         indexes = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
         self.assertIn("idx_projects_url", indexes)
+        self.assertIn("idx_projects_url_unique", indexes)
         original = self.db.execute(
             "SELECT id,title,type,url,visible,sort_order FROM projects ORDER BY sort_order"
         ).fetchall()
@@ -84,6 +85,31 @@ class MigrationTests(unittest.TestCase):
             "SELECT id,title,type,url,visible,sort_order FROM projects WHERE id LIKE 'project-%' ORDER BY sort_order"
         ).fetchall()
         self.assertEqual(unchanged, original)
+
+    def test_unique_url_constraint_blocks_duplicate_imports_at_database_level(self):
+        # 1. Attempting to re-insert an existing seeded URL fails with IntegrityError
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order) "
+                "VALUES(?,?,?,?,?,?,1,95)",
+                ("import-dup-seed", "Dup Seed", "WEB", "FR", "EN",
+                 "https://github.com/malekabdelmaksoud/elearning-platform")
+            )
+        # 2. Inserting a new URL succeeds
+        self.db.execute(
+            "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order) "
+            "VALUES(?,?,?,?,?,?,1,96)",
+            ("import-new-1", "New 1", "WEB", "FR", "EN",
+             "https://github.com/owner/unique-repo")
+        )
+        # 3. Inserting the exact same URL again with a different ID fails with IntegrityError
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.db.execute(
+                "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order) "
+                "VALUES(?,?,?,?,?,?,1,97)",
+                ("import-new-2", "New 2", "WEB", "FR", "EN",
+                 "https://github.com/owner/unique-repo")
+            )
 
 
 if __name__ == "__main__":

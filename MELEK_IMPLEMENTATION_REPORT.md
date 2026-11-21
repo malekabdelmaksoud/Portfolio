@@ -30,7 +30,7 @@ The migration is additive and does not rewrite or delete existing facts, project
 
 ## AI model
 
-No model was trained from scratch. The model project is implemented as a configurable 192-width, 4-head, 4-layer decoder-only Transformer, but there is no trained checkpoint.
+The model project is implemented as a configurable 192-width, 4-head, 4-layer decoder-only Transformer. Smoke and 2000-step local checkpoints exist, but remain experimental and are not publicly deployed.
 
 ## First training experiment
 
@@ -41,8 +41,10 @@ No model was trained from scratch. The model project is implemented as a configu
 - Train SHA-256: `408825c1fcda2db371ee12b028612e9690352e986a6f110f6e93b1e1c5a98231`
 - Validation SHA-256: `8f432cd2d903af2691c8e181dc317fc17380b257e09ecd7003dcc3001ce114ae`
 - Smoke setup: 25 steps, context 128, batch 1.
-- Hardware: NOT AVAILABLE locally; no `nvidia-smi`, no CUDA runtime, no PyTorch.
-- Result: NOT TRAINED. No checkpoint, loss, duration or perplexity exists.
+- Hardware: RTX 2050 detected locally with PyTorch 2.11.0+cu128 and CUDA 12.8 available.
+- Result: 25-step smoke training and 2000-step local training completed.
+- Smoke validation loss: 5.115121841430664 at step 1.
+- Full-run held-out validation loss: 2.0646916230519614; perplexity: 7.882866628447803.
 
 ## Windows RTX 2050 preparation
 
@@ -60,15 +62,15 @@ Actual untrained architecture parameter count: `1,875,840` with tied input/outpu
 
 Dataset: only `dataset/sample.jsonl` exists. It contains two owner-authored documentation lines and is not sufficient for meaningful training.
 
-Training hardware/duration/loss: NOT TRAINED. The local execution environment has no CUDA/NVIDIA runtime and no PyTorch installation in its final system environment. RTX 2050-specific training was not executed in this environment.
+Training hardware/duration/loss: RTX 2050 CUDA 12.8/PyTorch execution completed. The full run trained 2000 steps in 89.665 seconds with a held-out perplexity of 7.882866628447803.
 
-Inference locally: NOT TESTED until PyTorch and a real checkpoint are available.
+Inference locally: tested through the independent HTTP server and authenticated generate/status endpoints.
 
-Portfolio integration: Implemented as an independent HTTP adapter, but it currently reports Melek AI unavailable because no checkpoint/service is configured.
+Portfolio integration: Implemented as an independent HTTP adapter. Local checkpoint and service configuration are available, while public deployment still requires the managed inference host and runtime secret.
 
 ## External verification status
 
-- **Independent model availability:** NOT AVAILABLE — no checkpoint was trained.
+- **Independent model availability:** LOCAL CHECKPOINT AVAILABLE — the corpus remains too small for a generally capable assistant.
 - **Email delivery:** NOT TESTED — no real email provider credentials were available and no email was received.
 - **Turnstile:** NOT TESTED — no site/secret pair was available.
 - **Remote D1 migration:** NOT TESTED — no remote migration or production deployment was requested or run.
@@ -99,7 +101,7 @@ NOT TESTED:
 - Set `RESEND_API_KEY`, `EMAIL_FROM`, `OTP_PEPPER`, `SESSION_PEPPER`.
 - Optionally set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET`.
 - Optionally install the model project's dependencies and prepare a legally usable dataset.
-- Run training on RTX 2050 or CPU, save a real checkpoint, and set `MELEK_AI_TRAINING_STATUS=trained`.
+- Only after dataset and quality gates pass, run final training, save an independently verified checkpoint, and set `MELEK_AI_TRAINING_STATUS=trained`.
 - Deploy a private/authorized independent inference service and set `MELEK_AI_SERVICE_URL` plus `MELEK_AI_SERVICE_TOKEN`.
 - Configure Cloudflare Access only for `/admin.html` and `/api/admin/*`.
 - Apply migration `0005_native_auth.sql` to D1 and deploy only after manual approval.

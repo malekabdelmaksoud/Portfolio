@@ -26,3 +26,6 @@ __pycache__/
 melek-ai-model/checkpoints/*.pt
 melek-ai-model/checkpoints/*.json
 
+
+# Local Cloudflare Worker secrets
+.dev.vars

@@ -4,7 +4,7 @@ Melek AI is an independent, owner-controlled research model project. It is **not
 
 ## Current status
 
-**NOT TRAINED, NOT DEPLOYED.** The repository contains a reproducible PyTorch training and inference pipeline, but no checkpoint proves that from-scratch training occurred. The portfolio must display Melek AI as experimental and unavailable until a real checkpoint is created and locally tested.
+**TRAINED LOCALLY FOR RESEARCH, NOT DEPLOYED.** A real from-scratch RTX 2050 smoke run and 2000-step run produced checkpoints and validation metrics. The portfolio must remain experimental and deployment requires a managed inference host.
 
 ## Architecture
 
@@ -77,15 +77,14 @@ The portfolio Worker calls this interface through `MELEK_AI_SERVICE_URL`. It nev
 
 ## First training experiment status
 
-**NOT EXECUTED AND NO CHECKPOINT EXISTS.**
+**LOCAL 2000-STEP TRAINING COMPLETED ON RTX 2050.**
 
-- Repository environment: no NVIDIA `nvidia-smi`, no CUDA runtime, no PyTorch installation.
-- Attempted CPU PyTorch setup: network DNS resolution failed, and PyTorch installation could not proceed.
 - Owner corpus: prepared deterministically from `melek-ai/knowledge_base.json`.
-- Corpus split: 58 training rows and 11 validation rows in 42-seed shuffled, normalized, deduplicated trilingual data.
-- Smoke configuration: `model_config/melek_ai_smoke.json`, 25 steps, batch 1, context 128.
-- Full configuration: `model_config/melek_ai_v1.json`, 2000 steps, batch 2, context 256, gradient accumulation 4.
-- No loss values or hardware duration are available because training did not execute.
+- Corpus split: 58 training rows and 11 validation rows.
+- Smoke configuration: 25 steps, batch 1, context 128.
+- Full run: 2000 steps, batch 1, context 128, gradient accumulation 1, duration 89.665 seconds.
+- Held-out validation perplexity: 7.882866628447803.
+- The model remains experimental and the corpus is too small for a generally capable assistant.
 
 ## Local setup on Windows with RTX 2050
 

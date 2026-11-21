@@ -120,9 +120,9 @@ CPU setup:
 
 CPU mode is much slower and is appropriate only for short smoke experiments.
 
-## What is not trained
+## Training status
 
-- No checkpoint exists in this repository before you execute training.
-- No training loss or duration exists before execution.
-- No accuracy, capability or ChatGPT-like quality is claimed.
+- Training produces ignored checkpoint and loss artifacts locally.
+- The 2000-step result is experimental and was not trained on a sufficiently large general corpus.
+- No accuracy or ChatGPT-like quality is claimed.
 - No third-party pretrained weights are loaded or downloaded.

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
-import { webcrypto } from "node:crypto";
+import { webcrypto, createHash, randomUUID } from "node:crypto";
 
 function environment() {
   const facts=[
@@ -21,6 +21,7 @@ function environment() {
       }
       if(sql.includes("FROM projects WHERE id=? AND")) return projects.find(p=>p.id===params[0]&&p.url===params[1])||null;
       if(sql.includes("FROM facts")) return facts.find(f=>f.id===params[0])||null;
+      if(sql.includes("abuse_windows")) return {count:1};
       return {ok:1};
     },async all(){
       if(sql.includes("FROM facts")) return {results:facts.filter(f=>sql.includes("approved=1")?f.approved===1:true)};
@@ -29,6 +30,12 @@ function environment() {
     },async run(){
       if(sql.includes("INSERT INTO projects")) {
         const [id,title,type,description_fr,description_en,url,sort_order]=params;
+        if(projects.some(p=>p.id===id)) {
+          throw new Error("D1_ERROR: UNIQUE constraint failed: projects.id");
+        }
+        if(projects.some(p=>p.url===url)) {
+          throw new Error("D1_ERROR: UNIQUE constraint failed: projects.url");
+        }
         projects.push({id,title,type,description_fr,description_en,url,visible:1,sort_order});
       }
       return {meta:{changes:1}};
@@ -394,4 +401,554 @@ test("frontend import sends credentials and has no inline repository import hand
  assert.match(ui,/credentials:\s*"include"/);
  assert.doesNotMatch(ui,/onclick=["'][^"']*importGitRepoDirect/);
  assert.doesNotMatch(ui,/p_\s*\+\s*Date\.now/);
+});
+
+test("import rejects duplicate URL with 409 DUPLICATE_PROJECT on second import",async()=>{
+ const env=await adminEnvironment();
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+  if(url.endsWith("/repos/owner/dup-test")) return new Response(JSON.stringify({name:"dup-test",private:false,visibility:"public",default_branch:"main",description:"A unique repository."}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/topics")) return new Response(JSON.stringify({names:["javascript"]}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/languages")) return new Response(JSON.stringify({JavaScript:100}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response("{}",{status:404});
+ };
+ try {
+  const first=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/dup-test"}),env);
+  assert.equal(first.status,201);
+  const second=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/dup-test"}),env);
+  assert.equal(second.status,409);
+  const data=await second.json();
+  assert.equal(data.code,"DUPLICATE_PROJECT");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("import rejects existing old project URL with 409 and preserves original project",async()=>{
+ const env=await adminEnvironment();
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+  if(url.endsWith("/repos/example/demo")) return new Response(JSON.stringify({name:"demo",private:false,visibility:"public",default_branch:"main",description:"Duplicate demo repo."}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/topics")) return new Response(JSON.stringify({names:[]}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/languages")) return new Response(JSON.stringify({JavaScript:100}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response("{}",{status:404});
+ };
+ try {
+  // https://github.com/example/demo is already seeded as 'project-001'
+  const response=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/example/demo"}),env);
+  assert.equal(response.status,409);
+  const data=await response.json();
+  assert.equal(data.code,"DUPLICATE_PROJECT");
+
+  // Verify original project-001 is completely untouched
+  const publicRes=await worker.fetch(new Request("https://api.test/api/projects"),env);
+  const publicData=await publicRes.json();
+  const original=publicData.projects.find(p=>p.id==="project-001");
+  assert.ok(original);
+  assert.equal(original.title,"Demo");
+  assert.equal(original.url,"https://github.com/example/demo");
+  assert.equal(original.type,"WEB");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("concurrent import operations for same URL succeed once and return 409 on race",async()=>{
+ const env=await adminEnvironment();
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+  if(url.endsWith("/repos/owner/race-test")) return new Response(JSON.stringify({name:"race-test",private:false,visibility:"public",default_branch:"main",description:"Concurrency test repo."}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/topics")) return new Response(JSON.stringify({names:[]}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/languages")) return new Response(JSON.stringify({TypeScript:100}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response("{}",{status:404});
+ };
+ try {
+  // Launch two concurrent import requests for the identical repository
+  const [resA,resB]=await Promise.all([
+   worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/race-test"}),env),
+   worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/race-test"}),env)
+  ]);
+  const statuses=[resA.status,resB.status].sort();
+  assert.deepEqual(statuses,[201,409]);
+
+  const failed=resA.status===409?await resA.json():await resB.json();
+  assert.equal(failed.code,"DUPLICATE_PROJECT");
+
+  // Ensure only one project was inserted into the database
+  const publicRes=await worker.fetch(new Request("https://api.test/api/projects"),env);
+  const publicData=await publicRes.json();
+  const matching=publicData.projects.filter(p=>p.url==="https://github.com/owner/race-test");
+  assert.equal(matching.length,1);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("database UNIQUE constraint violation converts to 409 DUPLICATE_PROJECT instead of 500",async()=>{
+ const env=await adminEnvironment();
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
+  if(url.endsWith("/repos/owner/constraint-test")) return new Response(JSON.stringify({name:"constraint-test",private:false,visibility:"public",default_branch:"main",description:"Constraint test repo."}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/topics")) return new Response(JSON.stringify({names:[]}),{status:200,headers:{"content-type":"application/json"}});
+  if(url.includes("/languages")) return new Response(JSON.stringify({Python:100}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response("{}",{status:404});
+ };
+ // Override DB.prepare run to simulate a direct UNIQUE constraint violation from SQLite/D1 engine
+ const originalPrepare=env.DB.prepare.bind(env.DB);
+ env.DB.prepare=function(sql){
+  const stmt=originalPrepare(sql);
+  if(sql.includes("INSERT INTO projects")) {
+   return {
+    bind(...vals){stmt.bind(...vals);return this;},
+    async run(){
+     throw new Error("D1_ERROR: UNIQUE constraint failed: projects.url");
+    }
+   };
+  }
+  return stmt;
+ };
+ try {
+  const response=await worker.fetch(adminRequest(env,"/api/admin/projects/import",{provider:"github",url:"https://github.com/owner/constraint-test"}),env);
+  assert.equal(response.status,409);
+  const data=await response.json();
+  assert.equal(data.code,"DUPLICATE_PROJECT");
+  assert.equal(data.error,"Duplicate Project.");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+// --- Native email OTP auth (regression tests for the P0 login blockers) ---
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function authEnvironment(overrides = {}) {
+  const otpChallenges = [];
+  const users = [];
+  const sessions = [];
+  const abuseWindows = new Map();
+  const DB = { prepare(sql) {
+    let params = [];
+    return {
+      bind(...values) { params = values; return this; },
+      async first() {
+        if (sql.includes("abuse_windows")) {
+          // Accurate SQL UPSERT simulation with RETURNING count
+          const [key, kind, nowIso, seconds] = params;
+          const nowMs = Date.parse(nowIso);
+          let entry = abuseWindows.get(key);
+          if (!entry) {
+            entry = { key, kind, window_started_at: nowIso, count: 1 };
+            abuseWindows.set(key, entry);
+            return { count: 1 };
+          }
+          const startedMs = Date.parse(entry.window_started_at);
+          const diffSec = (nowMs - startedMs) / 1000;
+          if (diffSec >= Number(seconds)) {
+            entry.window_started_at = nowIso;
+            entry.count = 1;
+            entry.kind = kind;
+          } else {
+            entry.count += 1;
+          }
+          return { count: entry.count };
+        }
+        if (sql.includes("UPDATE otp_challenges SET attempts=attempts+1")) {
+          const challenge = otpChallenges.find(c => c.id === params[0] && !c.consumed_at && c.attempts < 5);
+          if (!challenge) return null;
+          challenge.attempts += 1;
+          return { attempts: challenge.attempts };
+        }
+        if (sql.includes("FROM otp_challenges")) {
+          return otpChallenges.find(c => c.email === params[0] && !c.consumed_at) || null;
+        }
+        if (sql.includes("FROM users")) return users.find(u => u.email === params[0]) || null;
+        if (sql.includes("auth_sessions")) {
+          const [tokenHash, now] = params;
+          const session = sessions.find(s => s.token_hash === tokenHash && (!now || s.expires_at > now));
+          if (!session) return null;
+          const user = users.find(u => u.id === session.user_id);
+          if (!user) return null;
+          return { id: session.id, user_id: user.id, expires_at: session.expires_at, email: user.email, display_name: user.display_name };
+        }
+        return null;
+      },
+      async all() { return { results: [] }; },
+      async run() {
+        if (sql.includes("UPDATE otp_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE email=?")) {
+          let count = 0;
+          for (const c of otpChallenges) {
+            if (c.email === params[0] && !c.consumed_at) {
+              c.consumed_at = new Date().toISOString();
+              count++;
+            }
+          }
+          return { meta: { changes: count } };
+        } else if (sql.includes("DELETE FROM otp_challenges WHERE id=?")) {
+          const idx = otpChallenges.findIndex(c => c.id === params[0]);
+          if (idx !== -1) {
+            otpChallenges.splice(idx, 1);
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        } else if (sql.includes("INSERT INTO otp_challenges")) {
+          otpChallenges.push({ id: params[0], email: params[1], otp_hash: params[2], expires_at: params[3], attempts: 0, consumed_at: null, ip_hash: params[4] });
+        } else if (sql.includes("UPDATE otp_challenges SET attempts")) {
+          const challenge = otpChallenges.find(c => c.id === params[0]);
+          if (challenge) challenge.attempts += 1;
+        } else if (sql.includes("UPDATE otp_challenges SET consumed_at")) {
+          const challenge = otpChallenges.find(c => c.id === params[0] && !c.consumed_at);
+          if (!challenge) return { meta: { changes: 0 } };
+          challenge.consumed_at = "2026-01-01 00:00:00";
+          return { meta: { changes: 1 } };
+        } else if (sql.includes("INSERT INTO users")) {
+          if (!users.some(u => u.email === params[1])) users.push({ id: params[0], email: params[1], display_name: null });
+        } else if (sql.includes("INSERT INTO auth_sessions")) {
+          sessions.push({ id: params[0], user_id: params[1], token_hash: params[2], expires_at: params[3] });
+        } else if (sql.includes("DELETE FROM auth_sessions WHERE token_hash=?")) {
+          const idx = sessions.findIndex(s => s.token_hash === params[0]);
+          if (idx !== -1) {
+            sessions.splice(idx, 1);
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        } else if (sql.includes("UPDATE auth_sessions SET last_seen_at")) {
+          return { meta: { changes: 1 } };
+        }
+        return { meta: { changes: 1 } };
+      },
+      async batch() { return []; }
+    };
+  }};
+  return { DB, ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows };
+}
+
+const authRequest = (path, body) => new Request("https://api.test" + path, {
+  method: "POST",
+  headers: { "content-type": "application/json", Origin: "https://portfolio.test", "CF-Connecting-IP": "203.0.113.5" },
+  body: JSON.stringify(body)
+});
+
+function seedChallenge(env, email, code, overrides = {}) {
+  const challenge = {
+    id: randomUUID(),
+    email,
+    otp_hash: sha256(code + ":" + email + ":" + (env.OTP_PEPPER || "")),
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    attempts: 0,
+    consumed_at: null,
+    ip_hash: sha256("203.0.113.5"),
+    ...overrides
+  };
+  env.__challenges.push(challenge);
+  return challenge;
+}
+
+test("auth request reports missing Turnstile configuration as 503, fail-closed",async()=>{
+ const env=authEnvironment({RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com",turnstileToken:"tok"}),env);
+ const data=await response.json();
+ assert.equal(response.status,503);
+ assert.equal(data.code,"TURNSTILE_NOT_CONFIGURED");
+ assert.equal(env.__challenges.length,0);
+});
+
+test("auth request accepts a standard email when Turnstile is configured and verified",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;let resendCalled=false;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  if(String(url).includes("resend")){resendCalled=true;return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});}
+  return new Response("{}",{status:404});
+ };
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com",turnstileToken:"valid-tok"}),env);
+  const data=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(data.sent,true);
+  assert.equal(resendCalled,true);
+  assert.equal(env.__challenges.length,1);
+  assert.equal(env.__challenges[0].email,"melek@gmail.com");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request accepts single-label TLD domains such as x@y.io",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});
+ };
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"x@y.io",turnstileToken:"valid-tok"}),env);
+  assert.equal(response.status,200);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request rejects an invalid email with 400 instead of 500",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek",turnstileToken:"valid-tok"}),env);
+  const data=await response.json();
+  assert.equal(response.status,400);
+  assert.equal(data.code,"INVALID_EMAIL");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request reports missing email delivery as 503, not 500",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com",turnstileToken:"valid-tok"}),env);
+  const data=await response.json();
+  assert.equal(response.status,503);
+  assert.equal(data.code,"EMAIL_NOT_CONFIGURED");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request requires a Turnstile token when Turnstile is configured",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret"});
+ const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com"}),env);
+ const data=await response.json();
+ assert.equal(response.status,400);
+ assert.equal(data.code,"TURNSTILE_REQUIRED");
+});
+
+test("auth request maps a failed Turnstile check to 400",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({success:false}),{status:200,headers:{"content-type":"application/json"}});
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com",turnstileToken:"bad"}),env);
+  const data=await response.json();
+  assert.equal(response.status,400);
+  assert.equal(data.code,"TURNSTILE_FAILED");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request maps unreachable Turnstile service to 502",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async()=>{throw new Error("Network timeout connecting to Cloudflare Turnstile");};
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"melek@gmail.com",turnstileToken:"tok"}),env);
+  const data=await response.json();
+  assert.equal(response.status,502);
+  assert.equal(data.code,"TURNSTILE_FAILED");
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("atomic rate limiting enforces max limit and returns 429",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});
+ };
+ try {
+  // Limit for otp-email is 5 per 3600 seconds
+  for(let i=0;i<5;i++){
+   const res=await worker.fetch(authRequest("/api/auth/request",{email:"ratelimit@example.test",turnstileToken:"tok"}),env);
+   assert.equal(res.status,200);
+  }
+  // 6th attempt must be rejected with 429
+  const res6=await worker.fetch(authRequest("/api/auth/request",{email:"ratelimit@example.test",turnstileToken:"tok"}),env);
+  assert.equal(res6.status,429);
+  const data=await res6.json();
+  assert.match(data.error,/Too many sign-in requests/i);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("atomic rate limiting resets counter to 1 when window expires",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});
+ };
+ try {
+  // 5 requests to reach limit
+  for(let i=0;i<5;i++){
+   const res=await worker.fetch(authRequest("/api/auth/request",{email:"window@example.test",turnstileToken:"tok"}),env);
+   assert.equal(res.status,200);
+  }
+  // Confirm rejected
+  const rej=await worker.fetch(authRequest("/api/auth/request",{email:"window@example.test",turnstileToken:"tok"}),env);
+  assert.equal(rej.status,429);
+
+  // Manually expire the window by shifting window_started_at by 3601 seconds in the past
+  for(const [k,v] of env.__abuseWindows.entries()){
+   v.window_started_at=new Date(Date.now()-3601*1000).toISOString();
+  }
+
+  // Next request must reset window and succeed with 200
+  const afterExp=await worker.fetch(authRequest("/api/auth/request",{email:"window@example.test",turnstileToken:"tok"}),env);
+  assert.equal(afterExp.status,200);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("atomic rate limiting prevents limit bypass under concurrent requests",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});
+ };
+ try {
+  // Send 10 concurrent requests for an email with limit=5
+  const promises=Array.from({length:10},()=>
+   worker.fetch(authRequest("/api/auth/request",{email:"concurrency@example.test",turnstileToken:"tok"}),env)
+  );
+  const responses=await Promise.all(promises);
+  const statuses=responses.map(r=>r.status);
+  const passed=statuses.filter(s=>s===200).length;
+  const rejected=statuses.filter(s=>s===429).length;
+
+  // Exactly 5 pass, exactly 5 rejected. No bypass allowed!
+  assert.equal(passed,5);
+  assert.equal(rejected,5);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth verify rejects a wrong code with 400 and counts the attempt",async()=>{
+ const env=authEnvironment();
+ const challenge=seedChallenge(env,"melek@gmail.com","654321");
+ const response=await worker.fetch(authRequest("/api/auth/verify",{email:"melek@gmail.com",code:"123456"}),env);
+ const data=await response.json();
+ assert.equal(response.status,400);
+ assert.match(data.error,/incorrect/i);
+ assert.equal(challenge.attempts,1);
+});
+
+test("auth verify accepts the correct code and sets an HttpOnly session cookie",async()=>{
+ const env=authEnvironment();
+ seedChallenge(env,"melek@gmail.com","123456");
+ const response=await worker.fetch(authRequest("/api/auth/verify",{email:"melek@gmail.com",code:"123456"}),env);
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.authenticated,true);
+ const cookie=response.headers.get("set-cookie")||"";
+ assert.match(cookie,/__Host-portfolio_session=[0-9a-f]{64}/);
+ assert.match(cookie,/HttpOnly/);
+ assert.equal(env.__sessions.length,1);
+});
+
+test("auth routes reject malformed JSON bodies with 400 instead of 500",async()=>{
+ const env=authEnvironment();
+ const response=await worker.fetch(new Request("https://api.test/api/auth/request",{method:"POST",headers:{"content-type":"application/json",Origin:"https://portfolio.test"},body:"{not json"}),env);
+ const data=await response.json();
+ assert.equal(response.status,400);
+ assert.equal(data.code,"INVALID_BODY");
+});
+
+test("auth request invalidates previously issued unconsumed OTP challenges for the same email",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response(JSON.stringify({id:"email-1"}),{status:200,headers:{"content-type":"application/json"}});
+ };
+ try {
+  // First OTP request
+  const res1=await worker.fetch(authRequest("/api/auth/request",{email:"repeat@example.test",turnstileToken:"tok"}),env);
+  assert.equal(res1.status,200);
+  assert.equal(env.__challenges.length,1);
+  const challenge1=env.__challenges[0];
+  assert.equal(challenge1.consumed_at,null);
+
+  // Second OTP request for the exact same email
+  const res2=await worker.fetch(authRequest("/api/auth/request",{email:"repeat@example.test",turnstileToken:"tok"}),env);
+  assert.equal(res2.status,200);
+  assert.equal(env.__challenges.length,2);
+  const challenge2=env.__challenges[1];
+
+  // Previous challenge must now be invalidated/consumed
+  assert.notEqual(challenge1.consumed_at,null);
+  assert.equal(challenge2.consumed_at,null);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth request cleans up challenge record if email delivery fails",async()=>{
+ const env=authEnvironment({TURNSTILE_SECRET:"turnstile-secret",RESEND_API_KEY:"test-key",EMAIL_FROM:"no-reply@example.test"});
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("turnstile")) return new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}});
+  if(String(url).includes("resend")) return new Response("Service Unavailable",{status:502});
+  return new Response("{}",{status:404});
+ };
+ try {
+  const response=await worker.fetch(authRequest("/api/auth/request",{email:"faildelivery@example.test",turnstileToken:"tok"}),env);
+  assert.equal(response.status,502);
+  // Challenge must be removed so no un-sent OTP remains in the database
+  assert.equal(env.__challenges.length,0);
+ } finally {globalThis.fetch=oldFetch;}
+});
+
+test("auth verify enforces atomic attempt limit under concurrent verification guesses",async()=>{
+ const env=authEnvironment();
+ const challenge=seedChallenge(env,"concurrenthash@example.test","888888");
+
+ // Send 10 concurrent requests with wrong codes
+ const promises=Array.from({length:10},(_,i)=>
+  worker.fetch(authRequest("/api/auth/verify",{email:"concurrenthash@example.test",code:"00000" + i}),env)
+ );
+ const responses=await Promise.all(promises);
+ const statuses=responses.map(r=>r.status);
+ const wrongGuesses=statuses.filter(s=>s===400).length;
+ const blockedAttempts=statuses.filter(s=>s===429).length;
+
+ // Exactly 5 guesses evaluated, 5 rejected by atomic attempt limit
+ assert.equal(wrongGuesses,5);
+ assert.equal(blockedAttempts,5);
+ assert.equal(challenge.attempts,5);
+});
+
+test("auth verify prevents concurrent replay of the same valid code",async()=>{
+ const env=authEnvironment();
+ seedChallenge(env,"replay@example.test","555555");
+
+ // Send 2 concurrent requests with the identical valid code
+ const [resA,resB]=await Promise.all([
+  worker.fetch(authRequest("/api/auth/verify",{email:"replay@example.test",code:"555555"}),env),
+  worker.fetch(authRequest("/api/auth/verify",{email:"replay@example.test",code:"555555"}),env)
+ ]);
+ const statuses=[resA.status,resB.status].sort();
+ assert.deepEqual(statuses,[200,400]);
+
+ const failRes=resA.status===400?await resA.json():await resB.json();
+ assert.match(failRes.error,/already been used/i);
+});
+
+test("auth logout invalidates session and prevents subsequent access",async()=>{
+ const env=authEnvironment();
+ const userId=randomUUID();
+ const token="a".repeat(64);
+ const tokenHash=sha256(token + ":" + (env.SESSION_PEPPER || ""));
+ env.__users.push({id:userId,email:"logout@example.test",display_name:"Logout User"});
+ env.__sessions.push({id:randomUUID(),user_id:userId,token_hash:tokenHash,expires_at:new Date(Date.now()+86400000).toISOString()});
+
+ // Verify session is active
+ const meReq=new Request("https://api.test/api/user/me",{
+  headers:{Origin:"https://portfolio.test",Cookie:"__Host-portfolio_session=" + token}
+ });
+ const meRes=await worker.fetch(meReq,env);
+ assert.equal(meRes.status,200);
+
+ // Execute logout
+ const logoutReq=new Request("https://api.test/api/auth/logout",{
+  method:"POST",
+  headers:{Origin:"https://portfolio.test",Cookie:"__Host-portfolio_session=" + token}
+ });
+ const logoutRes=await worker.fetch(logoutReq,env);
+ assert.equal(logoutRes.status,200);
+ const clearCookie=logoutRes.headers.get("set-cookie")||"";
+ assert.match(clearCookie,/Max-Age=0/);
+
+ // Session must be deleted from memory/DB
+ assert.equal(env.__sessions.length,0);
+
+ // Subsequent call to /api/user/me must now return 401
+ const meRes2=await worker.fetch(meReq,env);
+ assert.equal(meRes2.status,401);
 });

@@ -6,6 +6,7 @@ const JSON_HEADERS = {
   "referrer-policy": "strict-origin-when-cross-origin"
 };
 const enc = new TextEncoder();
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 let jwksCache;
 
 function json(data, status = 200, headers = {}) {
@@ -56,11 +57,16 @@ function withCors(response, cors) {
 
 async function readBody(request, max = 16000) {
   const raw = await request.text();
-  if (raw.length > max) throw new Error("Request body is too large.");
-  return JSON.parse(raw || "{}");
+  if (raw.length > max) throw apiError("Request body is too large.", "BODY_TOO_LARGE", 413);
+  let body;
+  try { body = JSON.parse(raw || "{}"); } catch { throw apiError("A valid JSON body is required.", "INVALID_BODY", 400); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw apiError("A JSON object body is required.", "INVALID_BODY", 400);
+  }
+  return body;
 }
 
-function importError(message, code, status = 400) {
+function apiError(message, code, status = 400) {
   const error = new Error(message);
   error.code = code;
   error.status = status;
@@ -70,34 +76,34 @@ function importError(message, code, status = 400) {
 function parseRepositoryUrl(rawUrl, providerHint) {
   let url;
   try { url = new URL(String(rawUrl || "").trim()); } catch (_) {
-    throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
   }
   if (url.protocol !== "https:" || url.username || url.password || url.port || url.search || url.hash) {
-    throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
   }
   const provider = String(providerHint || "").toLowerCase();
   if (url.hostname === "github.com" && (!provider || provider === "github")) {
     const parts = url.pathname.split("/").filter(Boolean);
-    if (parts.length !== 2) throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    if (parts.length !== 2) throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
     const owner = decodeURIComponent(parts[0]).replace(/\.git$/i, "");
     const name = decodeURIComponent(parts[1]).replace(/\.git$/i, "");
     if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(owner) ||
         !/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(name)) {
-      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+      throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
     }
     return { provider: "github", owner, name, fullName: owner + "/" + name, canonical: "https://github.com/" + owner + "/" + name };
   }
   if (url.hostname === "gitlab.com" && (!provider || provider === "gitlab")) {
     const parts = url.pathname.split("/").filter(Boolean).map(part => decodeURIComponent(part).replace(/\.git$/i, ""));
-    if (parts.length < 2) throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+    if (parts.length < 2) throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
     if (parts.some(part => !/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(part))) {
-      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+      throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
     }
     const fullName = parts.join("/");
     const name = parts[parts.length - 1];
     return { provider: "gitlab", owner: parts.slice(0, -1).join("/"), name, fullName, canonical: "https://gitlab.com/" + fullName };
   }
-  throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+  throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
 }
 
 function sanitizeRepositoryText(value, limit = 500) {
@@ -118,7 +124,7 @@ async function safeApiFetch(url, env, accept = "application/json") {
   if (!/^https:$/.test(parsed.protocol) ||
       parsed.username || parsed.password || parsed.port ||
       !["api.github.com", "github.com", "raw.githubusercontent.com", "gitlab.com"].includes(parsed.hostname)) {
-    throw importError("Repository API Failure.", "REPOSITORY_API_FAILURE", 502);
+    throw apiError("Repository API Failure.", "REPOSITORY_API_FAILURE", 502);
   }
   let response;
   try {
@@ -129,16 +135,16 @@ async function safeApiFetch(url, env, accept = "application/json") {
       signal: AbortSignal.timeout(8000)
     });
   } catch (_) {
-    throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+    throw apiError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
   }
   if (response.status >= 300 && response.status < 400) {
-    throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+    throw apiError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
   }
   const length = Number(response.headers.get("content-length") || 0);
-  if (length > 250000) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
-  if (!response.ok) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  if (length > 250000) throw apiError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  if (!response.ok) throw apiError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
   const text = await response.text();
-  if (text.length > 250000) throw importError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
+  if (text.length > 250000) throw apiError("GitHub/GitLab API Failure.", "REPOSITORY_API_FAILURE", 502);
   return text;
 }
 
@@ -153,9 +159,9 @@ async function fetchGitHubRepository(repo, env) {
     "application/vnd.github+json"
   );
   const metadata = parseJsonText(metadataText, null);
-  if (!metadata || typeof metadata !== "object") throw importError("GitHub API Failure.", "GITHUB_API_FAILURE", 502);
+  if (!metadata || typeof metadata !== "object") throw apiError("GitHub API Failure.", "GITHUB_API_FAILURE", 502);
   if (metadata.private === true || metadata.visibility === "private" || metadata.visibility === "internal") {
-    throw importError("Private Repository.", "PRIVATE_REPOSITORY", 403);
+    throw apiError("Private Repository.", "PRIVATE_REPOSITORY", 403);
   }
   const defaultBranch = sanitizeRepositoryText(metadata.default_branch || "main", 100);
   const topicsText = await safeApiFetch(
@@ -224,10 +230,10 @@ async function fetchGitLabRepository(repo, env) {
   const encodedProject = encodeURIComponent(repo.fullName);
   const metadataText = await safeApiFetch("https://gitlab.com/api/v4/projects/" + encodedProject, env);
   const metadata = parseJsonText(metadataText, null);
-  if (!metadata || typeof metadata !== "object") throw importError("GitLab API Failure.", "GITLAB_API_FAILURE", 502);
-  if (metadata.visibility === "private") throw importError("Private Repository.", "PRIVATE_REPOSITORY", 403);
-  if (metadata.visibility === "internal") throw importError("Internal Repository.", "INTERNAL_REPOSITORY", 403);
-  if (metadata.visibility !== "public") throw importError("Only public repositories can be imported.", "PRIVATE_REPOSITORY", 403);
+  if (!metadata || typeof metadata !== "object") throw apiError("GitLab API Failure.", "GITLAB_API_FAILURE", 502);
+  if (metadata.visibility === "private") throw apiError("Private Repository.", "PRIVATE_REPOSITORY", 403);
+  if (metadata.visibility === "internal") throw apiError("Internal Repository.", "INTERNAL_REPOSITORY", 403);
+  if (metadata.visibility !== "public") throw apiError("Only public repositories can be imported.", "PRIVATE_REPOSITORY", 403);
   const defaultBranch = sanitizeRepositoryText(metadata.default_branch || "main", 100);
 
   let topics = Array.isArray(metadata.tag_list) ? metadata.tag_list : [];
@@ -406,38 +412,57 @@ async function verifyAdmin(request, env) {
 }
 
 async function abuseCheck(env, key, kind, limit, seconds) {
-  const now = new Date();
-  const row = await env.DB.prepare("SELECT window_started_at,count FROM abuse_windows WHERE key=?").bind(key).first();
-  const started = row ? new Date(row.window_started_at) : null;
-  const expired = !started || now.getTime() - started.getTime() >= seconds * 1000;
-  const count = expired ? 1 : Number(row.count || 0) + 1;
-  if (count > limit) return false;
-  if (expired) {
-    await env.DB.prepare("INSERT INTO abuse_windows(key,kind,window_started_at,count,updated_at) VALUES(?,?,?,1,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET kind=excluded.kind,window_started_at=excluded.window_started_at,count=1,updated_at=CURRENT_TIMESTAMP").bind(key, kind, now.toISOString()).run();
-  } else {
-    await env.DB.prepare("UPDATE abuse_windows SET count=?,updated_at=CURRENT_TIMESTAMP WHERE key=?").bind(count, key).run();
-  }
-  return true;
+  const nowIso = new Date().toISOString();
+  const row = await env.DB.prepare(
+    "INSERT INTO abuse_windows(key,kind,window_started_at,count,updated_at) " +
+    "VALUES(?,?,?,1,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET " +
+    "kind=excluded.kind," +
+    "window_started_at=CASE " +
+      "WHEN (strftime('%s', excluded.window_started_at) - strftime('%s', abuse_windows.window_started_at)) >= ? " +
+      "THEN excluded.window_started_at " +
+      "ELSE abuse_windows.window_started_at " +
+    "END," +
+    "count=CASE " +
+      "WHEN (strftime('%s', excluded.window_started_at) - strftime('%s', abuse_windows.window_started_at)) >= ? " +
+      "THEN 1 " +
+      "ELSE abuse_windows.count + 1 " +
+    "END," +
+    "updated_at=CURRENT_TIMESTAMP " +
+    "RETURNING count"
+  ).bind(key, kind, nowIso, seconds, seconds).first();
+  return Boolean(row && Number(row.count) <= limit);
 }
 
-async function verifyTurnstile(request, env) {
-  if (!env.TURNSTILE_SECRET) return;
-  let body;
-  try { body = await readBody(request, 4000); } catch { throw new Error("A valid request body is required."); }
-  if (!body.turnstileToken) throw new Error("Turnstile verification is required.");
+async function verifyTurnstile(request, env, body) {
+  if (!env.TURNSTILE_SECRET) {
+    throw apiError("Turnstile verification is not configured.", "TURNSTILE_NOT_CONFIGURED", 503);
+  }
+  if (!body.turnstileToken) {
+    throw apiError("Turnstile verification is required.", "TURNSTILE_REQUIRED", 400);
+  }
   const form = new FormData();
   form.append("secret", env.TURNSTILE_SECRET);
   form.append("response", String(body.turnstileToken));
   form.append("remoteip", ipFrom(request));
-  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+  let response;
+  try {
+    response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form
+    });
+  } catch (_) {
+    throw apiError("Turnstile verification could not be completed.", "TURNSTILE_FAILED", 502);
+  }
   const result = await response.json().catch(() => ({ success: false }));
-  if (!response.ok || !result.success) throw new Error("Turnstile verification failed.");
-  return body;
+  if (!response.ok || !result.success) {
+    throw apiError("Turnstile verification failed.", "TURNSTILE_FAILED", 400);
+  }
 }
 
 async function sendOtpEmail(env, email, code) {
-  if (!env.RESEND_API_KEY) throw new Error("Email delivery is not configured.");
-  if (!env.EMAIL_FROM) throw new Error("The OTP sender is not configured.");
+  if (!env.RESEND_API_KEY) throw apiError("Email delivery is not configured.", "EMAIL_NOT_CONFIGURED", 503);
+  if (!env.EMAIL_FROM) throw apiError("The OTP sender is not configured.", "EMAIL_NOT_CONFIGURED", 503);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
@@ -449,7 +474,7 @@ async function sendOtpEmail(env, email, code) {
       html: `<p>Your one-time sign-in code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes and can only be used once.</p>`
     })
   });
-  if (!response.ok) throw new Error("The email provider could not deliver the sign-in code.");
+  if (!response.ok) throw apiError("The email provider could not deliver the sign-in code.", "EMAIL_DELIVERY_FAILED", 502);
 }
 
 function sessionCookie(token, env, remember = true) {
@@ -459,6 +484,16 @@ function sessionCookie(token, env, remember = true) {
 
 function clearSessionCookie() {
   return "__Host-portfolio_session=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0";
+}
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 async function getSession(request, env) {
@@ -480,36 +515,49 @@ async function authRoutes(request, env, path, method) {
     return json({ turnstileSiteKey: env.TURNSTILE_SITE_KEY || null });
   }
   if (path === "/api/auth/request" && method === "POST") {
-    const body = await verifyTurnstile(request, env);
+    const body = await readBody(request, 4000);
+    await verifyTurnstile(request, env, body);
     const email = String(body.email || "").trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json({ error: "A valid email address is required." }, 400);
+    if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: "A valid email address is required.", code: "INVALID_EMAIL" }, 400);
     const ip = await sha256Hex(ipFrom(request));
     if (!await abuseCheck(env, "email:" + await sha256Hex(email), "otp-email", 5, 3600)) return json({ error: "Too many sign-in requests for this email. Try again later." }, 429);
     if (!await abuseCheck(env, "ip:" + ip, "otp-ip", 10, 600)) return json({ error: "Too many sign-in requests from this network. Try again later." }, 429);
-    const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, "0");
+    let randomValue;
+    do { randomValue = crypto.getRandomValues(new Uint32Array(1))[0]; } while (randomValue >= 4294000000);
+    const code = String(randomValue % 1000000).padStart(6, "0");
     const otpHash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
     const id = crypto.randomUUID();
     const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    await env.DB.prepare("UPDATE otp_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE email=? AND consumed_at IS NULL").bind(email).run();
     await env.DB.prepare("INSERT INTO otp_challenges(id,email,otp_hash,expires_at,ip_hash) VALUES(?,?,?,?,?)").bind(id, email, otpHash, expires, ip).run();
-    await sendOtpEmail(env, email, code);
+    try {
+      await sendOtpEmail(env, email, code);
+    } catch (error) {
+      await env.DB.prepare("DELETE FROM otp_challenges WHERE id=?").bind(id).run();
+      throw error;
+    }
     return json({ sent: true, expiresInSeconds: 600 });
   }
   if (path === "/api/auth/verify" && method === "POST") {
     const body = await readBody(request, 4000);
     const email = String(body.email || "").trim().toLowerCase();
     const code = String(body.code || "").replace(/\D/g, "").slice(0, 6);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6}$/.test(code)) return json({ error: "Email and six-digit code are required." }, 400);
+    if (!EMAIL_RE.test(email) || email.length > 254 || !/^\d{6}$/.test(code)) return json({ error: "Email and six-digit code are required.", code: "INVALID_CREDENTIALS" }, 400);
     const ip = await sha256Hex(ipFrom(request));
     if (!await abuseCheck(env, "verify-email:" + await sha256Hex(email), "verify-email", 10, 600)) return json({ error: "Too many verification attempts. Request a new code." }, 429);
     if (!await abuseCheck(env, "verify-ip:" + ip, "verify-ip", 20, 600)) return json({ error: "Too many verification attempts from this network." }, 429);
-    const challenge = await env.DB.prepare("SELECT id,otp_hash,expires_at,attempts,consumed_at,ip_hash FROM otp_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1").bind(email).first();
+    const challenge = await env.DB.prepare("SELECT id,otp_hash,expires_at,attempts,consumed_at,ip_hash FROM otp_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1").bind(email).first();
     if (!challenge) return json({ error: "No active sign-in code. Request a new code." }, 400);
     if (challenge.ip_hash !== ip) return json({ error: "This code cannot be verified from this network." }, 403);
     if (Date.now() >= Date.parse(challenge.expires_at)) return json({ error: "This code has expired. Request a new code." }, 400);
-    if (Number(challenge.attempts) >= 5) return json({ error: "Too many incorrect attempts. Request a new code." }, 429);
+
+    const attempt = await env.DB.prepare(
+      "UPDATE otp_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts < 5 RETURNING attempts"
+    ).bind(challenge.id).first();
+    if (!attempt) return json({ error: "Too many incorrect attempts. Request a new code." }, 429);
+
     const hash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
-    if (hash !== challenge.otp_hash) {
-      await env.DB.prepare("UPDATE otp_challenges SET attempts=attempts+1 WHERE id=?").bind(challenge.id).run();
+    if (!timingSafeEqual(hash, challenge.otp_hash)) {
       return json({ error: "The sign-in code is incorrect." }, 400);
     }
     const consume = await env.DB.prepare("UPDATE otp_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND consumed_at IS NULL").bind(challenge.id).run();
@@ -768,7 +816,7 @@ async function adminRoute(request, env, path, method) {
   if (path === "/api/admin/projects/import" && method === "POST") {
     let body;
     try { body = await readBody(request, 4000); } catch (_) {
-      throw importError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
+      throw apiError("Invalid Repository URL.", "INVALID_REPOSITORY_URL", 400);
     }
     const repo = parseRepositoryUrl(body.url, body.provider);
     let evidence;
@@ -777,7 +825,7 @@ async function adminRoute(request, env, path, method) {
     const digest = await sha256Hex("repository:" + repo.canonical);
     const id = "import-" + repo.provider + "-" + digest.slice(0, 32);
     const existing = await env.DB.prepare("SELECT id,url,title FROM projects WHERE id=? OR url=? LIMIT 1").bind(id, repo.canonical).first();
-    if (existing) throw importError("Duplicate Project.", "DUPLICATE_PROJECT", 409);
+    if (existing) throw apiError("Duplicate Project.", "DUPLICATE_PROJECT", 409);
     const description = buildImportedProjectDescription({ ...repo, title: evidence.title }, evidence);
     const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(sort_order),0) AS max_order FROM projects").first();
     const sortOrder = Number(maxRow?.max_order || 0) + 10;
@@ -789,10 +837,14 @@ async function adminRoute(request, env, path, method) {
       const insert = await env.DB.prepare(
         "INSERT INTO projects(id,title,type,description_fr,description_en,url,visible,sort_order,updated_at) VALUES(?,?,?,?,?,?,1,?,CURRENT_TIMESTAMP)"
       ).bind(id, evidence.title, type, description.fr, description.en, repo.canonical, sortOrder).run();
-      if (!insert.meta?.changes) throw importError("Database Failure.", "DATABASE_FAILURE", 500);
+      if (!insert.meta?.changes) throw apiError("Database Failure.", "DATABASE_FAILURE", 500);
     } catch (error) {
       if (error.code) throw error;
-      throw importError("Database Failure.", "DATABASE_FAILURE", 500);
+      const combined = [error?.message, error?.cause?.message, String(error)].filter(Boolean).join(" ");
+      if (/UNIQUE constraint failed|PRIMARY KEY|SQLITE_CONSTRAINT|duplicate/i.test(combined)) {
+        throw apiError("Duplicate Project.", "DUPLICATE_PROJECT", 409);
+      }
+      throw apiError("Database Failure.", "DATABASE_FAILURE", 500);
     }
     return json({
       saved: true,

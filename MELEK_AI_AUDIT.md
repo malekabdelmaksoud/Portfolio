@@ -94,15 +94,15 @@ External verification limitations remain explicit: DNS access to official Cloudf
 
 The previous implementation's `env.AI` and third-party model fallback path has been removed from production code. The repository now separates the independent `melek-ai-model/` project and a private HTTP inference adapter.
 
-No checkpoint was trained in this execution. The architecture and parameter count are documented as configuration/design facts, not as trained-model performance. The Worker reports Melek AI unavailable when `MELEK_AI_SERVICE_URL` is absent and refuses to substitute GLM, Llama or another hosted model.
+The 25-step smoke checkpoint and 2000-step full checkpoint were trained locally on an RTX 2050. The Worker reports Melek AI unavailable when `MELEK_AI_SERVICE_URL` is absent and refuses to substitute GLM, Llama or another hosted model.
 
-The independent project uses original decoder-only Transformer code, UTF-8 byte tokens, JSONL dataset validation, random initialization, checkpoint metadata, generation and evaluation scripts. PyTorch training could not be executed in this environment because installing the runtime exceeded the available disk in the attempted test virtual environment.
+The independent project uses original decoder-only Transformer code, UTF-8 byte tokens, JSONL dataset validation, random initialization, checkpoint metadata, generation and evaluation scripts. Local RTX 2050 training now produced measured checkpoints and metrics.
 
 ## Training preparation — 2026-11-21
 
-The owner-controlled portfolio corpus was cleaned and deterministically split: 58 train and 11 held-out validation rows. A 25-step smoke configuration was added. The environment has no NVIDIA/CUDA tools or PyTorch; a CPU PyTorch installation attempt failed due to unavailable DNS/network access. Therefore no checkpoint or measured loss was created. Windows RTX 2050 setup commands are documented in `melek-ai-model/README.md`.
+The owner-controlled portfolio corpus was cleaned and deterministically split: 58 train and 11 held-out validation rows. A 25-step smoke run and a 2000-step full run completed on an RTX 2050 using CUDA/PyTorch. Windows setup commands are documented in `melek-ai-model/README.md`.
 
 ## Windows training preparation — 2026-11-21
 
-Cross-platform training fixes and Windows launchers were added without production changes. The RTX 2050 setup is documented with PyTorch CUDA 12.6 as an install index and hardware verification remains required. Smoke training is batch 1, context 128. Full training remains batch 2, context 256 and resumable. No checkpoint or measured training result exists.
+Cross-platform training fixes and Windows launchers are present. The RTX 2050 setup is documented with PyTorch CUDA 12.6 as an install index and hardware verification remains required. Local smoke and full runs produced checkpoints, but the small corpus is not sufficient for a generally capable public assistant.
 

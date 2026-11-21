@@ -28,6 +28,7 @@ def main():
     model.load_state_dict(saved["model"])
     ids = torch.tensor([encode(args.prompt)], dtype=torch.long, device=device)
     output = model.generate(ids, max_new_tokens=args.tokens, temperature=args.temperature)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     print(decode(output[0].tolist()))
 
 

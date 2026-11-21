@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -30,14 +31,32 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8091)
+    parser.add_argument("--token", default=os.getenv("MELEK_AI_SERVICE_TOKEN", ""))
     args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, saved = load(args.checkpoint, device)
 
     class Handler(BaseHTTPRequestHandler):
+        def authenticated(self):
+            if not args.token:
+                return True
+            authorization = self.headers.get("Authorization", "")
+            return authorization == "Bearer " + args.token
+
+        def send_auth_error(self):
+            payload = json.dumps({"error": "unauthorized"}).encode("utf-8")
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
         def do_POST(self):
             if self.path != "/generate":
                 self.send_error(404)
+                return
+            if not self.authenticated():
+                self.send_auth_error()
                 return
             length = int(self.headers.get("Content-Length", "0"))
             try:
