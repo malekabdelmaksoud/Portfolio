@@ -24,3 +24,28 @@ jobs:
       - name: Validate draft knowledge base
         working-directory: melek-ai
         run: python knowledge.py
+
+
+  public-corpus-sample:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dataset streaming dependency
+        run: python -m pip install "datasets>=3.0.0"
+      - name: Download bounded public multilingual corpus sample
+        working-directory: melek-ai
+        run: python download_data.py --out data/train.jsonl --max-per-language 600 --max-scan 200000
+      - name: Validate downloaded provenance and corpus split
+        working-directory: melek-ai
+        run: |
+          python -c "from pathlib import Path; from dataset import load_documents, split_documents; docs=load_documents(Path('data/train.jsonl')); train, val=split_documents(docs); print(f'documents={len(docs)} train={len(train)} validation={len(val)}')"
+      - name: Publish temporary training corpus artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: melek-gpt-public-corpus-sample
+          path: melek-ai/data/train.jsonl
+          if-no-files-found: error
+          retention-days: 7
