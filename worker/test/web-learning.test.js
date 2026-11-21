@@ -50,7 +50,7 @@ test("refreshes only fixed feeds and persists deduplicated source records", asyn
   assert.equal(urls.length, 5);
   assert.equal(result.fetched, 5, JSON.stringify({ urls, failed: result.failed }));
   assert.equal(result.saved, 5);
-  assert.equal(writes.length, 7); // five feed records, one run summary, one retention cleanup
+  assert.equal(writes.length, 6); // five feed records and one run summary; no paid-search usage table cleanup
   assert.ok(writes.every(x => !x.sql.includes("INSERT INTO facts")));
   assert.match(writes[0].sql, /ON CONFLICT\(url\) DO UPDATE/);
 });
