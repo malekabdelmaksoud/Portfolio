@@ -137,10 +137,8 @@ def main():
             print("Loading Tunisian proverb corpus (CC-BY-4.0) with a conservative abuse-word filter...")
             try:
                 dataset_name = "HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset"
-                stream = load_dataset(dataset_name, split="train", streaming=True)
-                image_columns = [name for name, feature in stream.features.items() if feature.__class__.__name__ == "Image"]
-                if image_columns:
-                    stream = stream.remove_columns(image_columns)
+                csv_url = f"https://huggingface.co/datasets/{dataset_name}/resolve/main/dataset.csv"
+                stream = load_dataset("csv", data_files=csv_url, split="train", streaming=True)
                 for row in stream:
                     if counts["aeb"] >= args.max_per_language:
                         break
