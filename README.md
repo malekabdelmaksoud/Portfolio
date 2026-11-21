@@ -66,3 +66,8 @@ Open `index.html` directly for the static portfolio. The API-backed chat and pro
 - `cd melek-ai && python -m unittest discover -s . -p "test_*.py"` — evidence and knowledge validation tests.
 - `cd melek-ai && python knowledge.py` — knowledge-base validation.
 
+
+
+### Deployment safety
+
+The API deployment workflow is manual-only. It requires an explicit confirmation that the Cloudflare account is on Workers Free; merging a pull request or pushing to `main` cannot deploy or run remote D1 migrations automatically. Never confirm or deploy if the account has been upgraded to Workers Paid.
