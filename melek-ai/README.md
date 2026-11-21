@@ -10,7 +10,7 @@ The portfolio's strict factual mode must **not trust free-form model generations
 
 ## Design
 
-- Byte-level UTF-8 tokenizer: handles French, English, Arabic and Tunisian Arabic without a pretrained tokenizer.
+- Unicode-character tokenizer: maps complete characters, so Arabic, French and Tunisian text is generated as valid Unicode rather than arbitrary Unicode characters.
 - Small decoder-only Transformer (GPT-style) implemented in PyTorch from randomly initialized weights.
 - JSONL training corpus with explicit provenance and consent requirements.
 - Training and sampling scripts; checkpoint files are local and must not be committed.
@@ -68,7 +68,7 @@ python evaluate.py --data data/train.jsonl --checkpoint checkpoints/melek-ai.pt
 python generate.py --checkpoint checkpoints/melek-ai.pt --prompt "Bonjour, je suis"
 ```
 
-To continue a training run without starting over, pass `--resume checkpoints/melek-ai.pt` and keep the same architecture options (`--width`, `--heads`, `--layers`, `--context`, `--dropout`). Optimizer state is saved for continuation. `evaluate.py` measures byte-level loss on the same deterministic held-out document split. Start with defaults only after preparing enough distinct documents. The trainer deduplicates identical text and creates a deterministic document-level train/validation split; it refuses to reuse training text as validation data. Both splits must contain more than `context + 1` UTF-8 bytes, so reduce `--context` or add more permitted documents if it stops early. Increase training steps only after validating dataset quality and monitoring both losses. Generated text is experimental and must not be treated as verified portfolio facts.
+To continue a training run without starting over, pass `--resume checkpoints/melek-ai.pt` and keep the same architecture options (`--width`, `--heads`, `--layers`, `--context`, `--dropout`). Optimizer state is saved for continuation. `evaluate.py` measures character-level loss on the same deterministic held-out document split. Start with defaults only after preparing enough distinct documents. The trainer deduplicates identical text and creates a deterministic document-level train/validation split; it refuses to reuse training text as validation data. Both splits must contain more than `context + 1` UTF-8 bytes, so reduce `--context` or add more permitted documents if it stops early. Increase training steps only after validating dataset quality and monitoring both losses. Generated text is experimental and must not be treated as verified portfolio facts.
 
 ## Anti-hallucination policy for the deployed portfolio
 
@@ -103,7 +103,7 @@ The Worker exposes **MelekGPT** in the model selector as unavailable until both 
 5. Put the server behind a **named Cloudflare Tunnel** with an HTTPS hostname. Do not expose port 8788 directly. Configure Worker secrets `MELEK_AI_URL` (the tunnel URL ending in `/v1/chat/completions`) and `MELEK_AI_TOKEN` (the same token), then deploy the Worker.
 6. Keep the host machine running. If it is offline, the custom model will be unavailable; the free hosted model remains independently selectable.
 
-The server loads only a checkpoint marked `trained_from_scratch` and requires bearer authentication. The current tiny byte-level Transformer is experimental and is not comparable to Claude or other foundation models. It needs a large, varied corpus and evaluation; a small personal portfolio dataset will not teach it general conversation.
+The server loads only a checkpoint marked `trained_from_scratch` and requires bearer authentication. The current tiny character-level Transformer is experimental and is not comparable to Claude or other foundation models. It needs a large, varied corpus and evaluation; a small personal portfolio dataset will not teach it general conversation.
 
 ## Current status
 
