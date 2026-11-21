@@ -186,6 +186,25 @@ test("API origin is allowed and Google sign-in fails closed when unconfigured",a
  assert.equal(data.code,"GOOGLE_NOT_CONFIGURED");
 });
 
+test("configured Google sign-in rejects expired or mismatched identities",async()=>{
+ const env={...environment(),GOOGLE_CLIENT_ID:"google-client.test",SESSION_PEPPER:"test-pepper"};
+ const oldFetch=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({
+ aud:"different-client",
+ iss:"accounts.google.com",
+ email:"visitor@example.test",
+ email_verified:"true",
+ sub:"google-sub-1",
+ exp:String(Math.floor(Date.now()/1000)+3600)
+ }),{status:200,headers:{"content-type":"application/json"}});
+ try {
+ const response=await worker.fetch(authRequest("/api/auth/google",{credential:"test-credential"}),env);
+ const data=await response.json();
+ assert.equal(response.status,401);
+ assert.equal(data.code,"INVALID_GOOGLE_CREDENTIAL");
+ } finally { globalThis.fetch=oldFetch; }
+});
+
 test("separate login and registration pages support password manager fields",async()=>{
  const login=readFileSync(resolve(process.cwd(),"..","login.html"),"utf8");
  const register=readFileSync(resolve(process.cwd(),"..","register.html"),"utf8");

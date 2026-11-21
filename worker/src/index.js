@@ -746,15 +746,25 @@ async function authRoutes(request, env, path, method) {
       return json({ error: "Google sign-in is temporarily unavailable.", code: "GOOGLE_UNAVAILABLE" }, 502);
     }
     const google = await verification.json().catch(() => ({}));
-    if (!verification.ok || google.aud !== env.GOOGLE_CLIENT_ID || !["accounts.google.com", "https://accounts.google.com"].includes(google.iss) || !(google.email_verified === "true" || google.email_verified === true)) {
+    const expiresAt = Number(google.exp || 0);
+    if (
+      !verification.ok ||
+      google.aud !== env.GOOGLE_CLIENT_ID ||
+      (google.azp && google.azp !== env.GOOGLE_CLIENT_ID) ||
+      !["accounts.google.com", "https://accounts.google.com"].includes(google.iss) ||
+      !(google.email_verified === "true" || google.email_verified === true) ||
+      !google.sub ||
+      !expiresAt ||
+      expiresAt <= Math.floor(Date.now() / 1000)
+    ) {
       return json({ error: "The Google identity could not be verified.", code: "INVALID_GOOGLE_CREDENTIAL" }, 401);
     }
     const email = String(google.email || "").trim().toLowerCase();
     if (!EMAIL_RE.test(email) || email.length > 254) return json({ error: "Google returned an invalid email address.", code: "INVALID_GOOGLE_EMAIL" }, 400);
     const name = String(google.name || email).trim().slice(0, 120);
     await env.DB.prepare(
-      "INSERT INTO users(id,email,display_name,last_login_at) VALUES(?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,last_login_at=CURRENT_TIMESTAMP"
-    ).bind(crypto.randomUUID(), email, name).run();
+      "INSERT INTO users(id,email,display_name,google_subject,last_login_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET display_name=excluded.display_name,google_subject=excluded.google_subject,last_login_at=CURRENT_TIMESTAMP"
+    ).bind(crypto.randomUUID(), email, name, String(google.sub)).run();
     const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE email=?").bind(email).first();
     if (!user) throw new Error("Could not create the Google user session.");
     const token = await randomToken(32);
