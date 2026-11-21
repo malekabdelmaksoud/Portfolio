@@ -10,13 +10,24 @@
   function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>$("toast").classList.remove("show"),3000);}
   function escapeHTML(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function renderText(value){return escapeHTML(value).split("\n").map(line=>"<p>"+line+"</p>").join("");}
-  function addMessage(role,content,withActions=true){
+  function addMessage(role,content,withActions=true,sources=[]){
     const node=document.createElement("article");node.className="message "+(role==="user"?"user":"assistant");
     const avatar=document.createElement("div");avatar.className="message-avatar";avatar.textContent=role==="user"?"M":"AI";
     const body=document.createElement("div");body.className="message-body";
     const label=document.createElement("div");label.className="message-role";label.textContent=role==="user"?"You":"Melek AI";
     const text=document.createElement("div");text.className="message-text";text.innerHTML=renderText(content);
     body.append(label,text);
+    if(role==="assistant"&&Array.isArray(sources)&&sources.length){
+      const sourceList=document.createElement("div");sourceList.className="message-sources";
+      const heading=document.createElement("strong");heading.textContent="Sources web consultées";sourceList.append(heading);
+      sources.slice(0,3).forEach(source=>{
+        if(!source||typeof source.url!=="string"||!/^https:\/\//i.test(source.url))return;
+        try{const url=new URL(source.url);if(!["blog.cloudflare.com","genai.owasp.org","huggingface.co","arxiv.org","export.arxiv.org"].includes(url.hostname))return;
+          const link=document.createElement("a");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";link.textContent=String(source.title||source.source||url.hostname).slice(0,120);sourceList.append(link);
+        }catch(_){}
+      });
+      if(sourceList.querySelector("a"))body.append(sourceList);
+    }
     if(role==="assistant"&&withActions){const actions=document.createElement("div");actions.className="message-actions";const copy=document.createElement("button");copy.type="button";copy.textContent="Copier";copy.addEventListener("click",()=>navigator.clipboard?.writeText(content).then(()=>toast("Réponse copiée."),()=>toast("Copie indisponible.")));const speak=document.createElement("button");speak.type="button";speak.textContent="Écouter";speak.addEventListener("click",()=>speakText(content));actions.append(copy,speak);body.append(actions);if(role==="assistant")lastAssistantAnswer=content;}
     node.append(avatar,body);$("messages").append(node);$("messages").scrollTop=$("messages").scrollHeight;return node;
   }
@@ -72,7 +83,7 @@
       const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";
       pending.remove();pending=null;attachment=null;renderAttachment();
       await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});
-      addMessage("assistant",answer);await refreshChats();
+      addMessage("assistant",answer,true,data.webSources||[]);await refreshChats();
     }catch(e){if(pending)pending.remove();toast(e.message);input.value=question;}
     finally{sending=false;$("send-message").disabled=false;input.focus();}
   }
