@@ -35,7 +35,7 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 After the Worker is deployed and its `.workers.dev` hostname is known:
 
 1. Create a Cloudflare Access self-hosted application for that hostname.
-2. Protect only `/admin.html` and `/api/admin/*`; do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
+2. Protect `/account.html`, `/api/user/*`, `/admin.html`, and `/api/admin/*`. Use Cloudflare Access email one-time PIN (or another verified email identity provider) with an allow policy for authenticated emails. The Worker validates each visitor's signed Access JWT and scopes every chat query to that verified email. Admin API routes additionally require the exact owner email. Do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
 3. Add an allow policy for the owner's exact email address only.
 4. Add these Worker secrets in the Worker Settings → Variables and Secrets page:
    - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
@@ -44,7 +44,7 @@ After the Worker is deployed and its `.workers.dev` hostname is known:
 
 Never commit the email identity or Access secrets to this public repository.
 
-## Admin dashboard
+## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://<api-worker-host>/account.html` and sign in with their email. The page lists their own chats, opens message history, creates a conversation, deletes one conversation, or deletes all their conversations. The Worker derives the owner from the verified Access JWT; it never trusts an email supplied in request JSON. D1 migration `0004_user_chat_history.sql` creates the owner-scoped chat and message tables. All reads, inserts, and deletions include the authenticated email.\n\nThe account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
