@@ -210,6 +210,52 @@ async function assistant(request, env, identity) {
     return json({answer,mode:body.mode==="analyze"?"analyze":"chat",model:selectedModel.id,sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file,selector:f.source_selector})),webSources:webSources.map(x=>({title:x.title,url:x.url,source:x.source_name,publishedAt:x.published_at}))});
   }catch(error){return json({error:"The selected AI model is temporarily unavailable. "+(selectedModel.id==="melek-gpt-local"?"Check its private inference service and checkpoint.":"Try another model or retry shortly.")},502);}
 }
+// Keep a large safety margin below D1's 500 MB per-database Free-plan ceiling.
+// These are UTF-8 message-content bytes, not a claim about SQLite's full on-disk size.
+const CHAT_STORAGE_SOFT_LIMIT_BYTES = 180 * 1024 * 1024;
+const CHAT_STORAGE_TARGET_BYTES = 150 * 1024 * 1024;
+const CHAT_STORAGE_HARD_LIMIT_BYTES = 200 * 1024 * 1024;
+async function getChatContentBytes(env) {
+  const row=await env.DB.prepare("SELECT COALESCE(SUM(length(CAST(content AS BLOB))),0) AS total_bytes FROM chat_messages").first();
+  return Number(row?.total_bytes||0);
+}
+async function pruneOldChats(env,projectedBytes,protectedChatId) {
+  let deletedChats=0;
+  if(projectedBytes<=CHAT_STORAGE_SOFT_LIMIT_BYTES) return {deletedChats,totalBytes:await getChatContentBytes(env)};
+  // Delete complete oldest conversations across all users, but never their last remaining chat
+  // and never the conversation currently receiving a message.
+  for(let pass=0;pass<20 && projectedBytes>CHAT_STORAGE_TARGET_BYTES;pass++) {
+    const needed=projectedBytes-CHAT_STORAGE_TARGET_BYTES;
+    const {results=[]}=await env.DB.prepare(`WITH per_chat AS (
+      SELECT c.id,c.user_email,c.updated_at,COALESCE(SUM(length(CAST(m.content AS BLOB))),0) AS bytes
+      FROM chats c LEFT JOIN chat_messages m ON m.chat_id=c.id AND m.user_email=c.user_email
+      GROUP BY c.id
+    ), ranked AS (
+      SELECT *,ROW_NUMBER() OVER(PARTITION BY user_email ORDER BY updated_at DESC,id DESC) AS user_rank
+      FROM per_chat
+    ), eligible AS (
+      SELECT * FROM ranked WHERE user_rank>1 AND id<>?
+    ), accumulated AS (
+      SELECT *,SUM(bytes) OVER(ORDER BY updated_at ASC,id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_bytes
+      FROM eligible
+    )
+    SELECT id,user_email,bytes FROM accumulated
+    WHERE running_bytes-bytes<? ORDER BY updated_at ASC,id ASC LIMIT 100`).bind(protectedChatId,needed).all();
+    if(!results.length) break;
+    const statements=[];
+    for(const chat of results) {
+      statements.push(env.DB.prepare("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?").bind(chat.id,chat.user_email));
+      statements.push(env.DB.prepare("DELETE FROM chats WHERE id=? AND user_email=?").bind(chat.id,chat.user_email));
+      deletedChats++;
+    }
+    await env.DB.batch(statements);
+    const freed=results.reduce((sum,chat)=>sum+Number(chat.bytes||0),0);
+    projectedBytes=Math.max(0,projectedBytes-freed);
+    if(freed===0 && results.length===0) break;
+  }
+  return {deletedChats,totalBytes:await getChatContentBytes(env)};
+}
+
 async function userChatRoute(request,env,path,method,identity) {
   const chatMatch=path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
   if(path==="/api/user/me" && method==="GET") return json({authenticated:true,user:identity});
@@ -249,6 +295,12 @@ async function userChatRoute(request,env,path,method,identity) {
     if(!["user","assistant"].includes(role)||!content||content.length>6000)return json({error:"Message role or content is invalid."},400);
     const exists=await env.DB.prepare("SELECT id FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email).first();
     if(!exists)return json({error:"Chat not found."},404);
+    const currentBytes=await getChatContentBytes(env);
+    const incomingBytes=new TextEncoder().encode(content).length;
+    const retention=await pruneOldChats(env,currentBytes+incomingBytes,chatMatch[1]);
+    if(retention.totalBytes+incomingBytes>CHAT_STORAGE_HARD_LIMIT_BYTES) {
+      return json({error:"Chat storage is at its safety limit. Older conversations were cleaned where possible, but this account's latest conversation is protected. Try deleting an unnecessary chat or retry later."},507);
+    }
     const id=crypto.randomUUID();
     await env.DB.batch([
       env.DB.prepare("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)").bind(id,chatMatch[1],identity.email,role,content),
