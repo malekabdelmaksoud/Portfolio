@@ -16,6 +16,17 @@ The portfolio's strict factual mode must **not trust free-form model generations
 - Training and sampling scripts; checkpoint files are local and must not be committed.
 - A future serving layer must enforce evidence retrieval, source allowlists, confidence thresholds and abstention before any answer is shown.
 
+## Evidence retrieval behavior
+
+The current evidence guard is a conservative lexical baseline, not semantic search:
+- Normalizes Unicode accents and common Arabic letter variants.
+- Removes common French, English, Spanish and Tunisian Arabic function words.
+- Uses inverse-document-frequency weighting so common portfolio vocabulary carries less weight.
+- Requires a minimum weighted query coverage before returning a fact.
+- Returns only exact approved fact text and source identifiers; otherwise it abstains.
+
+The regression suite covers unsupported requests, unapproved or source-less facts, multi-concept coverage, generic queries, French wording, Arabic diacritics and Tunisian Arabic question wording. This is not a guarantee against every false match; evaluate it against a reviewed question set before public deployment.
+
 ## Requirements
 
 Python 3.10+ and PyTorch. A CUDA GPU is optional; CPU training is intended only for smoke tests. The Lenovo RTX 2050 can be used for small experiments, but VRAM and available system RAM determine the practical batch/sequence/model sizes. It is not enough to promise ChatGPT-level performance.
