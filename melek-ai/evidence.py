@@ -20,7 +20,7 @@ le la les un une des du de et ou mais est sont a au aux en dans sur pour par ave
 qui que quoi comment quel quelle quels quelles ou quand pourquoi je tu il elle nous
 vous ils elles mon ma mes ton ta tes son sa ses ce cet cette ces
 que es el los las y o para por con como donde cuando porque sobre
-شنو شنية شكون وين وقتاش علاش كيفاش كيف شنوّة نحب نعرف قولي اعطيني وريني هو هي من في على الى إلى عن مع و او أو
+شنو شنوّة شنوة شنية شكون وين وقتاش علاش كيفاش كيف شنوّة نحب نعرف قولي اعطيني وريني هو هي من في على الى إلى عن مع و او أو
 """.split())
 
 
