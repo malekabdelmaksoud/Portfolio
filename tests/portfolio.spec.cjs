@@ -134,37 +134,33 @@ test('mobile layout has no horizontal overflow and menu toggles', async () => {
   } finally { await page.close(); }
 });
 
-test('portfolio FAQ assistant answers a project question', async () => {
+test('floating AI button opens the full-screen Melek AI workspace', async () => {
   const page = await openPage();
   try {
+    const overlay = page.locator('#aiWorkspaceOverlay');
+    const frame = page.locator('#aiWorkspaceFrame');
+    assert.equal(await page.locator('#aiChatToggle').isVisible(), true);
+    assert.equal(await overlay.isVisible(), false);
     await page.locator('#aiChatToggle').click();
-    await page.locator('#aiChatInput').fill('Quels sont tes projets principaux ?');
-    await page.locator('#aiChatSend').click();
-    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes('Projets'));
-    assert.match(await page.locator('#aiChatMessages').innerText(), /Projets/);
+    assert.equal(await overlay.isVisible(), true);
+    assert.equal(await overlay.getAttribute('aria-hidden'), 'false');
+    assert.match(await frame.getAttribute('title'), /New Chat.*history.*Chat \/ Analyze/i);
+    assert.match(await frame.getAttribute('src'), /account\.html/);
+    assert.equal(await page.locator('#aiWorkspaceClose').isVisible(), true);
+    assert.equal(await page.locator('#aiWorkspaceNewTab').getAttribute('target'), '_blank');
   } finally { await page.close(); }
 });
 
-
-test('portfolio assistant handles Tunisian Arabic through the approved API', async () => {
+test('AI workspace modal closes with its close button and Escape key', async () => {
   const page = await openPage();
   try {
     await page.locator('#aiChatToggle').click();
-    await page.locator('#aiChatInput').fill('شنو المشاريع متاع ملاك؟');
-    await page.locator('#aiChatSend').click();
-    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes('Projets publiés'));
-    assert.match(await page.locator('#aiChatMessages').innerText(), /elearning-platform|Opportunity Hunter/);
-  } finally { await page.close(); }
-});
-
-test('assistant abstains on unsupported private facts', async () => {
-  const page = await openPage();
-  try {
+    await page.locator('#aiWorkspaceClose').click();
+    assert.equal(await page.locator('#aiWorkspaceOverlay').isVisible(), false);
     await page.locator('#aiChatToggle').click();
-    await page.locator('#aiChatInput').fill('Quel est le salaire de Melek et son numéro de passeport ?');
-    await page.locator('#aiChatSend').click();
-    await page.waitForFunction(() => document.querySelector('#aiChatMessages').innerText.includes("n'est pas présente"));
-    assert.match(await page.locator('#aiChatMessages').innerText(), /Contactez Melek/);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#aiWorkspaceOverlay').isVisible(), false);
+    assert.equal(await page.locator('body').evaluate(el => el.classList.contains('ai-workspace-open')), false);
   } finally { await page.close(); }
 });
 
