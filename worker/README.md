@@ -110,3 +110,19 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
   npx wrangler secret put MELEK_AI_TOKEN
   ```
   `MELEK_AI_URL` must end in `/v1/chat/completions`; `MELEK_AI_TOKEN` must match the local inference server token. MelekGPT appears as unavailable until both secrets exist. The machine hosting the checkpoint must remain online.
+
+
+## Automatic web learning (RAG)
+
+Melek AI refreshes a curated set of public AI/security feeds every day at 03:00 UTC using a Cloudflare Cron Trigger. It currently reads the Cloudflare Blog, OWASP GenAI Security, Hugging Face Blog, and arXiv cs.AI/cs.LG RSS feeds. The Worker only fetches fixed HTTPS feed URLs and accepts article links from an explicit host allowlist; it stores short sanitized summaries, source URLs, publication dates, and content hashes in D1. It does not crawl arbitrary URLs supplied by a model or visitor.
+
+For ordinary questions, the assistant ranks the refreshed summaries against the question and includes up to three relevant excerpts. Responses return the exact source URLs in `webSources`. Portfolio facts remain a separate, approved-only evidence store and cannot be overwritten by web research.
+
+External web text is always untrusted data. It is explicitly delimited in the prompt and cannot invoke tools, change policies, access secrets, or approve portfolio facts. This reduces risk but does not eliminate prompt injection; follow the OWASP RAG and prompt-injection guidance and keep tool permissions outside the model.
+
+Authenticated endpoints:
+- `GET /api/learning/status` — signed-in user can inspect whether refresh is enabled, the number of stored sources, and the last run.
+- `GET /api/admin/learning` — admin-only inventory and recent run history.
+- `POST /api/admin/learning/refresh` — admin-only manual refresh.
+
+The scheduled trigger and D1 migration are code changes only until deployed. Apply migration `0006_web_knowledge.sql` and deploy the Worker to activate the daily refresh. Cron times are UTC. This feature refreshes retrieval knowledge (RAG); it does not silently rewrite model weights. Fine-tuning is a separate offline process that must pass held-out evaluation before a checkpoint is promoted.
