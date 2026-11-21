@@ -29,6 +29,11 @@ class DatasetTests(unittest.TestCase):
         ])
         self.assertEqual(len(load_documents(path)), 2)
 
+    def test_generic_permitted_label_is_not_a_license(self):
+        path = self.write_rows([self.row("A", license="permitted"), self.row("B")])
+        with self.assertRaisesRegex(ValueError, "unsupported or unclear license"):
+            load_documents(path)
+
     def test_normalizes_known_license_aliases(self):
         self.assertEqual(normalize_license("CC BY 4.0"), "cc-by-4.0")
         self.assertEqual(normalize_license("Public Domain"), "public-domain")
