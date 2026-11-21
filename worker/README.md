@@ -94,7 +94,7 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 
 ## Important limitations
 
-- Workers AI includes 10,000 free Neurons per day on Workers Free and Paid; usage above that requires Workers Paid and is billed at $0.011 per 1,000 Neurons. The model catalogue lists Gemma 4 at $0.10 per million input tokens and $0.30 per million output tokens, and Qwen 3.8 at $0.45/$3.20 per million. Monitor actual Neuron use and review current pricing before public launch. The model catalogue can be changed with the server-side `AI_MODELS_JSON` variable; never expose provider credentials to the browser.
+- **Zero-spend rule:** use Cloudflare Workers Free only. Workers AI provides 10,000 Neurons/day at no charge on Workers Free; when that quota is exhausted, requests fail until reset. Do not upgrade to Workers Paid: it starts at $5/month and bills AI usage above the free allocation. The code allowlists only GLM-4.7 Flash and Gemma 4 and ignores custom model overrides.
 - The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
 - The browser-based Cloudflare Access sign-in flow and cross-origin iframe behavior still need verification in the production account configuration.
 
@@ -128,10 +128,6 @@ Authenticated endpoints:
 The scheduled trigger and D1 migration are code changes only until deployed. Apply migration `0006_web_knowledge.sql` and deploy the Worker to activate the daily refresh. Cron times are UTC. This feature refreshes retrieval knowledge (RAG); it does not silently rewrite model weights. Fine-tuning is a separate offline process that must pass held-out evaluation before a checkpoint is promoted.
 
 
-### Live web search
+### Free web knowledge only
 
-For general questions, the Worker can also call Cloudflare Web Search API through the existing `AI` binding (Ceramic provider, max 4 results per request). This is a live search, separate from the daily RSS refresh. It is enabled by `WEB_SEARCH_ENABLED = "true"`; if the AI Gateway has no credits/provider configured or the search fails, the assistant falls back to the stored daily feed index. Search results are snippets and links only; the Worker does not blindly crawl arbitrary result URLs.
-
-**Cost note:** Cloudflare documents Ceramic at **$0.25 per 1,000 searches** through AI Gateway credits. This is not unlimited/free. At 1,000 searched chat turns, the search component is about $0.25 (model inference and any other usage are separate). Set `WEB_SEARCH_ENABLED = "false"` to disable per-question live search while keeping the daily RSS refresh. The AI Gateway must have credits or a provider key configured; otherwise live search returns no results and the cached feed index remains available.
-
-Live search citations are rendered below assistant answers. Each verified visitor is limited to 10 live searches per rolling hour, and the whole site is hard-capped at 5,000 live searches per calendar month (about $1.25 at the documented Ceramic rate). Daily RSS retrieval remains available after either live-search limit is reached. Search counters are retained for 35 days so the monthly cap remains enforceable. External results remain untrusted data and cannot execute tools or modify the approved portfolio facts.
+The Worker does not call Cloudflare Web Search, Ceramic, AI Gateway, or any paid search API. It refreshes a fixed allowlist of public RSS/Atom feeds once daily and retrieves matching stored summaries for general questions. Feed refresh is best-effort and remains subject to Workers Free and D1 Free quotas. If those quotas are reached, refresh or chat requests can fail until the quota resets; the application must never upgrade automatically or fall back to a paid provider. No search-provider credits or API keys are required.
