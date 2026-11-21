@@ -33,7 +33,7 @@ function parseFeed(xml, feed) {
   for (const block of blocks) {
     const title = plainText(tagValue(block, "title"), 240);
     const rawLink = tagValue(block, "link");
-    const href = rawLink.match(/\bhref=["']([^"']+)["']/i)?.[1] || plainText(rawLink, 1000);
+    const href = rawLink.match(/\bhref=["']([^"']+)["']/i)?.[1] || block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1] || plainText(rawLink, 1000);
     let url;
     try {
       url = new URL(decodeEntities(href));
