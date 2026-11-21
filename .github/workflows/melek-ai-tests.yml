@@ -20,7 +20,7 @@ jobs:
           python-version: "3.11"
       - name: Test evidence and knowledge validation
         working-directory: melek-ai
-        run: python -m unittest -v test_evidence.py test_knowledge.py
+        run: python -m unittest -v test_evidence.py test_knowledge.py test_dataset.py
       - name: Validate draft knowledge base
         working-directory: melek-ai
         run: python knowledge.py
