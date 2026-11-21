@@ -6,7 +6,6 @@ import sys
 import unicodedata
 from pathlib import Path
 
-from datasets import load_dataset
 from dataset import normalize_license
 
 LANGUAGE_ALIASES = {
@@ -52,6 +51,10 @@ def record_key(text):
 
 
 def main():
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:
+        raise SystemExit('Install the corpus downloader dependency with: pip install -r requirements.txt') from exc
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=Path("data/train.jsonl"))
     parser.add_argument("--max-per-language", type=int, default=1200)
@@ -94,7 +97,7 @@ def main():
                     if scanned > args.max_scan:
                         break
                     lang = LANGUAGE_ALIASES.get(str(row.get("language", "")).strip().lower())
-                    if lang not in {"en", "fr"} or common_counts[lang] >= min(args.max_per_language, 600):
+                    if lang not in {"en", "fr", "ar"} or common_counts[lang] >= min(args.max_per_language, 600):
                         if all(common_counts[key] >= min(args.max_per_language, 600) for key in ("en", "fr", "ar")):
                             break
                         continue
