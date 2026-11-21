@@ -18,4 +18,4 @@ jobs:
           node-version: "22"
       - name: Run Worker API tests
         working-directory: worker
-        run: node --test test/*.test.js
+        run: node --check src/index.js && node --check ../admin.js && node --check ../script.js && node --check ../portfolio-auth-core.js && node --test test/*.test.js
