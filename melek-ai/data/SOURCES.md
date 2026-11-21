@@ -6,9 +6,18 @@ Re-check the upstream dataset cards before every new download.
 
 ## Included sources
 
-1. **OpenAssistant Conversations (OASST1)** — https://huggingface.co/datasets/OpenAssistant/oasst1
+1. **Tunisian Chatbot Instruction Data** — https://huggingface.co/datasets/abdouuu/tunisian_chatbot_data
+   - Dataset card declares Apache-2.0; 1,430 instruction/output examples.
+   - Fields used: `instruction`, optional textual `input`, and `output`.
+   - Converted into `User:` / `Assistant:` pairs; rows with missing text, obvious PII,
+     or a small list of explicit abusive phrases are skipped.
+   - The card has limited provenance detail, so review a sample and preserve its license
+     notice. It is a small supplemental Derja chatbot source, not a broad language corpus.
+
+
+2. **OpenAssistant Conversations (OASST1)** — https://huggingface.co/datasets/OpenAssistant/oasst1
    - Dataset card declares Apache-2.0; 84,437 training messages from 35 languages.
-   - Languages selected: English (`en`), French (`fr`), Arabic (`ar`).
+   - Languages selected: English (`en`) and French (`fr`). Arabic Common Corpus records are deliberately skipped because the small sampled OpenITI texts included historical sectarian material.
    - Reconstructs one-turn user/assistant pairs using `parent_id` and `message_id`.
    - Uses only reviewed, non-deleted, non-synthetic messages; prefers rank 0 and rejects
      rows marked for spam, PII, hate, sexual content, or inappropriate content. It also
@@ -16,7 +25,7 @@ Re-check the upstream dataset cards before every new download.
    - This is the main source of assistant-style conversation examples.
 
 
-2. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
+3. **PleIAs Common Corpus** — https://huggingface.co/datasets/PleIAs/common_corpus
    - Languages selected: English (`en`), French (`fr`), Arabic (`ar`).
    - Fields: `text`, `language`, `license`, `identifier`, `collection`, `creator`.
    - The card describes document-level provenance and uncopyrighted/freely licensed material.
@@ -25,14 +34,15 @@ Re-check the upstream dataset cards before every new download.
      and records with obvious email/phone patterns are skipped.
    - Bounded streaming sample: default scan limit 150,000 and 1,200 documents per language.
 
-3. **UAE Arabic Legal Text Corpus** —
+4. **UAE Arabic Legal Text Corpus** —
    https://huggingface.co/datasets/University-of-Dubai/arabic-legal-text
    - Dataset card declares CC-BY-4.0 and describes Arabic UAE laws/decrees.
    - Fields: `text`, `source`, `year`, `category`.
-   - Used to improve formal Arabic and cybersecurity/legal vocabulary; it is not
-     representative of everyday Arabic conversation.
+   - The current public release has only two rows, one of which is a test record; the
+     downloader accepts only the longer legal text. This is a tiny domain supplement,
+     not a substantial Arabic corpus.
 
-4. **Tunisian Proverbs with Image Associations** —
+5. **Tunisian Proverbs with Image Associations** —
    https://huggingface.co/datasets/HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset
    - Dataset card declares CC-BY-4.0; 999 proverb entries.
    - Text fields only: Tunisian proverb/context for Derja and the Arabic explanation for
@@ -53,6 +63,10 @@ Re-check the upstream dataset cards before every new download.
 - `linagora/Tunisian_Derja_Dataset` and the unified Derja corpus: CC-BY-SA; excluded
   from this starter mix because ShareAlike implications for model weights need separate review.
 - `AzizBelaweid/Tunisian_Language_Dataset`: license metadata has shown conflicting descriptions.
+- `linagora/TunisianMMLU` is CC-BY-NC-SA-4.0 and is excluded from training; it is better
+  reserved as a non-commercial evaluation benchmark.
+- `khaled123/Tunisian_Dialectic_English_Derja` is CreativeML OpenRAIL-M and contains
+  social-media/transcript material; it is excluded from this permissive-license mix.
 - CC-BY-NC and other non-commercial-only datasets are excluded.
 - News corpora with unclear underlying publisher rights are excluded.
 
