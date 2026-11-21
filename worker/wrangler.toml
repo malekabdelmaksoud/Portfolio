@@ -13,6 +13,9 @@ migrations_dir = "migrations"
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
 # ADMIN_EMAIL, ACCESS_ISSUER, ACCESS_AUD, and ACCESS_USER_AUD are runtime secrets; never commit them.
 
+[ai]
+binding = "AI"
+
 [assets]
 directory = "./admin-assets"
 binding = "ASSETS"
