@@ -1,4 +1,4 @@
-import { refreshWebKnowledge } from "./web-learning.js";
+import { liveWebSearch, refreshWebKnowledge } from "./web-learning.js";
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 function abstentionFor(question) {
   if (/[\u0600-\u06ff]/.test(question)) return "المعلومة هاذي موش موجودة في المعلومات المنشورة والمعتمدة في Portfolio. تنجم تتصل بملاك للتأكد.";
@@ -172,13 +172,17 @@ async function assistant(request, env) {
   const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
   let webSources=[];
   if(!portfolioIntent) {
+    const liveResults=await liveWebSearch(env,question);
     const {results:webRows=[]}=await env.DB.prepare("SELECT title,url,source_name,source_host,summary,published_at,fetched_at FROM web_knowledge WHERE status='active' ORDER BY COALESCE(published_at,fetched_at) DESC LIMIT 120").all();
     const rankedWeb=webRows.map(item=>{
       const hay=terms(item.title+" "+item.summary+" "+item.source_name);
       const matched=[...queryTerms].filter(t=>hay.has(t));
       return {item,matched:matched.length,score:matched.length/Math.max(1,queryTerms.size)};
     }).filter(x=>x.matched>0).sort((a,b)=>b.score-a.score||b.matched-a.matched);
-    webSources=rankedWeb.slice(0,3).map(x=>x.item);
+    const seen=new Set();
+    webSources=[...liveResults,...rankedWeb.slice(0,3).map(x=>x.item)].filter(item=>{
+      if(seen.has(item.url))return false;seen.add(item.url);return true;
+    }).slice(0,5);
   }
   const evidence=selected.map((f,i)=>[
     (i+1)+". ["+f.category+"]","Arabic: "+(f.text_ar||""),"French: "+(f.text_fr||""),"English: "+(f.text_en||""),
@@ -370,7 +374,7 @@ export default {
           env.DB.prepare("SELECT COUNT(*) AS total FROM web_knowledge WHERE status='active'").first(),
           env.DB.prepare("SELECT fetched,saved,failed_json,finished_at FROM web_learning_runs ORDER BY finished_at DESC LIMIT 1").first()
         ]);
-        return withCors(json({enabled:true,sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
+        return withCors(json({enabled:true,liveSearchEnabled:env.WEB_SEARCH_ENABLED==="true"&&typeof env.AI?.websearch==="function",sourceCount:count?.total||0,lastRun:last||null,schedule:"daily"}),cors);
       }
       if(path==="/api/assistant" && method==="POST") {
         await verifyAccessIdentity(request,env);
