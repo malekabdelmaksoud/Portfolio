@@ -79,3 +79,10 @@ test("admin API refuses requests without Cloudflare Access identity",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/admin/facts"),environment());
  assert.equal(response.status,401);
 });
+
+test("per-user chat endpoints require a verified email Access identity",async()=>{
+ const response=await worker.fetch(new Request("https://api.test/api/user/chats"),environment());
+ assert.equal(response.status,401);
+ const data=await response.json();
+ assert.match(data.error,/sign-in is not configured/i);
+});
