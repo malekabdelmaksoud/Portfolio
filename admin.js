@@ -18,7 +18,7 @@ function renderFacts(){
  for(const f of state.facts){
   const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",f.id+" · "+f.category),meta=node("div","meta",f.source_file+" · "+f.source_selector);
   left.append(title,meta);const status=node("span","status"+(f.approved?" on":""),f.approved?"APPROUVÉ · UTILISABLE":"BROUILLON · NON PUBLIÉ");top.append(left,status);
-  const fr=node("p","",f.text_fr),en=node("p","",f.text_en),ar=node("p","",f.text_ar),actions=node("div","record-actions");
+  const fr=node("p","",f.text_fr),en=node("p","",f.text_en),ar=node("p","",f.text_ar),actions=node("div","record-actions");\n  ar.dir="rtl";ar.lang="ar";
   actions.append(button("Modifier",()=>editFact(f)),button(f.approved?"Retirer l'approbation":"Approuver",()=>toggleFact(f),f.approved?"":"primary"),button("Supprimer",()=>deleteFact(f),"danger"));
   card.append(top,fr,en,ar,actions);root.append(card);
  }
