@@ -260,7 +260,8 @@ export default {
         const {results=[]}=await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
         return withCors(json({projects:results}),cors);
       }
-      if(path.startsWith("/api/user/")) { const identity=await verifyAccessIdentity(request,env); return withCors(await userChatRoute(request,env,path,method,identity),cors); }\n      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
+      if(path.startsWith("/api/user/")) { const identity=await verifyAccessIdentity(request,env); return withCors(await userChatRoute(request,env,path,method,identity),cors); }
+      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
       return withCors(json({error:"Not found."},404),cors);
     } catch(error) {
       const status=/Access authentication|email sign-in|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
