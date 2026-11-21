@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 ID = re.compile(r"^[a-z0-9]+-[0-9]{3}$")
-CATEGORIES = {"profile", "contact", "education", "skills", "experience", "project", "languages"}
+CATEGORIES = {"profile", "contact", "education", "skills", "experience", "project", "languages", "certifications", "achievements"}
 REQUIRED = {"id", "category", "text_fr", "text_en", "text_ar", "aliases", "source", "approved"}
 
 def validate(data):

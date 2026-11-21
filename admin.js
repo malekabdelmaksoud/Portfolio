@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
-const state={facts:[],projects:[],editingFact:null,editingProject:null};
+const state={facts:[],projects:[],learning:null,editingFact:null,editingProject:null};
 const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};
 async function api(path,options={}) {
@@ -24,6 +24,26 @@ function renderFacts(){
   card.append(top,fr,en,ar,actions);root.append(card);
  }
 }
+function renderLearning(){
+ const data=state.learning,summary=$("#learningSummary"),root=$("#learningList");summary.replaceChildren();root.replaceChildren();
+ if(!data){summary.append(node("p","muted","Aucune donnée de synchronisation disponible."));return;}
+ $("#learningCount").textContent=String(data.total||0);
+ const stats=node("div","learning-stats");
+ stats.append(node("div","learning-stat",String(data.total||0)+" sources indexées"));
+ const latest=(data.runs||[])[0];
+ stats.append(node("div","learning-stat",latest?"Dernière actualisation : "+new Date(latest.finished_at+"Z").toLocaleString():"Aucune actualisation exécutée"));
+ stats.append(node("div","learning-stat",latest?latest.saved+" entrées enregistrées · "+latest.fetched+" trouvées":"Planification quotidienne à 03:00 UTC"));
+ stats.append(node("div","learning-stat",data.liveSearchEnabled?"Recherche web en direct : activée":"Recherche web en direct : non configurée"));
+ stats.append(node("div","learning-stat","Budget maximum : "+(data.searchLimitPerMonth||5000)+" recherches par mois"));
+ summary.append(stats);
+ if(!data.items?.length){root.append(node("p","muted","Aucune source indexée pour le moment. Lancez une actualisation."));return;}
+ for(const item of data.items){
+  const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",item.title),meta=node("div","meta",item.source_name+" · "+item.source_host+" · "+(item.published_at||"date non fournie"));
+  left.append(title,meta);const status=node("span","status on","INDEXÉ");top.append(left,status);
+  const excerpt=node("p","",item.url);const link=node("a","learning-link","Ouvrir la source ↗");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";
+  card.append(top,excerpt,link);root.append(card);
+ }
+}
 function renderProjects(){
  const root=$("#projectsList");root.replaceChildren();$("#projectCount").textContent=String(state.projects.length);
  if(!state.projects.length){root.append(node("p","muted","Aucun projet enregistré."));return;}
@@ -39,6 +59,7 @@ async function load(){
  try{
   const [session,facts,projects]=await Promise.all([api("/api/admin/session"),api("/api/admin/facts"),api("/api/admin/projects")]);
   $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;renderFacts();renderProjects();
+  try{state.learning=await api("/api/admin/learning");renderLearning();}catch(_){$("#learningSummary").textContent="La migration web_knowledge n'est pas encore déployée.";} 
  }catch(e){$("#identity").textContent="Accès non vérifié";notice(e.message+" Vérifiez que Cloudflare Access protège /admin.html et que l'API est configurée.",true);}
 }
 function formData(form){return Object.fromEntries(new FormData(form).entries());}
@@ -66,7 +87,8 @@ async function toggleFact(f){try{const payload={id:f.id,category:f.category,text
 async function toggleProject(p){try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"PUT",body:JSON.stringify({...p,visible:!p.visible})});notice("Visibilité du projet mise à jour.");await load();}catch(e){notice(e.message,true);}}
 async function deleteFact(f){if(!confirm("Supprimer définitivement "+f.id+" ?"))return;try{await api("/api/admin/facts/"+encodeURIComponent(f.id),{method:"DELETE"});notice("Information supprimée.");await load();}catch(e){notice(e.message,true);}}
 async function deleteProject(p){if(!confirm("Supprimer définitivement "+p.title+" ?"))return;try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"DELETE"});notice("Projet supprimé.");await load();}catch(e){notice(e.message,true);}}
-document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";}));
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";$("#learningPanel").hidden=tab.dataset.tab!=="learning";}));
+$("#refreshLearning").addEventListener("click",async()=>{const b=$("#refreshLearning");b.disabled=true;b.textContent="Actualisation…";try{const result=await api("/api/admin/learning/refresh",{method:"POST",body:"{}"});notice("Actualisation terminée : "+result.saved+" sources enregistrées, "+result.failed.length+" flux en erreur.");state.learning=await api("/api/admin/learning");renderLearning();}catch(e){notice(e.message,true);}finally{b.disabled=false;b.textContent="↻ Actualiser maintenant";}});
 $("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));
 $("#factForm").addEventListener("submit",saveFact);$("#projectForm").addEventListener("submit",saveProject);
 document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.cancel+"Form").hidden=true));

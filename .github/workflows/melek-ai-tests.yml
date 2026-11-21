@@ -1,7 +1,19 @@
 name: Melek AI evidence guard tests
 
+concurrency:
+  group: melek-ai-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 on:
+  workflow_dispatch:
+    inputs:
+      train_checkpoint:
+        description: Train and evaluate a fresh experimental MelekGPT checkpoint
+        type: boolean
+        required: true
+        default: true
   push:
+    branches: [main]
     paths:
       - "melek-ai/**"
       - ".github/workflows/melek-ai-tests.yml"
@@ -20,7 +32,71 @@ jobs:
           python-version: "3.11"
       - name: Test evidence and knowledge validation
         working-directory: melek-ai
-        run: python -m unittest -v test_evidence.py test_knowledge.py
+        run: python -m unittest -v test_evidence.py test_knowledge.py test_dataset.py test_download_data.py test_tokenizer.py
       - name: Validate draft knowledge base
         working-directory: melek-ai
         run: python knowledge.py
+
+
+  public-corpus-sample:
+    if: github.event_name == 'workflow_dispatch' && inputs.train_checkpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dataset streaming dependency
+        run: python -m pip install "datasets==3.6.0" "pyarrow==19.0.1"
+      - name: Download bounded public multilingual corpus sample
+        working-directory: melek-ai
+        run: python download_data.py --out data/train.jsonl --max-per-language 1500 --max-scan 200000
+      - name: Validate downloaded provenance and corpus split
+        working-directory: melek-ai
+        run: |
+          python -c "from pathlib import Path; from dataset import load_documents, split_documents; docs=load_documents(Path('data/train.jsonl')); train, val=split_documents(docs); print(f'documents={len(docs)} train={len(train)} validation={len(val)}')"
+      - name: Publish temporary training corpus artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: melek-gpt-public-corpus-sample-v8
+          path: melek-ai/data/train.jsonl
+          if-no-files-found: error
+          retention-days: 30
+
+
+  train-experimental-checkpoint:
+    needs: public-corpus-sample
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install CPU PyTorch
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple "torch>=2.3.0"
+      - name: Smoke-test dynamic-vocabulary Transformer
+        working-directory: melek-ai
+        run: python -m unittest -v model_smoke_test
+      - name: Download verified public corpus artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: melek-gpt-public-corpus-sample-v8
+          path: melek-ai/data
+      - name: Train original MelekGPT from random initialization
+        run: |
+          python melek-ai/train.py --data melek-ai/data/train.jsonl --out melek-ai/checkpoints/melek-ai.pt --steps 5000 --batch-size 8 --context 256 --width 128 --heads 4 --layers 3
+      - name: Evaluate held-out text and print sample generations
+        run: |
+          python melek-ai/evaluate.py --data melek-ai/data/train.jsonl --checkpoint melek-ai/checkpoints/melek-ai.pt
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: Bonjour, je suis" --tokens 80
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: Hello, I am" --tokens 80
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: مرحبا" --tokens 80
+      - name: Publish experimental from-scratch checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: melek-gpt-char-experimental-checkpoint-v3
+          path: melek-ai/checkpoints/melek-ai.pt
+          if-no-files-found: error
+          retention-days: 30

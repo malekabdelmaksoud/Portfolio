@@ -28,3 +28,8 @@ jobs:
       - name: Validate D1 migrations using SQLite
         working-directory: worker
         run: python -m unittest -v test_migrations.py
+      - name: Check the from-scratch AI package
+        run: |
+          python -m py_compile melek-ai/*.py
+          python melek-ai/knowledge.py
+          python -m unittest discover -s melek-ai -p "test_*.py" -v

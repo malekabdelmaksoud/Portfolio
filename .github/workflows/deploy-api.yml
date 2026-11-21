@@ -2,17 +2,19 @@ name: Deploy portfolio API
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'worker/**'
-      - '.github/workflows/deploy-api.yml'
+    inputs:
+      confirm_workers_free:
+        description: "Confirm this Cloudflare account is on Workers Free and must never be upgraded or billed."
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   deploy:
+    if: ${{ inputs.confirm_workers_free == true }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout selected branch

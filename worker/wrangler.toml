@@ -3,6 +3,9 @@ main = "src/index.js"
 compatibility_date = "2026-11-21"
 workers_dev = true
 
+[triggers]
+crons = ["0 3 * * *"] # Refresh allowlisted AI/security feeds daily at 03:00 UTC
+
 [[d1_databases]]
 binding = "DB"
 database_name = "melek-portfolio-db"
@@ -12,6 +15,9 @@ migrations_dir = "migrations"
 [vars]
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
 # ADMIN_EMAIL, ACCESS_ISSUER, ACCESS_AUD, and ACCESS_USER_AUD are runtime secrets; never commit them.
+
+[ai]
+binding = "AI"
 
 [assets]
 directory = "./admin-assets"

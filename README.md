@@ -9,30 +9,37 @@ Bilingual French/English portfolio presenting IT studies, web development projec
 - Responsive portfolio with French/English switching.
 - Project showcase and CV viewer.
 - Browser voice input/output where supported.
-- Portfolio chat UI connected to a same-origin `/api/assistant` endpoint.
+- Authenticated Melek AI workspace, available in a portfolio modal or full page, with private per-user chat history and model selection.
 - API-backed project publishing and an admin dashboard (Cloudflare Access setup is still pending).
-- No hosted LLM/API is used by the assistant.
+- Conversational AI powered server-side by Cloudflare Workers AI; provider keys and model configuration are never exposed in the browser.
 
-## Assistant: evidence-only by design
+## Assistant: conversational AI with verified portfolio grounding
 
-The visitor-facing chat does **not** use the old browser-only retrieval engine or a pretrained model. It sends questions to the Worker API in `worker/`, which retrieves only facts explicitly approved in D1 and returns their reviewed French/English text verbatim. If no approved fact matches, it abstains instead of inventing an answer.
+The authenticated visitor workspace uses Workers AI for general conversation. When a question concerns Melek or her portfolio, the Worker retrieves only explicitly approved D1 facts and supplies them as grounding context. If relevant approved evidence is missing, the assistant must say so instead of inventing personal facts.
 
-The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved, so the assistant abstains until the owner reviews and approves reliable statements. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
+The knowledge-base draft contains 23 records in Arabic, French, and English (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every fact starts unapproved; portfolio-specific questions abstain when no relevant approved evidence exists. General questions can still be answered conversationally. The eight existing project cards are live; newly created projects default to hidden. The admin dashboard is deployed on the API Worker, but it becomes usable only after Cloudflare Access is configured.
 
-This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
+The hosted model catalogue is restricted to GLM-4.7 Flash and Gemma 4, both available on the Cloudflare Workers Free plan within its shared daily AI quota. Paid live-search providers and arbitrary model overrides are disabled. The original MelekGPT Transformer in `melek-ai/` remains a separate from-scratch model; its private inference adapter is implemented, but it remains unavailable until a reviewed training corpus, checkpoint, and private endpoint are configured.
+
+
+## Automatic web learning
+
+The AI has a free retrieval-based learning pipeline: it refreshes public AI/security RSS sources daily (Cloudflare Blog, OWASP GenAI Security, Hugging Face Blog and arXiv AI/ML). Answers can cite matching stored feed entries. No paid live web-search provider or AI Gateway credits are used.
+
+This updates the assistant's searchable knowledge, not its neural weights. Web content is treated as untrusted data, and portfolio facts remain isolated behind explicit admin approval. The project intentionally does not call paid search providers or use AI Gateway credits.
 
 ## Admin and API deployment
 
 See [worker/README.md](worker/README.md) for D1 creation, migrations, Cloudflare Access configuration, API deployment, and admin usage.
 
-The API Worker and D1 database have been provisioned and deployed. The production portfolio is live at the URL above, and the root `api-config.js` points to the deployed API Worker. The API Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. **Remaining setup:** configure Cloudflare Access for `/admin.html`, `/api/admin/*`, `/account.html`, and `/api/user/*`, then set the Worker secrets `ACCESS_ISSUER`, `ACCESS_AUD`, and `ADMIN_EMAIL`. Keep `/api/assistant`, `/api/projects`, and `/api/health` public. The API's `ALLOWED_ORIGIN` is set to the exact production portfolio origin.
+The API Worker and D1 database have been provisioned and deployed. The production portfolio is live at the URL above, and the root `api-config.js` points to the deployed API Worker. The API Worker hosts its own admin dashboard at `/admin.html` so admin API calls stay same-origin; the root `/admin.html` redirects there. **Remaining setup:** configure Cloudflare Access for `/admin.html`, `/api/admin/*`, `/account.html`, `/api/models`, `/api/assistant`, and `/api/user/*`, then set the Worker secrets `ACCESS_ISSUER`, `ACCESS_AUD`, and `ADMIN_EMAIL`. Keep `/api/projects` and `/api/health` public. The API's `ALLOWED_ORIGIN` is set to the exact production portfolio origin.
 
 ## Security
 
 - No admin password, role, or privileged session is trusted in browser storage.
 - Legacy local login, registration, and password-reset methods are disabled.
 - Admin API verifies Cloudflare Access JWT signature, issuer, audience, expiry, and the exact allowed email.
-- Public assistant queries can read only approved facts; hidden projects are not returned.
+- The assistant and model catalogue require verified visitor identity; portfolio-specific answers use approved facts only, and hidden projects are not returned.
 - Never commit Access credentials, tokens, database secrets, or private visitor data.
 
 ## Repository layout
@@ -50,7 +57,7 @@ tests/                                Browser regression tests
 
 ## Local static preview
 
-Open `index.html` directly for the static portfolio. The API-backed chat and project publishing require the Worker and D1 to be deployed; without them, the chat intentionally explains that the approved-information service is not connected and static project cards remain visible.
+Open `index.html` directly for the static portfolio. The API-backed chat and project publishing require the Worker and D1 to be deployed; without them, the authenticated AI workspace and project publishing are unavailable while static project cards remain visible.
 
 ## Tests
 
@@ -59,3 +66,13 @@ Open `index.html` directly for the static portfolio. The API-backed chat and pro
 - `cd melek-ai && python -m unittest discover -s . -p "test_*.py"` — evidence and knowledge validation tests.
 - `cd melek-ai && python knowledge.py` — knowledge-base validation.
 
+
+
+### Deployment safety
+
+The API deployment workflow is manual-only. It requires an explicit confirmation that the Cloudflare account is on Workers Free; merging a pull request or pushing to `main` cannot deploy or run remote D1 migrations automatically. Never confirm or deploy if the account has been upgraded to Workers Paid.
+
+
+### MelekGPT local hosting without a paid server
+
+The original from-scratch MelekGPT can run on your own computer. Its optional public connection uses a temporary Cloudflare Quick Tunnel (no custom domain or Cloudflare account required); the laptop and tunnel must stay running, and the temporary URL changes after restart. It is not an always-on production host. See [melek-ai/README.md](melek-ai/README.md) for setup. The hosted model list is limited to the two Workers Free-compatible models and the free daily Neurons quota.

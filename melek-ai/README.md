@@ -6,11 +6,11 @@ This directory is an independent, from-scratch language-model training project f
 
 A small model trained from scratch on a small personal dataset will not match ChatGPT. It is a research prototype and a foundation for experiments, not a claim of frontier-level intelligence.
 
-The portfolio's strict factual mode must **not trust free-form model generations**. The model may be used for language experiments, but visitor-facing factual answers must be assembled from approved, retrieved portfolio evidence. If retrieval finds no adequate evidence, the assistant must abstain with: "This information is not available in the published portfolio." This is the key anti-hallucination control; training alone cannot guarantee truth.
+The portfolio's strict factual mode must **not trust free-form model generations**. Visitor-facing factual answers must remain grounded in approved, retrieved portfolio evidence. The deployed Worker applies this evidence policy before calling either provider. If retrieval finds no adequate evidence, the assistant must abstain with: "This information is not available in the published portfolio." This is the key anti-hallucination control; training alone cannot guarantee truth.
 
 ## Design
 
-- Byte-level UTF-8 tokenizer: handles French, English, Arabic and Tunisian Arabic without a pretrained tokenizer.
+- Unicode-character tokenizer: maps complete characters, so Arabic, French and Tunisian text is generated as valid Unicode rather than arbitrary Unicode characters.
 - Small decoder-only Transformer (GPT-style) implemented in PyTorch from randomly initialized weights.
 - JSONL training corpus with explicit provenance and consent requirements.
 - Training and sampling scripts; checkpoint files are local and must not be committed.
@@ -29,7 +29,7 @@ The regression suite covers unsupported requests, unapproved or source-less fact
 
 ## Requirements
 
-Python 3.10+ and PyTorch. A CUDA GPU is optional; CPU training is intended only for smoke tests. The Lenovo RTX 2050 can be used for small experiments, but VRAM and available system RAM determine the practical batch/sequence/model sizes. It is not enough to promise ChatGPT-level performance.
+Python 3.10+ and PyTorch. The public-corpus downloader also uses Hugging Face Datasets. A CUDA GPU is optional; CPU training is intended only for smoke tests. The Lenovo RTX 2050 can be used for small experiments, but VRAM and available system RAM determine the practical batch/sequence/model sizes. It is not enough to promise ChatGPT-level performance.
 
 Install:
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ## Prepare data
 
-Create `data/train.jsonl` (one JSON object per line):
+Download a bounded, provenance-aware public corpus sample (English, French, Arabic and Tunisian Derja) with `python download_data.py --out data/train.jsonl`. The downloader only accepts a strict allowlist of public-domain, CC0, CC-BY-4.0, ODC-By-1.0, MIT and Apache-2.0 data and records source identifiers. Review [data/SOURCES.md](data/SOURCES.md) before use. You can also add your own JSONL documents with non-empty `text`, `source` and a supported license:
 
 ```json
 {"text":"Example training text written by the project owner.","source":"owner-authored","license":"owned"}
@@ -50,14 +50,25 @@ Create `data/train.jsonl` (one JSON object per line):
 
 Only use content you own or are allowed to train on. Do not add private personal data, passwords, tokens, or visitor conversations without informed consent. Keep the real dataset out of Git.
 
+## Download public, license-filtered data
+
+The repository includes a bounded downloader for selected public corpora: OpenAssistant conversations, PleIAs Common Corpus, University of Dubai Arabic legal text, Tunisian proverbs, and LINAGORA FineWeb2 Tunisian Arabic. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, filters obvious email/phone patterns, and applies a FineWeb2 language-confidence threshold. Read `data/SOURCES.md` before downloading; unreviewed social-media corpora and sources with unclear licensing are excluded.
+
+```bash
+python download_data.py --out data/train.jsonl --max-per-language 1500 --max-scan 200000
+```
+
+Common Corpus is very large; the script has a scan cap and may not find every language in one run. Increase the cap deliberately if needed. Inspect the generated counts and samples before training. The script does not fabricate substitute data.
+
 ## Train a small model from scratch
 
 ```bash
 python train.py --data data/train.jsonl --out checkpoints/melek-ai.pt --steps 2000
+python evaluate.py --data data/train.jsonl --checkpoint checkpoints/melek-ai.pt
 python generate.py --checkpoint checkpoints/melek-ai.pt --prompt "Bonjour, je suis"
 ```
 
-Start with defaults for a smoke test. Increase training steps only after validating dataset quality and monitoring loss. Generated text is experimental and must not be treated as verified portfolio facts.
+To continue a training run without starting over, pass `--resume checkpoints/melek-ai.pt` and keep the same architecture options (`--width`, `--heads`, `--layers`, `--context`, `--dropout`). Optimizer state is saved for continuation. `evaluate.py` measures character-level loss on the same deterministic held-out document split. Start with defaults only after preparing enough distinct documents. The trainer deduplicates identical text and creates a deterministic document-level train/validation split; it refuses to reuse training text as validation data. Both splits must contain more than `context + 1` Unicode characters, so reduce `--context` or add more permitted documents if it stops early. Increase training steps only after validating dataset quality and monitoring both losses. Generated text is experimental and must not be treated as verified portfolio facts.
 
 ## Anti-hallucination policy for the deployed portfolio
 
@@ -69,6 +80,42 @@ Start with defaults for a smoke test. Increase training steps only after validat
 6. Never infer degrees, dates, employers, skills, project outcomes, personal details or availability.
 7. Test adversarial prompts and unsupported questions before deployment.
 
+## Run the custom checkpoint privately
+
+The Worker exposes **MelekGPT** in the model selector as unavailable until both a trained checkpoint service URL and a private token are configured. It never silently substitutes another model when the user selects MelekGPT.
+
+1. Create a substantial, reviewed `data/train.jsonl` using the format in [data/README.md](data/README.md). Only train on content you own or have permission to use.
+2. Install dependencies and train:
+   ```bash
+   pip install -r requirements.txt
+   python train.py --data data/train.jsonl --out checkpoints/melek-ai.pt --steps 2000
+   ```
+3. Generate a sample and evaluate it manually before serving:
+   ```bash
+   python generate.py --checkpoint checkpoints/melek-ai.pt --prompt "Bonjour, je suis" --tokens 120
+   ```
+4. Set a long random `MELEK_AI_TOKEN` in your local environment, then start the private server:
+   ```bash
+   # PowerShell example
+   $env:MELEK_AI_TOKEN = "replace-with-a-long-random-secret"
+   python serve.py
+   ```
+5. For a zero-cost temporary connection, start a Cloudflare Quick Tunnel in a second terminal (no domain or Cloudflare account is required):
+   ```powershell
+   cloudflared tunnel --url http://localhost:8788
+   ```
+   Copy the generated `https://….trycloudflare.com` URL. Do not expose port 8788 directly. In the repository's `worker` directory, set the Worker secrets:
+   ```powershell
+   npx wrangler@4 secret put MELEK_AI_URL
+   # Enter: https://YOUR-QUICK-TUNNEL.trycloudflare.com/v1/chat/completions
+   npx wrangler@4 secret put MELEK_AI_TOKEN
+   # Enter the same long random token used by serve.py
+   ```
+   Deploy only through the manual GitHub Actions workflow after confirming the Cloudflare account is still on Workers Free.
+6. Keep both the Python server and Quick Tunnel running. Quick Tunnel URLs are temporary and change when restarted, so update `MELEK_AI_URL` and manually redeploy when the URL changes. If the laptop is off or the tunnel stops, MelekGPT is unavailable; the two free hosted models remain independently selectable. Quick Tunnels are for testing/development and have no uptime guarantee.
+
+The server loads only a checkpoint marked `trained_from_scratch` and requires bearer authentication. The current tiny character-level Transformer is experimental and is not comparable to Claude or other foundation models. It needs a large, varied corpus and evaluation; a small personal portfolio dataset will not teach it general conversation.
+
 ## Current status
 
-This is the model-training foundation only. It is not yet trained, fine-tuned, evaluated, hosted, or connected to the live portfolio. No performance claim should be made until those steps are completed and measured.
+The architecture, public-data pipeline, and private inference adapter are implemented. An earlier byte-level experimental checkpoint was trained and evaluated but rejected for serving because generated samples were poor. The improved Unicode-character checkpoint is trained in a free GitHub Actions job for this public repository and is published as a temporary artifact; it is not automatically hosted. No live model endpoint is configured, so MelekGPT remains listed but unavailable in the website selector until a checkpoint passes review and the local server plus a Quick Tunnel are configured.
