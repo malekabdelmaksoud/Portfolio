@@ -94,7 +94,7 @@ def main():
                     if scanned > args.max_scan:
                         break
                     lang = LANGUAGE_ALIASES.get(str(row.get("language", "")).strip().lower())
-                    if lang not in {"en", "fr", "ar"} or common_counts[lang] >= min(args.max_per_language, 600):
+                    if lang not in {"en", "fr"} or common_counts[lang] >= min(args.max_per_language, 600):
                         if all(common_counts[key] >= min(args.max_per_language, 600) for key in ("en", "fr", "ar")):
                             break
                         continue
@@ -143,6 +143,11 @@ def main():
                 for key in ("spam", "lang_mismatch", "pii", "not_appropriate", "hate_speech", "sexual_content"):
                     if float(labels.get(key, 0) or 0) > 0:
                         return False
+                if float(labels.get("fails_task", 0) or 0) > 0.25:
+                    return False
+                quality = labels.get("quality")
+                if quality is not None and float(quality) < 0.5:
+                    return False
                 detox = row.get("detoxify") or {}
                 thresholds = {
                     "toxicity": 0.20,
@@ -236,6 +241,33 @@ def main():
                 sources.append(dataset_name)
             except Exception as exc:
                 print(f"WARNING: Tunisian proverb corpus unavailable: {exc}", file=sys.stderr)
+
+
+        print("Loading Tunisian chatbot instruction-response corpus (Apache-2.0)...")
+        try:
+            stream = load_dataset("abdouuu/tunisian_chatbot_data", split="train", streaming=True)
+            chatbot_added = 0
+            for row_number, row in enumerate(stream):
+                if counts["aeb"] >= args.max_per_language:
+                    break
+                instruction = row.get("instruction")
+                response = row.get("output")
+                extra_input = row.get("input")
+                if not isinstance(instruction, str) or not isinstance(response, str):
+                    continue
+                prompt = instruction.strip()
+                if isinstance(extra_input, str) and extra_input.strip():
+                    prompt += "\n" + extra_input.strip()
+                conversation = f"User: {prompt}\nAssistant: {response.strip()}"
+                if not safe_tunisian_text(conversation):
+                    continue
+                source = f"abdouuu/tunisian_chatbot_data | row={row_number}"
+                if append(conversation, source, "apache-2.0", "aeb", min_length=80):
+                    chatbot_added += 1
+            print(f"Tunisian chatbot pairs added={chatbot_added}; counts={counts}")
+            sources.append("abdouuu/tunisian_chatbot_data")
+        except Exception as exc:
+            print(f"WARNING: Tunisian chatbot corpus unavailable: {exc}", file=sys.stderr)
 
     total = sum(counts.values())
     print(f"Saved {total} unique documents to {args.out}")
