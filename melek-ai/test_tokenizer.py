@@ -19,7 +19,7 @@ class UnicodeTokenizerTests(unittest.TestCase):
         tokenizer = build_tokenizer(["hello"])
         encoded = encode("hello مرحبا", tokenizer)
         self.assertEqual(encoded[:5], [tokenizer["itos"].index(char) for char in "hello"])
-        self.assertEqual(decode(encoded, tokenizer), "hello " + "�" * 5)
+        self.assertEqual(decode(encoded, tokenizer), "hello" + "�" * 6)
 
     def test_rejects_empty_training_corpus(self):
         with self.assertRaisesRegex(ValueError, "empty training corpus"):
