@@ -87,7 +87,7 @@
         if(model.description)option.title=model.description;option.disabled=model.available===false;select.append(option);
       });
       const saved=localStorage.getItem("melek-ai-model");
-      const preferred=availableModels.some(model=>model.id===saved)?saved:data.defaultModel;
+      const preferred=availableModels.some(model=>model.id===saved&&model.available!==false)?saved:data.defaultModel;
       if(preferred)select.value=preferred;
       select.disabled=!data.available||!availableModels.length;
       if(!data.available)toast("Le service AI n'est pas encore configuré.");
