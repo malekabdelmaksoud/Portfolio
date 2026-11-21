@@ -11,6 +11,7 @@ from pathlib import Path
 
 import torch
 from model import MelekGPT
+from tokenizer import TOKENIZER_TYPE, decode, encode
 
 CHECKPOINT = Path(os.environ.get("MELEK_AI_CHECKPOINT", "checkpoints/melek-ai.pt"))
 TOKEN = os.environ.get("MELEK_AI_TOKEN", "")
@@ -24,8 +25,11 @@ if not CHECKPOINT.is_file():
     raise SystemExit(f"Checkpoint not found: {CHECKPOINT}. Train MelekGPT first.")
 
 saved = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=True)
-if saved.get("vocab") != "utf8-byte-v1" or not saved.get("trained_from_scratch"):
+if saved.get("vocab") != TOKENIZER_TYPE or not saved.get("trained_from_scratch"):
     raise SystemExit("Unsupported or unverified MelekGPT checkpoint.")
+tokenizer = saved.get("tokenizer")
+if not isinstance(tokenizer, dict) or tokenizer.get("type") != TOKENIZER_TYPE:
+    raise SystemExit("Checkpoint is missing its Unicode-character tokenizer.")
 model = MelekGPT(**saved["config"]).to(DEVICE)
 model.load_state_dict(saved["model"])
 model.eval()
@@ -77,11 +81,10 @@ class Handler(BaseHTTPRequestHandler):
             if not prompt:
                 raise ValueError("At least one text message is required.")
             max_new = min(256, max(16, int(body.get("max_new_tokens", 160))))
-            encoded = torch.tensor(list(prompt.encode("utf-8")), dtype=torch.long, device=DEVICE)[None, :]
+            encoded = torch.tensor(encode(prompt, tokenizer), dtype=torch.long, device=DEVICE)[None, :]
             with torch.inference_mode():
                 generated = model.generate(encoded, max_new_tokens=max_new, temperature=0.75, top_k=40)
-            new_bytes = bytes(generated[0, encoded.shape[1]:].tolist())
-            answer = new_bytes.decode("utf-8", errors="replace").strip()
+            answer = decode(generated[0, encoded.shape[1]:].tolist(), tokenizer).strip()
             if not answer:
                 raise RuntimeError("The checkpoint generated an empty response.")
             self.send_json(200, {"choices": [{"message": {"role": "assistant", "content": answer}}]})
