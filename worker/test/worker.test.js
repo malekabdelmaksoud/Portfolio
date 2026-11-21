@@ -37,14 +37,14 @@ test("assistant returns reviewed fact text verbatim",async()=>{
 test("assistant recognizes Tunisian Arabic project questions",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"شنو المشاريع متاع ملاك"}),environment());
  const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
+ assert.match(data.answer,/مشروع Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
 });
 
 
 test("assistant uses recent topic for a short Arabic follow-up",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
  const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
+ assert.match(data.answer,/مشروع Laravel/);assert.ok(data.sources.some(x=>x.category==="project"));
 });
 
 test("assistant never returns an unapproved fact",async()=>{
