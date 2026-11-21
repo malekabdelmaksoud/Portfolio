@@ -44,6 +44,16 @@ No model was trained from scratch. The model project is implemented as a configu
 - Hardware: NOT AVAILABLE locally; no `nvidia-smi`, no CUDA runtime, no PyTorch.
 - Result: NOT TRAINED. No checkpoint, loss, duration or perplexity exists.
 
+## Windows RTX 2050 preparation
+
+The repository now includes `scripts/check_hardware.py`, `scripts/setup_windows.ps1`, `scripts/train_smoke.ps1`, `scripts/train_full.ps1`, `scripts/evaluate.ps1`, `scripts/generate.ps1`, and `TRAINING_WINDOWS.md`.
+
+- Setup uses a repository-local `.venv-windows`.
+- Setup defaults to a documented PyTorch CUDA 12.6 wheel index; it is not a claim that training ran.
+- VRAM-aware smoke settings: 6 GB+ -> 256 context, 4 GB -> 128 context, below 4 GB -> 96 context.
+- CPU fallback: context 64.
+- No virtual environment or checkpoint artifact is committed.
+
 The Worker calls only `MELEK_AI_SERVICE_URL`. It rejects responses unless `trained_from_scratch` is explicitly true and performs no third-party fallback.
 
 Actual untrained architecture parameter count: `1,875,840` with tied input/output embeddings. This is a configuration count, not a trained model claim.
@@ -68,7 +78,7 @@ Portfolio integration: Implemented as an independent HTTP adapter, but it curren
 
 Passed:
 
-- Independent model project tests: 10/10
+- Independent model project tests: 11/11
 - Worker tests: 15/15
 - D1 migration tests: 6/6
 - Playwright portfolio tests: 14/14
@@ -125,6 +135,13 @@ NOT TESTED:
 - `melek-ai-model/inference/server.py`
 - `melek-ai-model/model/transformer.py`
 - `melek-ai-model/tests/test_model_project.py`
+- `scripts/check_hardware.py`
+- `scripts/setup_windows.ps1`
+- `scripts/train_smoke.ps1`
+- `scripts/train_full.ps1`
+- `scripts/evaluate.ps1`
+- `scripts/generate.ps1`
+- `TRAINING_WINDOWS.md`
 
 ## Git commits
 
@@ -132,3 +149,4 @@ NOT TESTED:
 - `0002746` — implementation report
 - `a683ffe` — `feat: add independent Melek AI model project`
 - `06792ac` — `feat: prepare first Melek AI training experiment`
+- `53ab384` — training preparation report

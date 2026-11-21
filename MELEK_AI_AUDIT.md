@@ -102,3 +102,7 @@ The independent project uses original decoder-only Transformer code, UTF-8 byte 
 
 The owner-controlled portfolio corpus was cleaned and deterministically split: 58 train and 11 held-out validation rows. A 25-step smoke configuration was added. The environment has no NVIDIA/CUDA tools or PyTorch; a CPU PyTorch installation attempt failed due to unavailable DNS/network access. Therefore no checkpoint or measured loss was created. Windows RTX 2050 setup commands are documented in `melek-ai-model/README.md`.
 
+## Windows training preparation — 2026-11-21
+
+Cross-platform training fixes and Windows launchers were added without production changes. The RTX 2050 setup is documented with PyTorch CUDA 12.6 as an install index and hardware verification remains required. Smoke training is batch 1, context 128. Full training remains batch 2, context 256 and resumable. No checkpoint or measured training result exists.
+

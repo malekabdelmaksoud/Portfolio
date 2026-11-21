@@ -17,6 +17,8 @@ def load(checkpoint_path: str, device: str):
     saved = torch.load(checkpoint_path, map_location=device, weights_only=True)
     if not saved.get("trained_from_scratch"):
         raise RuntimeError("refusing to serve a third-party or unmarked checkpoint")
+    if saved.get("training_status") != "trained":
+        raise RuntimeError("refusing to serve a partial or training-in-progress checkpoint")
     model = MelekTransformer(**saved["config"]).to(device)
     model.load_state_dict(saved["model"])
     model.eval()

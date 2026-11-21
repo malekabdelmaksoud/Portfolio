@@ -22,4 +22,7 @@ PortfolioAI/.env
 PortfolioAI/.venv/
 __pycache__/
 *.pyc
+.venv-windows/
+melek-ai-model/checkpoints/*.pt
+melek-ai-model/checkpoints/*.json
 

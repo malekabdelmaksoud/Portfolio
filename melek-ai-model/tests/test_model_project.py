@@ -72,6 +72,22 @@ class ParameterCountTests(unittest.TestCase):
         self.assertEqual(tied_count, 1875840)
 
 
+class WindowsTrainingTests(unittest.TestCase):
+    def test_windows_training_scripts_exist(self):
+        root = ROOT.parent
+        names = [
+            "scripts/check_hardware.py",
+            "scripts/setup_windows.ps1",
+            "scripts/train_smoke.ps1",
+            "scripts/train_full.ps1",
+            "scripts/evaluate.ps1",
+            "scripts/generate.ps1",
+            "TRAINING_WINDOWS.md",
+        ]
+        for name in names:
+            self.assertTrue((root / name).is_file(), name)
+
+
 class ThirdPartyFallbackTests(unittest.TestCase):
     def test_production_files_have_no_third_party_model_names(self):
         worker = (ROOT.parent / "worker/src/index.js").read_text(encoding="utf-8")

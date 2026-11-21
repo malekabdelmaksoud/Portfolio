@@ -34,6 +34,8 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
+    if config.get("trained_from_scratch") is not False:
+        raise ValueError("model configuration must start untrained; pretrained weights are not supported")
     train_path = args.train or args.data
     val_path = args.validation
     train_rows = load_jsonl(train_path)
@@ -50,7 +52,6 @@ def main():
             "model_id": config["model_id"],
             "architecture": config["architecture"],
             "trained_from_scratch": True,
-            "dataset_rows": len(rows),
             "dataset_sha256": dataset_hash,
             "context": context,
             "train_rows": len(train_rows),
@@ -84,6 +85,10 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     if args.resume:
         saved = torch.load(args.resume, map_location=device, weights_only=False)
+        if saved.get("trained_from_scratch") is not True:
+            raise ValueError("refusing to resume a checkpoint not marked as Melek AI from-scratch training")
+        if saved.get("architecture") != "decoder-only-causal-transformer":
+            raise ValueError("refusing to resume an unsupported or third-party architecture")
         model.load_state_dict(saved["model"])
         optimizer.load_state_dict(saved["optimizer"])
         start_step = int(saved["step"])
@@ -129,6 +134,31 @@ def main():
             if args.log:
                 args.log.parent.mkdir(parents=True, exist_ok=True)
                 args.log.write_text(json.dumps(history, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if step % 100 == 0:
+            resume_payload = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "config": {
+                    "width": config["width"],
+                    "heads": config["heads"],
+                    "layers": config["layers"],
+                    "context": context,
+                    "dropout": config["dropout"],
+                },
+                "model_id": config["model_id"],
+                "architecture": config["architecture"],
+                "trained_from_scratch": True,
+                "tokenizer": "utf8-byte-v1",
+                "vocab": "utf8-byte-v1",
+                "seed": config["seed"],
+                "dataset_sha256": dataset_hash,
+                "training_status": "training",
+                "step": step,
+                "duration_seconds": round(time.time() - started, 3),
+                "history": history,
+            }
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(resume_payload, args.out.with_name(args.out.stem + ".resume.pt"))
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     checkpoint = {
@@ -138,7 +168,7 @@ def main():
             "width": config["width"],
             "heads": config["heads"],
             "layers": config["layers"],
-            "context": config["context"],
+            "context": context,
             "dropout": config["dropout"],
         },
         "model_id": config["model_id"],
@@ -151,7 +181,6 @@ def main():
         "dataset_license_validation": "owned/permitted/public-domain",
         "training_status": "trained",
         "step": step,
-        "optimizer": optimizer.state_dict(),
         "duration_seconds": round(time.time() - started, 3),
         "history": history,
     }

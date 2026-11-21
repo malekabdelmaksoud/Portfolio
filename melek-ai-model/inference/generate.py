@@ -22,6 +22,8 @@ def main():
     saved = torch.load(args.checkpoint, map_location=device, weights_only=True)
     if saved.get("trained_from_scratch") is not True:
         raise SystemExit("refusing to generate from an untrained or unmarked checkpoint")
+    if saved.get("training_status") != "trained":
+        raise SystemExit("refusing to generate from a partial or training-in-progress checkpoint")
     model = MelekTransformer(**saved["config"]).to(device)
     model.load_state_dict(saved["model"])
     ids = torch.tensor([encode(args.prompt)], dtype=torch.long, device=device)
