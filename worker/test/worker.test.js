@@ -106,9 +106,9 @@ test("health endpoint checks D1 and reports the native auth and Melek AI modes",
 
 test("assistant clearly reports that Melek AI is not connected",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),environment());
- const data=await response.json();assert.equal(response.status,503);
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
- assert.match(data.error,/in development/i);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.model,"approved-facts-only");
+ assert.match(data.answer,/C, Java, Python and PHP/i);
  assert.equal(response.headers.get("access-control-allow-origin"),"https://portfolio.test");
  assert.equal(response.headers.get("access-control-allow-credentials"),"true");
 });
@@ -116,15 +116,16 @@ test("assistant clearly reports that Melek AI is not connected",async()=>{
 
 test("assistant recognizes Tunisian Arabic project questions",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"شنو المشاريع متاع ملاك"}),environment());
- const data=await response.json();assert.equal(response.status,503);
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.model,"approved-facts-only");
+ assert.match(data.answer,/مشروع/i);
 });
 
 
 test("assistant uses recent topic for a short Arabic follow-up",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
- const data=await response.json();assert.equal(response.status,503);
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.model,"approved-facts-only");
 });
 
 test("assistant never returns an unapproved fact",async()=>{
@@ -189,26 +190,25 @@ test("Melek AI status reports development truthfully",async()=>{
 test("chat mode is preserved as a request field",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"chat"}),environment());
  const data=await response.json();
- assert.equal(response.status,503);
+ assert.equal(response.status,200);
  assert.equal(data.mode,"chat");
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ assert.equal(data.model,"approved-facts-only");
 });
 
 test("analyze mode is preserved as a request field",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"analyze"}),environment());
  const data=await response.json();
- assert.equal(response.status,503);
+ assert.equal(response.status,200);
  assert.equal(data.mode,"analyze");
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
+ assert.equal(data.model,"approved-facts-only");
 });
 
 test("unavailable independent inference has no third-party fallback",async()=>{
  const env={...environment(),MELEK_AI_SERVICE_URL:""};
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),env);
  const data=await response.json();
- assert.equal(response.status,503);
- assert.equal(data.code,"MELEK_AI_NOT_CONNECTED");
- assert.equal(data.conversation_preserved,true);
+ assert.equal(response.status,200);
+ assert.equal(data.model,"approved-facts-only");
  assert.doesNotMatch(JSON.stringify(data),/@cf\/|GLM|Llama|OpenAI|Gemini/i);
 });
 

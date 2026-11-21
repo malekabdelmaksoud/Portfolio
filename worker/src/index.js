@@ -728,6 +728,16 @@ async function assistant(request, env) {
       sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
     });
   } catch (error) {
+    if (error.code === "MELEK_AI_NOT_CONNECTED") {
+      const groundedAnswer = selected.map(fact => fact[field]).filter(Boolean).join("\n\n");
+      return json({
+        answer: groundedAnswer,
+        mode,
+        model: "approved-facts-only",
+        sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file })),
+        experimental_inference: false
+      });
+    }
     return json({
       error: error.message || "Melek AI is temporarily unavailable.",
       code: error.code || "MELEK_AI_UNAVAILABLE",

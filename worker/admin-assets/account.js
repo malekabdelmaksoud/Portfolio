@@ -11,6 +11,9 @@
   let turnstileToken = "";
   const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
+  let autoSpeak = false;
+  try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
+  if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
 
   function applyTheme(theme) {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -274,6 +277,7 @@
       pending.remove();
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
       addMessage("assistant", answer);
+      if (autoSpeak) speakText(answer);
       await refreshChats();
     } catch (error) {
       if (error.name !== "AbortError") toast(error.message);
@@ -294,7 +298,9 @@
     }
     speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = document.documentElement.lang || "fr";
+    utterance.lang = /[\u0600-\u06ff]/.test(text) ? "ar-TN" : /\b(the|and|with|for|project)\b/i.test(text) ? "en-US" : "fr-FR";
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
     speechSynthesis.speak(utterance);
   }
 
@@ -335,7 +341,7 @@
         const status = await statusResponse.json();
         $("model-version").textContent = "Model version: " + (status.model_id || "melek-ai-v1");
         $("training-status").textContent = "Training status: " + (status.training_status || "untrained");
-        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "unavailable");
+        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "approved-facts-only");
       }
     } catch (_) {}
     await loadTurnstile();
@@ -438,6 +444,13 @@
     else $("sidebar").classList.toggle("collapsed");
   });
   $("mobile-menu").addEventListener("click", () => $("sidebar").classList.toggle("mobile-open"));
+  $("voice-auto").addEventListener("click", () => {
+    autoSpeak = !autoSpeak;
+    $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
+    $("voice-auto").classList.toggle("selected", autoSpeak);
+    try { localStorage.setItem("portfolio-auto-speak", autoSpeak ? "1" : "0"); } catch (_) {}
+    toast(autoSpeak ? "Automatic voice replies enabled." : "Automatic voice replies disabled.");
+  });
   document.addEventListener("click", event => {
     if (window.innerWidth <= 760 && $("sidebar").classList.contains("mobile-open")) {
       if (!event.target.closest("#sidebar") && !event.target.closest("#mobile-menu")) $("sidebar").classList.remove("mobile-open");
@@ -456,7 +469,7 @@
     }
     if (recognition) { recognition.stop(); return; }
     recognition = new speech();
-    recognition.lang = document.documentElement.lang === "en" ? "en-US" : "fr-FR";
+    recognition.lang = /[\u0600-\u06ff]/.test($("chat-input").value) ? "ar-TN" : "fr-FR";
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.onstart = () => { $("mic-button").classList.add("recording"); toast("Recording started."); };
@@ -472,6 +485,7 @@
       recognition = null;
       $("mic-button").classList.remove("recording");
       $("chat-input").focus();
+      if ($("chat-input").value.trim()) $("chat-form").requestSubmit();
     };
     recognition.start();
   });
