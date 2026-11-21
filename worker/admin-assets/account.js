@@ -92,7 +92,7 @@
       if(!data.available)toast("Le service AI n'est pas encore configuré.");
     }catch(e){
       select.replaceChildren();const option=document.createElement("option");option.value="";option.textContent="Modèles indisponibles";select.append(option);select.disabled=true;
-      throw e;
+      toast("La liste des modèles est indisponible. L’historique reste accessible.");
     }
   }
   async function load(){
