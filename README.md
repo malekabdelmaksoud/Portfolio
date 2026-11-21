@@ -1,75 +1,61 @@
-# 🌐 Melek Abdelmaksoud — Portfolio
+# Melek Abdelmaksoud — Portfolio
 
-A bilingual (FR/EN) personal portfolio presenting my final-year IT studies, **Web Development** projects, and growing interest in **AI and intelligent applications**.
+Bilingual French/English portfolio presenting IT studies, web development projects, professional experience, and an ongoing interest in intelligent applications.
 
-🔗 **Live Site:** [portfolio.melekabdelmaksoud72.workers.dev](https://portfolio.melekabdelmaksoud72.workers.dev/)
+**Production site:** https://portfolio.melekabdelmaksoud72.workers.dev/
 
----
+## Features
 
-## ✨ Features
+- Responsive portfolio with French/English switching.
+- Project showcase and CV viewer.
+- Browser voice input/output where supported.
+- Portfolio chat UI connected to a same-origin `/api/assistant` endpoint.
+- API-backed project publishing and a separate Cloudflare Access-protected admin dashboard.
+- No hosted LLM/API is used by the assistant.
 
-- **Bilingual** — Seamless French / English switching with persistent language preference
-- **Responsive** — Fully adapted for mobile, tablet, and desktop
-- **Modern Design** — Clean layout with smooth gradients, hover effects, and thoughtful typography
-- **Public by default** — Visitors can explore the portfolio without creating an account
-- **Accessible foundations** — Semantic HTML, ARIA attributes, and keyboard-friendly navigation
-- **Smooth Animations** — Fade-in sections on scroll, pulsing status dot, and interactive card hover effects
-- **Performance** — Lightweight HTML, CSS & JavaScript
-- **Portfolio assistant** — Offline, multilingual, context-aware retrieval assistant grounded in the live portfolio content; no external AI API or model download
+## Assistant: evidence-only by design
 
-## 🤖 Portfolio Assistant
+The visitor-facing chat does **not** use the old browser-only retrieval engine or a pretrained model. It sends questions to the Worker API in `worker/`, which retrieves only facts explicitly approved in D1 and returns their reviewed French/English text verbatim. If no approved fact matches, it abstains instead of inventing an answer.
 
-The assistant uses a lightweight, local retrieval engine over the public portfolio sections and project cards. It supports French/English/Arabic-friendly queries, contextual topic matching, CV access, browser speech synthesis/recognition where available, and local chat history. It does not call an external AI provider and is not a general-purpose LLM; it answers only from published portfolio information and declines unsupported facts.
+The knowledge-base draft contains 23 records (including all eight portfolio projects) with source selectors and Tunisian Arabic aliases. Every record starts unapproved. Project rows start hidden. Review and approve content in `/admin.html` after deploying the API and configuring Cloudflare Access.
 
-## 🛠️ Built With
+This is a grounded portfolio assistant, **not a general ChatGPT-equivalent LLM**. The small Transformer experiment in `melek-ai/` is separate, randomly initialized, and has not been trained or deployed.
 
-- HTML5 / CSS3
-- Vanilla JavaScript
-- [Google Fonts](https://fonts.google.com/) — DM Sans & Space Grotesk
-- Deployed on [Cloudflare Workers](https://workers.cloudflare.com/)
+## Admin and API deployment
 
-## 📂 Structure
+See [worker/README.md](worker/README.md) for D1 creation, migrations, Cloudflare Access configuration, API deployment, and admin usage.
 
+Important: the API Worker and D1 database are source-controlled here but have not been provisioned or deployed. The live portfolio has not been modified. Configure a same-origin `/api/*` route to the API Worker (recommended), or set `window.PORTFOLIO_API_BASE` in `api-config.js` to the API Worker origin and configure CORS/Access accordingly.
+
+## Security
+
+- No admin password, role, or privileged session is trusted in browser storage.
+- Legacy local login, registration, and password-reset methods are disabled.
+- Admin API verifies Cloudflare Access JWT signature, issuer, audience, expiry, and the exact allowed email.
+- Public assistant queries can read only approved facts; hidden projects are not returned.
+- Never commit Access credentials, tokens, database secrets, or private visitor data.
+
+## Repository layout
+
+```text
+index.html / style.css / script.js    Public portfolio and chat UI
+admin.html / admin.css / admin.js     Access-protected content dashboard
+api-config.js                         Same-origin API configuration
+worker/src/index.js                   Cloudflare Worker API
+worker/migrations/                    D1 schema and draft seed data
+worker/README.md                      Deployment and security guide
+melek-ai/                             From-scratch Transformer experiment
+tests/                                Browser regression tests
 ```
-├── index.html      # Main page
-├── style.css       # Styles & animations
-├── script.js       # Language toggle, menu, scroll animations
-├── og-image.png    # Social media preview image (1200×630)
-├── .gitignore      # Git ignore rules
-└── README.md       # This file
-```
 
-## 🔐 Security note
+## Local static preview
 
-This repository is a static public portfolio. Authentication and administrator controls implemented only in browser JavaScript are not secure; the public site therefore does not use a client-side login gate or client-side admin privileges. Do not place API keys, private tokens, or passwords in frontend files. Any future private administration must use server-side authentication and authorization.
+Open `index.html` directly for the static portfolio. The API-backed chat and project publishing require the Worker and D1 to be deployed; without them, the chat intentionally explains that the approved-information service is not connected and static project cards remain visible.
 
-## 🚀 Getting Started
+## Tests
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/malekabdelmaksoud/Portfolio.git
-   ```
-2. Open `index.html` in your browser — no build step needed!
+- `npm test` — Playwright browser regression suite.
+- `cd worker && node --test test/*.test.js` — Worker API unit tests.
+- `cd melek-ai && python -m unittest discover -s . -p "test_*.py"` — evidence and knowledge validation tests.
+- `cd melek-ai && python knowledge.py` — knowledge-base validation.
 
-## 📁 My Other Projects
-
-| Project | Tech | Repository |
-|---------|------|------------|
-| Elearning Platform | Java | [elearning-platform](https://github.com/malekabdelmaksoud/elearning-platform) |
-| Projet PHP | PHP · CSS | [projetphp](https://github.com/malekabdelmaksoud/projetphp) |
-| Application Laravel | Laravel · PHP | [laravel](https://github.com/malekabdelmaksoud/laravel) |
-| Gestion de Magasin | Java | [tpmagasin](https://github.com/malekabdelmaksoud/tpmagasin) |
-| TP POO | Java | [tp-poo](https://github.com/malekabdelmaksoud/tp-poo) |
-| Projet Symfony | Symfony · PHP | [projet-symfony](https://github.com/malekabdelmaksoud/projet-symfony) |
-| First App C# | C# · .NET | [firstApp](https://github.com/malekabdelmaksoud/firstApp) |
-| Opportunity Hunter | TypeScript · Cloudflare Workers · MCP | [opportunity-hunter](https://github.com/malekabdelmaksoud/opportunity-hunter) |
-
-## 📫 Contact
-
-- **Email:** melekabdelmaksoud72@gmail.com
-- **LinkedIn:** [melek-abdelmaksoud](https://www.linkedin.com/in/melek-abdelmaksoud-518713436/)
-- **GitHub:** [malekabdelmaksoud](https://github.com/malekabdelmaksoud)
-
----
-
-© 2026 Melek Abdelmaksoud
