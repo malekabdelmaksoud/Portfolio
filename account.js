@@ -1,7 +1,7 @@
 (() => {
   const base=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
   const $=id=>document.getElementById(id);
-  let active=null,mode="chat",sending=false,chats=[];
+  let active=null,mode="chat",sending=false,chats=[],searchSequence=0;
   const api=async(path,options={})=>{
     const response=await fetch(base+path,{...options,credentials:"include",headers:{"content-type":"application/json","accept":"application/json",...(options.headers||{})}});
     if(response.status===401||response.status===403)throw new Error("Votre session Cloudflare Access n'est pas active. Rechargez la page et terminez la connexion par e-mail.");
@@ -68,7 +68,7 @@
   $("chat-input").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("chat-form").requestSubmit();}});
   $("chat-input").addEventListener("input",()=>{$("chat-input").style.height="auto";$("chat-input").style.height=Math.min($("chat-input").scrollHeight,180)+"px";});
   $("mode-chat").addEventListener("click",()=>setMode("chat"));$("mode-analyze").addEventListener("click",()=>setMode("analyze"));
-  $("history-search").addEventListener("input",renderList);
+  $("history-search").addEventListener("input",async e=>{const sequence=++searchSequence,q=e.target.value.trim();if(!q){await refreshChats();return;}try{const data=await api("/api/user/chats?q="+encodeURIComponent(q));if(sequence===searchSequence){chats=data.chats||[];renderList();}}catch(err){toast(err.message);}});
   $("delete-all").addEventListener("click",async()=>{if(!confirm("Supprimer tout votre historique ? Cette action est irréversible."))return;try{await api("/api/user/chats",{method:"DELETE"});active=null;chats=[];$("conversation").hidden=true;$("welcome").hidden=false;$("messages").replaceChildren();renderList();toast("Historique supprimé.");}catch(e){toast(e.message);}});
   $("sidebar-toggle").addEventListener("click",()=>$("sidebar").classList.toggle("collapsed"));
   $("mobile-menu").addEventListener("click",()=>$("sidebar").classList.toggle("mobile-open"));
