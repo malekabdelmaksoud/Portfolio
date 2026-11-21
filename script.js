@@ -123,7 +123,7 @@ if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClo
   aiWorkspaceNewTab.href = aiWorkspaceUrl;
 
   function openMelekAI() {
-    if (!aiWorkspaceFrame.src) aiWorkspaceFrame.src = aiWorkspaceUrl;
+    if (!aiWorkspaceFrame.getAttribute("src")) aiWorkspaceFrame.src = aiWorkspaceUrl;
     aiWorkspaceOverlay.hidden = false;
     aiWorkspaceOverlay.setAttribute("aria-hidden", "false");
     document.body.classList.add("ai-workspace-open");
