@@ -111,44 +111,13 @@
 <section class="section contact-section" id="contact"><div class="container contact-box"><p class="eyebrow" data-fr="06 / CONTACT" data-en="06 / CONTACT">06 / CONTACT</p><h2 data-fr="Un projet ou une opportunité ?" data-en="Have a project or an opportunity?">Un projet ou une opportunité ?<br><span data-fr="Échangeons." data-en="Let's connect.">Échangeons.</span></h2><p data-fr="Je suis ouverte aux opportunités de stage PFE et aux échanges autour du développement web et des applications intelligentes." data-en="I am open to final-year internship opportunities and conversations about web development and intelligent applications.">Je suis ouverte aux échanges autour du développement web, des projets numériques et des opportunités d'apprentissage.</p><a class="button primary" href="mailto:melekabdelmaksoud72@gmail.com" data-fr="Envoyer un e-mail ↗" data-en="Send an email ↗">Envoyer un e-mail ↗</a><div class="contact-links"><a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://github.com/malekabdelmaksoud" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
 </main>
 
-<!-- Floating AI Chat Widget -->
-<button class="ai-chat-toggle" id="aiChatToggle" aria-label="Discuter avec l'assistant IA">
-  <span class="ai-btn-icon">✨</span>
-  <span class="ai-btn-text" data-fr="Assistant portfolio" data-en="Portfolio assistant">Assistant portfolio</span>
-</button>
-
-<div class="ai-chat-popup" id="aiChatPopup" aria-hidden="true">
-  <div class="ai-chat-header">
-    <div class="ai-chat-title">
-      <span class="ai-avatar">🤖</span>
-      <div>
-        <strong>Portfolio Assistant</strong>
-        <span class="ai-status">● Informations approuvées uniquement</span>
-      </div>
-    </div>
-    <div class="ai-chat-actions">
-      <button class="ai-chat-close" id="aiChatClose" aria-label="Fermer le chat">✕</button>
-    </div>
-  </div>
-
-  <div class="ai-chat-messages" id="aiChatMessages">
-    <div class="ai-msg bot">
-      👋 Bonjour ! Je suis l'assistant du portfolio de Melek. Je peux répondre aux questions fréquentes sur ses compétences, ses projets, ses expériences ou son CV.
-    </div>
-  </div>
-
-  <div class="ai-quick-questions">
-    <button type="button" class="quick-q" data-q="Quels sont tes projets principaux ?">🚀 Projets</button>
-    <button type="button" class="quick-q" data-q="Quelles sont tes compétences techniques ?">🛠️ Compétences</button>
-    <button type="button" class="quick-q" data-q="Quels stages as-tu effectués ?">💼 Stages</button>
-    <button type="button" class="quick-q" data-q="Donne-moi le CV de Melek">📄 CV</button>
-  </div>
-
-  <form class="ai-chat-input-form" id="aiChatForm">
-    <input type="text" id="aiChatInput" dir="auto" placeholder="Posez une question à l'IA..." autocomplete="off" required>
-    <button type="submit" id="aiChatSend" aria-label="Envoyer">➤</button>
-  </form>
-</div>
+<!-- AI Workspace entry: full ChatGPT-style workspace with persistent history and modes -->
+<a class="ai-chat-toggle" id="aiChatToggle"
+   href="https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html"
+   aria-label="Open Melek AI workspace">
+  <span class="ai-btn-icon" aria-hidden="true">✦</span>
+  <span class="ai-btn-text" data-fr="Ouvrir Melek AI" data-en="Open Melek AI">Ouvrir Melek AI</span>
+</a>
 
 <!-- Auth Gate Modal (Enforces Login / Register - Vercel & Cloudflare Dark Style) -->
 <div class="auth-gate-overlay" id="authGateOverlay" style="display:none">
