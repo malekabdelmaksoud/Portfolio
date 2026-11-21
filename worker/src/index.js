@@ -112,7 +112,7 @@ async function assistant(request, env) {
     if(selected.length>=3) break;
   }
   const arabic=/[\u0600-\u06ff]/.test(question);
-  const english=/\b(what|who|where|when|which|tell|show|experience|skills|projects|education)\b/i.test(question);
+  const english=/\b(what|who|where|when|which|tell|show|experience|skills|projects|education|do|does|can|could|is|are|your|about|how|please)\b/i.test(question);
   const field=arabic?"text_ar":english?"text_en":"text_fr";
   const prefix=arabic?"حسب المعلومات المنشورة والمعتمدة في Portfolio:":english?"According to the approved information published in the portfolio:":"D'après les informations approuvées publiées dans le portfolio :";
   return json({answer:prefix+"\n"+selected.map(f=>f[field]).join("\n"),sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
