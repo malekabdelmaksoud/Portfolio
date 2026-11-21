@@ -47,6 +47,7 @@
       });
     });
   }
+  function notifyRetention(result){const count=Number(result?.retention?.deletedChats||0);if(count>0)toast(count+" anciennes conversations supprimées pour libérer de l’espace.");}
   async function refreshChats(){const data=await api("/api/user/chats");chats=data.chats||[];renderList();}
   async function openChat(id){
     try{
@@ -70,7 +71,7 @@
     try{
       if(!active)await createChat(question.slice(0,64));
       const submittedText=question+(attachment?"\n\n[Attached file: "+attachment.name+"]\n"+attachment.text:"");
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:submittedText.slice(0,6000)})});
+      const userSave=await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"user",content:submittedText.slice(0,6000)})});notifyRetention(userSave);
       addMessage("user",question+(attachment?"\n[File: "+attachment.name+"]":""));
       const history=[...$("messages").children].slice(0,-1).slice(-8).map(node=>({
         role:node.classList.contains("user")?"user":"assistant",
@@ -82,7 +83,7 @@
       })});
       const answer=typeof data.answer==="string"?data.answer:"Aucune réponse disponible.";
       pending.remove();pending=null;attachment=null;renderAttachment();
-      await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});
+      const assistantSave=await api("/api/user/chats/"+encodeURIComponent(active),{method:"POST",body:JSON.stringify({role:"assistant",content:answer})});notifyRetention(assistantSave);
       addMessage("assistant",answer,true,data.webSources||[]);await refreshChats();
     }catch(e){if(pending)pending.remove();toast(e.message);input.value=question;}
     finally{sending=false;$("send-message").disabled=false;input.focus();}
