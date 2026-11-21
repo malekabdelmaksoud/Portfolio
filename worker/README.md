@@ -7,7 +7,7 @@ This is a separate Cloudflare Worker API. It does not change the current product
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
 - There is no client-side admin password, role, or localStorage session. Do not restore the old browser-only login.
 - Visitor assistant reads **only** D1 facts with `approved = 1`, returns reviewed text verbatim, and abstains when evidence is missing. It does not call a hosted model or generate factual claims.
-- Imported facts start unapproved; imported projects start hidden. The owner must review them in the admin page.
+- Imported facts start unapproved. The eight seeded projects are already public on the current portfolio, so their visibility is preserved; new projects start hidden until explicitly published.
 - Admin API writes validate inputs and accept HTTPS links only.
 
 ## 1. Create D1 and apply migration
@@ -24,7 +24,7 @@ Copy the returned database ID into `wrangler.toml`, then:
 npx wrangler d1 migrations apply melek-portfolio --remote
 ```
 
-The migration creates facts/projects tables and imports draft entries with approval/visibility disabled.
+The migrations create facts/projects tables, import 23 unapproved facts, preserve the eight projects already shown publicly, and keep newly created projects hidden by default.
 
 ## 2. Configure Cloudflare Access
 
