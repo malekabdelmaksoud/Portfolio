@@ -52,10 +52,10 @@ Only use content you own or are allowed to train on. Do not add private personal
 
 ## Download public, license-filtered data
 
-The repository includes a bounded downloader for selected public corpora. It streams a sample from PleIAs Common Corpus (English, French, Arabic), the University of Dubai Arabic legal corpus, and a CC-BY Tunisian proverb corpus. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read `data/SOURCES.md` before downloading; raw Tunisian social-media text was excluded after sample inspection found abusive content.
+The repository includes a bounded downloader for selected public corpora. It streams a sample from OpenAssistant conversations (English, French, Arabic), PleIAs Common Corpus, the University of Dubai Arabic legal corpus, and a CC-BY Tunisian proverb corpus. It records source IDs and exact licenses in every row, skips non-commercial/unknown licenses, deduplicates text, and filters obvious email/phone patterns. Read `data/SOURCES.md` before downloading; raw Tunisian social-media text was excluded after sample inspection found abusive content.
 
 ```bash
-python download_data.py --out data/train.jsonl --max-per-language 1200 --max-scan 150000
+python download_data.py --out data/train.jsonl --max-per-language 1500 --max-scan 200000
 ```
 
 Common Corpus is very large; the script has a scan cap and may not find every language in one run. Increase the cap deliberately if needed. Inspect the generated counts and samples before training. The script does not fabricate substitute data.
