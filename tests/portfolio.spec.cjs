@@ -200,3 +200,38 @@ test('legacy browser authentication cannot create or grant an admin session', as
     assert.equal(result.isAdmin, false);
   } finally { await page.close(); }
 });
+
+test('admin can approve a fact using the clean multilingual API payload', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  let approvalPayload = null;
+  await page.route('**/api/admin/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url()).pathname;
+    if (url === '/api/admin/session') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ authenticated: true, user: { email: 'melek@example.test' } }) });
+    }
+    if (url === '/api/admin/facts' && request.method() === 'GET') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ facts: [{
+        id: 'skills-001', category: 'skills', text_fr: 'Compétences.', text_en: 'Skills.', text_ar: 'المهارات.',
+        aliases: ['skills'], aliases_json: '["skills"]', source_file: 'index.html', source_selector: '#skills',
+        public_url: '', source: { file: 'index.html', selector: '#skills' }, url: '', approved: false, updated_at: 'now'
+      }] }) });
+    }
+    if (url === '/api/admin/projects') {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ projects: [] }) });
+    }
+    if (url === '/api/admin/facts/skills-001' && request.method() === 'PUT') {
+      approvalPayload = request.postDataJSON();
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ saved: true, id: 'skills-001' }) });
+    }
+    return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'Not found' }) });
+  });
+  try {
+    await page.goto(baseURL + '/admin.html', { waitUntil: 'domcontentloaded' });
+    await page.locator('.record-actions button').filter({ hasText: 'Approuver' }).click();
+    await page.waitForFunction(() => document.querySelector('#notice').innerText.includes('validation'));
+    assert.equal(approvalPayload.approved, true);
+    assert.equal(approvalPayload.text_ar, 'المهارات.');
+    assert.equal(Object.hasOwn(approvalPayload, 'aliases_json'), false);
+  } finally { await page.close(); }
+});
