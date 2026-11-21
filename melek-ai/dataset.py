@@ -30,7 +30,7 @@ def load_documents(path: Path) -> list[str]:
                 raise ValueError(f"Line {line_number} needs non-empty text")
             if not isinstance(source, str) or not source.strip():
                 raise ValueError(f"Line {line_number} needs a non-empty source")
-            if license_name not in ALLOWED_LICENSES:
+            if not isinstance(license_name, str) or license_name not in ALLOWED_LICENSES:
                 raise ValueError(
                     f"Line {line_number} needs license owned, permitted, or public-domain"
                 )
