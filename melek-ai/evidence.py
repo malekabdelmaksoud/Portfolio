@@ -67,7 +67,7 @@ def terms(text: str) -> set[str]:
 def answer_from_evidence(
     question: str,
     facts: Iterable[Fact],
-    threshold: float = 0.60,
+    threshold: float = 0.50,
     max_facts: int = 3,
 ) -> EvidenceAnswer:
     """Return approved source text only; abstain if query coverage is insufficient."""
