@@ -47,13 +47,15 @@ function safeId(value) { return /^[a-z0-9][a-z0-9_-]{1,79}$/i.test(value); }
 function parseJson(value, fallback) { try { return JSON.parse(value); } catch { return fallback; } }
 function allowedOrigin(request, env) {
   const origin=request.headers.get("Origin");
-  const allowed=(env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/,"");
-  return !origin || origin===allowed;
+  const apiOrigin=new URL(request.url).origin;
+  const allowed=(env.ALLOWED_ORIGIN || apiOrigin).replace(/\/$/,"");
+  return !origin || origin===allowed || origin===apiOrigin;
 }
 function corsHeaders(request, env) {
   const origin=request.headers.get("Origin");
-  const allowed=(env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/,"");
-  return origin===allowed ? {"access-control-allow-origin":origin,"vary":"Origin","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,CF-Access-Jwt-Assertion","access-control-allow-credentials":"true"} : {};
+  const apiOrigin=new URL(request.url).origin;
+  const allowed=(env.ALLOWED_ORIGIN || apiOrigin).replace(/\/$/,"");
+  return origin===allowed || origin===apiOrigin ? {"access-control-allow-origin":origin,"vary":"Origin","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,CF-Access-Jwt-Assertion","access-control-allow-credentials":"true"} : {};
 }
 function withCors(response, cors) { const headers=new Headers(response.headers); for(const [k,v] of Object.entries(cors)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 async function readBody(request, max=16000) {
@@ -305,7 +307,7 @@ export default {
     try {
       if(path==="/api/health" && method==="GET") {
         await env.DB.prepare("SELECT 1").first();
-        return withCors(json({ok:true,service:"portfolio-api",assistant:"approved-facts-only",admin:"cloudflare-access"}),cors);
+        return withCors(json({ok:true,service:"portfolio-api",assistant:"authenticated-llm",admin:"cloudflare-access"}),cors);
       }
       if(path==="/api/models" && method==="GET") {
         await verifyAccessIdentity(request,env);
