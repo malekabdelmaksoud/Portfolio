@@ -1,6 +1,6 @@
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const ABSTENTION = "This detail is not present in the approved public portfolio information. Please contact Melek for confirmation.";
-const STOP = new Set("a an the and or is are was were what who where when why how can could do does did tell about please your you my of to in on for with from at as this that these le la les un une des du de et ou est sont qui quoi comment pourquoi quand ou dans sur pour avec mon ma mes ton ta tes moi je il elle au aux en par d cette ces شنو شنوّة شنوة شنية شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو".split(/\s+/));
+const STOP = new Set("a an the and or is are was were what who where when why how can could do does did tell about please your you my of to in on for with from at as this that these le la les un une des du de et ou est sont qui quoi comment pourquoi quand ou dans sur pour avec mon ma mes ton ta tes moi je il elle au aux en par d cette ces شنو شنوّة شنوة شنية شنوما شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو متاع متاعها متاعو متاعك ملاك ماليك".split(/\s+/));
 let jwksCache;
 const enc = new TextEncoder();
 
