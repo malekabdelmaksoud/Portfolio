@@ -62,6 +62,33 @@ function b64url(value) {
   const raw=atob(value.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-value.length%4)%4));
   return Uint8Array.from(raw,c=>c.charCodeAt(0));
 }
+async function verifyAccessIdentity(request, env) {
+  if(!env.ACCESS_ISSUER || !env.ACCESS_AUD) throw new Error("Email sign-in is not configured.");
+  const token=request.headers.get("CF-Access-Jwt-Assertion");
+  if(!token) throw new Error("Email sign-in is required.");
+  const parts=token.split(".");
+  if(parts.length!==3) throw new Error("Invalid Access token.");
+  const header=JSON.parse(new TextDecoder().decode(b64url(parts[0])));
+  if(header.alg!=="RS256" || !header.kid) throw new Error("Unsupported Access token signature.");
+  const claims=JSON.parse(new TextDecoder().decode(b64url(parts[1])));
+  const issuer=env.ACCESS_ISSUER.replace(/\/$/,"");
+  const now=Math.floor(Date.now()/1000);
+  const aud=Array.isArray(claims.aud)?claims.aud:[claims.aud];
+  if(claims.iss!==issuer || !aud.includes(env.ACCESS_AUD) || !claims.exp || claims.exp<=now || (claims.nbf && claims.nbf>now)) throw new Error("Access token claims are invalid.");
+  const email=String(claims.email||"").trim().toLowerCase();
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error("A verified email identity is required.");
+  if(!jwksCache || jwksCache.expires<Date.now()) {
+    const response=await fetch(env.ACCESS_JWKS_URL || issuer+"/cdn-cgi/access/certs");
+    if(!response.ok) throw new Error("Could not load Cloudflare Access signing keys.");
+    jwksCache={keys:(await response.json()).keys,expires:Date.now()+300000};
+  }
+  const jwk=jwksCache.keys.find(k=>k.kid===header.kid);
+  if(!jwk) { jwksCache=null; throw new Error("Unknown Access signing key."); }
+  const key=await crypto.subtle.importKey("jwk",jwk,{name:"RSASSA-PKCS1-v1_5",hash:"SHA-256"},false,["verify"]);
+  const valid=await crypto.subtle.verify("RSASSA-PKCS1-v1_5",key,b64url(parts[2]),enc.encode(parts[0]+"."+parts[1]));
+  if(!valid) throw new Error("Access token signature is invalid.");
+  return {email,name:claims.name||email};
+}
 async function verifyAdmin(request, env) {
   if(!env.ACCESS_ISSUER || !env.ACCESS_AUD || !env.ADMIN_EMAIL) throw new Error("Admin authentication is not configured.");
   const token=request.headers.get("CF-Access-Jwt-Assertion");
@@ -116,6 +143,56 @@ async function assistant(request, env) {
   const field=arabic?"text_ar":english?"text_en":"text_fr";
   const prefix=arabic?"حسب المعلومات المنشورة والمعتمدة في Portfolio:":english?"According to the approved information published in the portfolio:":"D'après les informations approuvées publiées dans le portfolio :";
   return json({answer:prefix+"\n"+selected.map(f=>f[field]).join("\n"),sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
+}
+async function userChatRoute(request,env,path,method,identity) {
+  const chatMatch=path.match(/^\\/api\\/user\\/chats\\/([0-9a-f-]{36})$/i);
+  if(path==="/api/user/me" && method==="GET") return json({authenticated:true,user:identity});
+  if(path==="/api/user/chats" && method==="GET") {
+    const {results=[]}=await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE user_email=? ORDER BY updated_at DESC LIMIT 100").bind(identity.email).all();
+    return json({chats:results});
+  }
+  if(path==="/api/user/chats" && method==="POST") {
+    const body=await readBody(request,2000);
+    const title=String(body.title||"New conversation").trim().slice(0,120)||"New conversation";
+    const id=crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO chats(id,user_email,title) VALUES(?,?,?)").bind(id,identity.email,title).run();
+    return json({chat:{id,title}},201);
+  }
+  if(chatMatch && method==="GET") {
+    const chat=await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email).first();
+    if(!chat)return json({error:"Chat not found."},404);
+    const {results=[]}=await env.DB.prepare("SELECT id,role,content,created_at FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY created_at,id LIMIT 500").bind(chat.id,identity.email).all();
+    return json({chat,messages:results});
+  }
+  if(chatMatch && method==="POST") {
+    const body=await readBody(request,8000);
+    const role=body.role;
+    const content=String(body.content||"").trim();
+    if(!["user","assistant"].includes(role)||!content||content.length>6000)return json({error:"Message role or content is invalid."},400);
+    const exists=await env.DB.prepare("SELECT id FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email).first();
+    if(!exists)return json({error:"Chat not found."},404);
+    const id=crypto.randomUUID();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)").bind(id,chatMatch[1],identity.email,role,content),
+      env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email)
+    ]);
+    return json({saved:true,id},201);
+  }
+  if(chatMatch && method==="DELETE") {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?").bind(chatMatch[1],identity.email),
+      env.DB.prepare("DELETE FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email)
+    ]);
+    return json({deleted:true});
+  }
+  if(path==="/api/user/chats" && method==="DELETE") {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM chat_messages WHERE user_email=?").bind(identity.email),
+      env.DB.prepare("DELETE FROM chats WHERE user_email=?").bind(identity.email)
+    ]);
+    return json({deleted:true});
+  }
+  return json({error:"Not found."},404);
 }
 async function adminRoute(request, env, path, method) {
   const actor=await verifyAdmin(request,env);
@@ -183,7 +260,7 @@ export default {
         const {results=[]}=await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
         return withCors(json({projects:results}),cors);
       }
-      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
+      if(path.startsWith("/api/user/")) { const identity=await verifyAccessIdentity(request,env); return withCors(await userChatRoute(request,env,path,method,identity),cors); }\n      if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
       return withCors(json({error:"Not found."},404),cors);
     } catch(error) {
       const status=/Access authentication|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
