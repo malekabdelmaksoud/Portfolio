@@ -32,15 +32,36 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 
 ## Configure Cloudflare Access after deployment
 
-The Worker is deployed at `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev`. Access setup is still pending:
+The API Worker serves both protected HTML pages and API routes on the same hostname:
+`https://melek-portfolio-api.melekabdelmaksoud72.workers.dev`.
 
-1. Create a Cloudflare Access self-hosted application for that hostname.
-2. Protect `/account.html`, `/api/user/*`, `/admin.html`, and `/api/admin/*`. Use Cloudflare Access email one-time PIN (or another verified email identity provider) with an allow policy for authenticated emails. The Worker validates each visitor's signed Access JWT and scopes every chat query to that verified email. Admin API routes additionally require the exact owner email. Do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
-3. Add an allow policy for the owner's exact email address only.
-4. Add these Worker secrets in the Worker Settings → Variables and Secrets page:
-   - `ACCESS_ISSUER`: e.g. `https://YOUR-TEAM.cloudflareaccess.com`
-   - `ACCESS_AUD`: the Access application's AUD tag
-   - `ADMIN_EMAIL`: the exact email allowed by the Access policy
+Create **two separate Self-hosted Access applications** on that hostname. Do not protect the whole hostname: public `/api/assistant`, `/api/projects`, and `/api/health` must remain reachable.
+
+### 1. Admin application
+
+- Public hostname: `melek-portfolio-api.melekabdelmaksoud72.workers.dev`
+- Paths: `/admin.html` and `/api/admin/*`
+- Policy: **Allow** only the owner's exact verified email address.
+- Use Cloudflare Access email one-time PIN or another verified identity provider.
+
+### 2. Visitor account application
+
+- Public hostname: `melek-portfolio-api.melekabdelmaksoud72.workers.dev`
+- Paths: `/account.html` and `/api/user/*`
+- Policy: **Allow** authenticated email identities (any verified email).
+- This is safe because every chat-history query is scoped to the email from the signed Access JWT. A visitor cannot read or delete another visitor's chats.
+
+Do not add `/api/assistant`, `/api/projects`, or `/api/health` to either application. Do not use an owner-only policy for the visitor account application.
+
+### 3. Configure Worker secrets
+
+In Cloudflare Dashboard → Workers & Pages → `melek-portfolio-api` → Settings → Variables and Secrets, add:
+
+- `ACCESS_ISSUER`: `https://YOUR-TEAM.cloudflareaccess.com`
+- `ACCESS_AUD`: the **Admin application's** AUD tag
+- `ADMIN_EMAIL`: the owner's exact verified email address
+
+The Worker validates the admin JWT against `ACCESS_AUD` and additionally compares the signed email with `ADMIN_EMAIL`. Visitor endpoints validate the signed JWT issuer/signature/expiry and derive the owner email from its claims. The visitor app uses its own Access policy, but visitor identity validation currently shares the configured issuer and JWT verification logic.
 
 Never commit the email identity or Access secrets to this public repository.
 
