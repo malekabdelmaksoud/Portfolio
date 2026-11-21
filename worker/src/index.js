@@ -76,7 +76,7 @@ async function verifyAccessIdentity(request, env) {
   const aud=Array.isArray(claims.aud)?claims.aud:[claims.aud];
   if(claims.iss!==issuer || !aud.includes(env.ACCESS_USER_AUD) || !claims.exp || claims.exp<=now || (claims.nbf && claims.nbf>now)) throw new Error("Access token claims are invalid.");
   const email=String(claims.email||"").trim().toLowerCase();
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error("A verified email identity is required.");
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A verified email identity is required.");
   if(!jwksCache || jwksCache.expires<Date.now()) {
     const response=await fetch(env.ACCESS_JWKS_URL || issuer+"/cdn-cgi/access/certs");
     if(!response.ok) throw new Error("Could not load Cloudflare Access signing keys.");
