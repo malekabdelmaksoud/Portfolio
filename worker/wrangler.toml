@@ -3,6 +3,9 @@ main = "src/index.js"
 compatibility_date = "2026-11-21"
 workers_dev = true
 
+[triggers]
+crons = ["0 3 * * *"] # Refresh allowlisted AI/security feeds daily at 03:00 UTC
+
 [[d1_databases]]
 binding = "DB"
 database_name = "melek-portfolio-db"
