@@ -306,7 +306,7 @@ async function userChatRoute(request,env,path,method,identity) {
       env.DB.prepare("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)").bind(id,chatMatch[1],identity.email,role,content),
       env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email)
     ]);
-    return json({saved:true,id},201);
+    return json({saved:true,id,retention:{deletedChats:retention.deletedChats}},201);
   }
   if(chatMatch && method==="DELETE") {
     await env.DB.batch([
