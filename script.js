@@ -111,13 +111,44 @@ document.querySelectorAll(".section, .hero").forEach(section => {
   observer.observe(section);
 });
 
-/* ── AI Workspace entry ── */
+/* ── Full-screen Melek AI workspace launcher ── */
 const aiWorkspaceEntry = document.getElementById("aiChatToggle");
-if (aiWorkspaceEntry) {
-  aiWorkspaceEntry.href = portfolioApiBase + "/account.html";
-  aiWorkspaceEntry.setAttribute("aria-label", document.documentElement.lang === "en" ? "Open Melek AI workspace" : "Ouvrir l'espace Melek AI");
+const aiWorkspaceOverlay = document.getElementById("aiWorkspaceOverlay");
+const aiWorkspaceFrame = document.getElementById("aiWorkspaceFrame");
+const aiWorkspaceClose = document.getElementById("aiWorkspaceClose");
+const aiWorkspaceNewTab = document.getElementById("aiWorkspaceNewTab");
+const aiWorkspaceUrl = portfolioApiBase + "/account.html";
+
+if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
+  aiWorkspaceNewTab.href = aiWorkspaceUrl;
+
+  function openMelekAI() {
+    if (!aiWorkspaceFrame.src) aiWorkspaceFrame.src = aiWorkspaceUrl;
+    aiWorkspaceOverlay.hidden = false;
+    aiWorkspaceOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("ai-workspace-open");
+    aiWorkspaceEntry.setAttribute("aria-expanded", "true");
+    aiWorkspaceClose.focus();
+  }
+
+  function closeMelekAI() {
+    aiWorkspaceOverlay.hidden = true;
+    aiWorkspaceOverlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("ai-workspace-open");
+    aiWorkspaceEntry.setAttribute("aria-expanded", "false");
+    aiWorkspaceEntry.focus();
+  }
+
+  aiWorkspaceEntry.addEventListener("click", openMelekAI);
+  aiWorkspaceClose.addEventListener("click", closeMelekAI);
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !aiWorkspaceOverlay.hidden) closeMelekAI();
+  });
+
+  window.addEventListener("portfolio:languagechange", () => {
+    const english = document.documentElement.lang === "en";
+    aiWorkspaceEntry.setAttribute("aria-label", english ? "Open Melek AI workspace" : "Ouvrir l'espace Melek AI");
+    aiWorkspaceClose.setAttribute("aria-label", english ? "Close AI workspace" : "Fermer l'espace IA");
+    aiWorkspaceNewTab.textContent = english ? "Open full page ↗" : "Ouvrir en pleine page ↗";
+  });
 }
-window.addEventListener("portfolio:languagechange", () => {
-  if (!aiWorkspaceEntry) return;
-  aiWorkspaceEntry.setAttribute("aria-label", document.documentElement.lang === "en" ? "Open Melek AI workspace" : "Ouvrir l'espace Melek AI");
-});
