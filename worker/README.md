@@ -126,3 +126,12 @@ Authenticated endpoints:
 - `POST /api/admin/learning/refresh` — admin-only manual refresh.
 
 The scheduled trigger and D1 migration are code changes only until deployed. Apply migration `0006_web_knowledge.sql` and deploy the Worker to activate the daily refresh. Cron times are UTC. This feature refreshes retrieval knowledge (RAG); it does not silently rewrite model weights. Fine-tuning is a separate offline process that must pass held-out evaluation before a checkpoint is promoted.
+
+
+### Live web search
+
+For general questions, the Worker can also call Cloudflare Web Search API through the existing `AI` binding (Ceramic provider, max 4 results per request). This is a live search, separate from the daily RSS refresh. It is enabled by `WEB_SEARCH_ENABLED = "true"`; if the AI Gateway has no credits/provider configured or the search fails, the assistant falls back to the stored daily feed index. Search results are snippets and links only; the Worker does not blindly crawl arbitrary result URLs.
+
+**Cost note:** Cloudflare documents Ceramic at **$0.25 per 1,000 searches** through AI Gateway credits. This is not unlimited/free. At 1,000 searched chat turns, the search component is about $0.25 (model inference and any other usage are separate). Set `WEB_SEARCH_ENABLED = "false"` to disable per-question live search while keeping the daily RSS refresh. The AI Gateway must have credits or a provider key configured; otherwise live search returns no results and the cached feed index remains available.
+
+Live search citations are rendered below assistant answers. External results remain untrusted data and cannot execute tools or modify the approved portfolio facts.
