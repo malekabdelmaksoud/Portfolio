@@ -29,3 +29,5 @@ kbd{color:#7b8492;border-color:#dce2eb}
 .model-control select:focus-visible{outline:2px solid #9dbbf1;outline-offset:2px}
 .model-control select:disabled{opacity:.55;cursor:not-allowed}
 @media(max-width:760px){.mode-row{flex-wrap:wrap}.model-control{width:100%;margin:5px 0 0;justify-content:space-between}.model-control select{max-width:70%;flex:1}}
+
+.attachment-chip{margin:0 0 8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;color:#cbd0d8;font-size:12px;cursor:pointer;width:max-content;max-width:100%;overflow-wrap:anywhere}.attachment-chip[hidden]{display:none}.composer-tools{display:flex;align-items:center;gap:5px}.tool-btn{width:31px;height:31px;border:1px solid var(--line);border-radius:8px;background:#171a1f;color:#cbd0d8;cursor:pointer}.tool-btn:hover{background:#252a32;color:#fff}.message-actions button{margin-right:8px}
