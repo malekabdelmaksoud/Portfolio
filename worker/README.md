@@ -134,4 +134,4 @@ For general questions, the Worker can also call Cloudflare Web Search API throug
 
 **Cost note:** Cloudflare documents Ceramic at **$0.25 per 1,000 searches** through AI Gateway credits. This is not unlimited/free. At 1,000 searched chat turns, the search component is about $0.25 (model inference and any other usage are separate). Set `WEB_SEARCH_ENABLED = "false"` to disable per-question live search while keeping the daily RSS refresh. The AI Gateway must have credits or a provider key configured; otherwise live search returns no results and the cached feed index remains available.
 
-Live search citations are rendered below assistant answers. External results remain untrusted data and cannot execute tools or modify the approved portfolio facts.
+Live search citations are rendered below assistant answers. Each verified visitor is limited to 10 live searches per rolling hour to cap costs; daily RSS retrieval remains available after the live-search limit is reached. External results remain untrusted data and cannot execute tools or modify the approved portfolio facts.
