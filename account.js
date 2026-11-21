@@ -84,7 +84,7 @@
       select.replaceChildren();
       availableModels.forEach(model=>{
         const option=document.createElement("option");option.value=model.id;option.textContent=model.label;
-        if(model.description)option.title=model.description;select.append(option);
+        if(model.description)option.title=model.description;option.disabled=model.available===false;select.append(option);
       });
       const saved=localStorage.getItem("melek-ai-model");
       const preferred=availableModels.some(model=>model.id===saved)?saved:data.defaultModel;
