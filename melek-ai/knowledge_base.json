@@ -14,7 +14,11 @@
         "iset",
         "study",
         "education",
-        "قراية"
+        "قراية",
+        "معلومات",
+        "معلومات عن ملاك",
+        "شكون هي",
+        "عرفني"
       ],
       "source": {
         "file": "index.html",
@@ -32,7 +36,11 @@
         "ai",
         "intelligence artificielle",
         "software quality",
-        "جودة البرمجيات"
+        "جودة البرمجيات",
+        "معلومات",
+        "معلومات عن ملاك",
+        "شكون هي",
+        "عرفني"
       ],
       "source": {
         "file": "index.html",
@@ -50,7 +58,11 @@
         "tunisie",
         "location",
         "صفاقس",
-        "تونس"
+        "تونس",
+        "تواصل",
+        "اتصل",
+        "كيف نتصل",
+        "بريد"
       ],
       "source": {
         "file": "index.html",
@@ -68,7 +80,12 @@
         "bachelor",
         "iset",
         "university",
-        "جامعة"
+        "جامعة",
+        "قراية",
+        "الدراسة",
+        "تكوين",
+        "معهد",
+        "شهادات"
       ],
       "source": {
         "file": "index.html",
@@ -84,7 +101,13 @@
       "aliases": [
         "bac",
         "lycée",
-        "high school"
+        "high school",
+        "قراية",
+        "الدراسة",
+        "تكوين",
+        "جامعة",
+        "معهد",
+        "شهادات"
       ],
       "source": {
         "file": "index.html",
@@ -102,7 +125,13 @@
         "programming languages",
         "python",
         "java",
-        "php"
+        "php",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
       ],
       "source": {
         "file": "index.html",
@@ -120,7 +149,13 @@
         "html",
         "css",
         "angular",
-        "frontend"
+        "frontend",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
       ],
       "source": {
         "file": "index.html",
@@ -139,7 +174,13 @@
         "symfony",
         "spring boot",
         "dotnet",
-        "android studio"
+        "android studio",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
       ],
       "source": {
         "file": "index.html",
@@ -156,7 +197,13 @@
         "réseaux",
         "networking",
         "maintenance",
-        "ocs inventory"
+        "ocs inventory",
+        "مهارات",
+        "المهارات",
+        "تقنيات",
+        "التقنيات",
+        "لغات البرمجة",
+        "شنو تعرف"
       ],
       "source": {
         "file": "index.html",
@@ -175,7 +222,12 @@
         "hedi chaker",
         "dmi",
         "ocs inventory",
-        "internship"
+        "internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
       ],
       "source": {
         "file": "index.html",
@@ -191,7 +243,12 @@
       "aliases": [
         "acs",
         "advanced computer solutions",
-        "web internship"
+        "web internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
       ],
       "source": {
         "file": "index.html",
@@ -206,7 +263,12 @@
       "text_en": "Networking internship at Netsys Com Support, from June to July 2025.",
       "aliases": [
         "netsys",
-        "network internship"
+        "network internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
       ],
       "source": {
         "file": "index.html",
@@ -221,7 +283,12 @@
       "text_en": "IT support internship at CISEN, from January to February 2025.",
       "aliases": [
         "cisen",
-        "maintenance internship"
+        "maintenance internship",
+        "ستاج",
+        "تربص",
+        "تجارب",
+        "الخبرة",
+        "الخبرات"
       ],
       "source": {
         "file": "index.html",
@@ -237,7 +304,13 @@
       "aliases": [
         "elearning",
         "java",
-        "learning platform"
+        "learning platform",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
       ],
       "url": "https://github.com/malekabdelmaksoud/elearning-platform",
       "source": {
@@ -254,7 +327,13 @@
       "aliases": [
         "php",
         "css",
-        "web application"
+        "web application",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
       ],
       "url": "https://github.com/malekabdelmaksoud/projetphp",
       "source": {
@@ -272,7 +351,13 @@
         "laravel",
         "mvc",
         "migration",
-        "authentication"
+        "authentication",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
       ],
       "url": "https://github.com/malekabdelmaksoud/laravel",
       "source": {
@@ -292,7 +377,13 @@
         "inventory",
         "stock",
         "vente",
-        "sales"
+        "sales",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
       ],
       "url": "https://github.com/malekabdelmaksoud/tpmagasin",
       "source": {
@@ -311,7 +402,13 @@
         "mcp",
         "cloudflare",
         "jobs",
-        "internships"
+        "internships",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
       ],
       "url": "https://github.com/malekabdelmaksoud/opportunity-hunter",
       "source": {
@@ -331,7 +428,10 @@
         "arabic",
         "french",
         "english",
-        "spanish"
+        "spanish",
+        "لغات",
+        "اللغات",
+        "شنو اللغات"
       ],
       "source": {
         "file": "index.html",
@@ -349,11 +449,93 @@
         "email",
         "linkedin",
         "github",
-        "تواصل"
+        "تواصل",
+        "اتصل",
+        "كيف نتصل",
+        "بريد"
       ],
       "source": {
         "file": "index.html",
         "selector": "#contact"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-006",
+      "category": "project",
+      "text_fr": "TP Programmation Orientée Objet : travaux pratiques en Java appliquant l'héritage, le polymorphisme et l'encapsulation.",
+      "text_en": "Object-Oriented Programming Labs: Java exercises applying inheritance, polymorphism, and encapsulation.",
+      "aliases": [
+        "java",
+        "poo",
+        "oop",
+        "héritage",
+        "polymorphisme",
+        "encapsulation",
+        "تمارين جافا",
+        "البرمجة كائنية التوجه",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/tp-poo",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(5)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-007",
+      "category": "project",
+      "text_fr": "Projet Symfony : application web construite avec Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.",
+      "text_en": "Symfony Project: a web application exploring routing, Twig controllers, and database management with Doctrine.",
+      "aliases": [
+        "symfony",
+        "php",
+        "twig",
+        "doctrine",
+        "مشروع symfony",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/projet-symfony",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(7)"
+      },
+      "approved": false
+    },
+    {
+      "id": "project-008",
+      "category": "project",
+      "text_fr": "Première Application C# : projet d'initiation à C#, à l'environnement .NET et à la création d'interfaces.",
+      "text_en": "First C# Application: an introductory project exploring C#, the .NET environment, and interface creation.",
+      "aliases": [
+        "c#",
+        "c sharp",
+        "dotnet",
+        ".net",
+        "interfaces",
+        "مشروع سي شارب",
+        "مشروع",
+        "مشاريع",
+        "المشاريع",
+        "اعمال",
+        "أعمال",
+        "شنو المشاريع"
+      ],
+      "url": "https://github.com/malekabdelmaksoud/firstApp",
+      "source": {
+        "file": "index.html",
+        "selector": "#projets .project-card:nth-child(8)"
       },
       "approved": false
     }
