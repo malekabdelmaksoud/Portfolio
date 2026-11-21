@@ -117,7 +117,7 @@ const aiWorkspaceOverlay = document.getElementById("aiWorkspaceOverlay");
 const aiWorkspaceFrame = document.getElementById("aiWorkspaceFrame");
 const aiWorkspaceClose = document.getElementById("aiWorkspaceClose");
 const aiWorkspaceNewTab = document.getElementById("aiWorkspaceNewTab");
-const aiWorkspaceUrl = portfolioApiBase + "/guest.html";
+const aiWorkspaceUrl = portfolioApiBase + "/account.html";
 
 if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
   aiWorkspaceNewTab.href = aiWorkspaceUrl;
