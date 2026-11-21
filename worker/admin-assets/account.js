@@ -19,7 +19,7 @@
     body.append(label,text);
     if(role==="assistant"&&Array.isArray(sources)&&sources.length){
       const sourceList=document.createElement("div");sourceList.className="message-sources";
-      const heading=document.createElement("strong");heading.textContent="Sources web consultées";sourceList.append(heading);
+      const heading=document.createElement("strong");heading.textContent="Sources web indexées automatiquement";sourceList.append(heading);
       sources.slice(0,3).forEach(source=>{
         if(!source||typeof source.url!=="string"||!/^https:\/\//i.test(source.url))return;
         try{const url=new URL(source.url);if(!["blog.cloudflare.com","genai.owasp.org","huggingface.co","arxiv.org","export.arxiv.org"].includes(url.hostname))return;
