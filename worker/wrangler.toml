@@ -10,8 +10,8 @@ database_id = "15577d7f-b636-4fa6-817c-8f0c77731927"
 migrations_dir = "migrations"
 
 [vars]
-ADMIN_EMAIL = "melekabdelmaksoud72@gmail.com"
-# Set ACCESS_ISSUER, ACCESS_AUD, and ALLOWED_ORIGIN as secrets/vars after configuring Cloudflare Access.
+ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
+# ADMIN_EMAIL, ACCESS_ISSUER, and ACCESS_AUD are runtime secrets; never commit them.
 
 [assets]
 directory = "./admin-assets"
