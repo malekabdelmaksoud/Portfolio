@@ -6,7 +6,7 @@ This directory is an independent, from-scratch language-model training project f
 
 A small model trained from scratch on a small personal dataset will not match ChatGPT. It is a research prototype and a foundation for experiments, not a claim of frontier-level intelligence.
 
-The portfolio's strict factual mode must **not trust free-form model generations**. The model may be used for language experiments, but visitor-facing factual answers must be assembled from approved, retrieved portfolio evidence. If retrieval finds no adequate evidence, the assistant must abstain with: "This information is not available in the published portfolio." This is the key anti-hallucination control; training alone cannot guarantee truth.
+The portfolio's strict factual mode must **not trust free-form model generations**. Visitor-facing factual answers must remain grounded in approved, retrieved portfolio evidence. The deployed Worker applies this evidence policy before calling either provider. If retrieval finds no adequate evidence, the assistant must abstain with: "This information is not available in the published portfolio." This is the key anti-hallucination control; training alone cannot guarantee truth.
 
 ## Design
 
@@ -69,6 +69,31 @@ Start with defaults for a smoke test. Increase training steps only after validat
 6. Never infer degrees, dates, employers, skills, project outcomes, personal details or availability.
 7. Test adversarial prompts and unsupported questions before deployment.
 
+## Run the custom checkpoint privately
+
+The Worker exposes **MelekGPT** in the model selector as unavailable until both a trained checkpoint service URL and a private token are configured. It never silently substitutes another model when the user selects MelekGPT.
+
+1. Create a substantial, reviewed `data/train.jsonl` using the format in [data/README.md](data/README.md). Only train on content you own or have permission to use.
+2. Install dependencies and train:
+   ```bash
+   pip install -r requirements.txt
+   python train.py --data data/train.jsonl --out checkpoints/melek-ai.pt --steps 2000
+   ```
+3. Generate a sample and evaluate it manually before serving:
+   ```bash
+   python generate.py --checkpoint checkpoints/melek-ai.pt --prompt "Bonjour, je suis" --tokens 120
+   ```
+4. Set a long random `MELEK_AI_TOKEN` in your local environment, then start the private server:
+   ```bash
+   # PowerShell example
+   $env:MELEK_AI_TOKEN = "replace-with-a-long-random-secret"
+   python serve.py
+   ```
+5. Put the server behind a **named Cloudflare Tunnel** with an HTTPS hostname. Do not expose port 8788 directly. Configure Worker secrets `MELEK_AI_URL` (the tunnel URL ending in `/v1/chat/completions`) and `MELEK_AI_TOKEN` (the same token), then deploy the Worker.
+6. Keep the host machine running. If it is offline, the custom model will be unavailable; the free hosted model remains independently selectable.
+
+The server loads only a checkpoint marked `trained_from_scratch` and requires bearer authentication. The current tiny byte-level Transformer is experimental and is not comparable to Claude or other foundation models. It needs a large, varied corpus and evaluation; a small personal portfolio dataset will not teach it general conversation.
+
 ## Current status
 
-This is the model-training foundation only. It is not yet trained, fine-tuned, evaluated, hosted, or connected to the live portfolio. No performance claim should be made until those steps are completed and measured.
+The architecture and private inference adapter are implemented, but no trained checkpoint is present in this repository and no live model endpoint is configured. Therefore MelekGPT is deliberately shown as unavailable until you train it and configure the private service. This is honest status, not a claim that training has already completed.
