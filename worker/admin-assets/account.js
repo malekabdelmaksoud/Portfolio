@@ -84,7 +84,7 @@
       select.replaceChildren();
       availableModels.forEach(model=>{
         const option=document.createElement("option");option.value=model.id;option.textContent=model.label;
-        if(model.description)option.title=model.description;select.append(option);
+        if(model.description)option.title=model.description;option.disabled=model.available===false;select.append(option);
       });
       const saved=localStorage.getItem("melek-ai-model");
       const preferred=availableModels.some(model=>model.id===saved)?saved:data.defaultModel;
@@ -96,11 +96,11 @@
       toast("La liste des modèles est indisponible. L’historique reste accessible.");
     }
   }
-  function speakText(text){if(!("speechSynthesis" in window)){toast("La lecture vocale n'est pas prise en charge par ce navigateur.");return;}window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=/[\\u0600-\\u06ff]/.test(text)?"ar-TN":/[àâçéèêëîïôûùüÿœ]/i.test(text)?"fr-FR":"en-US";window.speechSynthesis.speak(utterance);}
+  function speakText(text){if(!("speechSynthesis" in window)){toast("La lecture vocale n'est pas prise en charge par ce navigateur.");return;}window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=/[\u0600-\u06ff]/.test(text)?"ar-TN":/[àâçéèêëîïôûùüÿœ]/i.test(text)?"fr-FR":"en-US";window.speechSynthesis.speak(utterance);}
   function renderAttachment(){const chip=$("attachment-chip");chip.hidden=!attachment;chip.textContent=attachment?"📎 "+attachment.name+" · "+Math.ceil(attachment.text.length/1000)+"k caractères — ×":"";chip.onclick=()=>{attachment=null;renderAttachment();};}
   $("attach-file").addEventListener("click",()=>$("file-input").click());
   $("file-input").addEventListener("change",async e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>12000){toast("Fichier trop volumineux (maximum 12 Ko pour cette version).");e.target.value="";return;}try{const text=await file.text();if(!text.trim())throw new Error("Le fichier est vide.");attachment={name:file.name,text:text.slice(0,10000)};renderAttachment();toast("Fichier prêt à être analysé.");}catch(err){toast(err.message||"Impossible de lire ce fichier.");}e.target.value="";});
-  $("voice-input").addEventListener("click",()=>{const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition){toast("La dictée vocale n'est pas prise en charge. Essayez Chrome ou Edge.");return;}const recognition=new Recognition();recognition.lang=/[\\u0600-\\u06ff]/.test($("chat-input").value)?"ar-TN":"fr-FR";recognition.interimResults=false;recognition.onresult=event=>{$("chat-input").value=($("chat-input").value+" "+event.results[0][0].transcript).trim();$("chat-input").focus();};recognition.onerror=()=>toast("La dictée vocale n'a pas abouti. Vérifiez l'autorisation du microphone.");recognition.start();});
+  $("voice-input").addEventListener("click",()=>{const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition){toast("La dictée vocale n'est pas prise en charge. Essayez Chrome ou Edge.");return;}const recognition=new Recognition();recognition.lang=/[\u0600-\u06ff]/.test($("chat-input").value)?"ar-TN":"fr-FR";recognition.interimResults=false;recognition.onresult=event=>{$("chat-input").value=($("chat-input").value+" "+event.results[0][0].transcript).trim();$("chat-input").focus();};recognition.onerror=()=>toast("La dictée vocale n'a pas abouti. Vérifiez l'autorisation du microphone.");recognition.start();});
   $("read-aloud").addEventListener("click",()=>lastAssistantAnswer?speakText(lastAssistantAnswer):toast("Aucune réponse à lire."));
   async function load(){
     try{const me=await api("/api/user/me");$("identity").textContent=me.user.email;$("status").textContent="Compte vérifié · historique privé";await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);}
