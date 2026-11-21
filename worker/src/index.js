@@ -63,7 +63,7 @@ function b64url(value) {
   return Uint8Array.from(raw,c=>c.charCodeAt(0));
 }
 async function verifyAccessIdentity(request, env) {
-  if(!env.ACCESS_ISSUER || !env.ACCESS_AUD) throw new Error("Email sign-in is not configured.");
+  if(!env.ACCESS_ISSUER || !env.ACCESS_USER_AUD) throw new Error("Email sign-in is not configured.");
   const token=request.headers.get("CF-Access-Jwt-Assertion");
   if(!token) throw new Error("Email sign-in is required.");
   const parts=token.split(".");
@@ -74,7 +74,7 @@ async function verifyAccessIdentity(request, env) {
   const issuer=env.ACCESS_ISSUER.replace(/\/$/,"");
   const now=Math.floor(Date.now()/1000);
   const aud=Array.isArray(claims.aud)?claims.aud:[claims.aud];
-  if(claims.iss!==issuer || !aud.includes(env.ACCESS_AUD) || !claims.exp || claims.exp<=now || (claims.nbf && claims.nbf>now)) throw new Error("Access token claims are invalid.");
+  if(claims.iss!==issuer || !aud.includes(env.ACCESS_USER_AUD) || !claims.exp || claims.exp<=now || (claims.nbf && claims.nbf>now)) throw new Error("Access token claims are invalid.");
   const email=String(claims.email||"").trim().toLowerCase();
   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) throw new Error("A verified email identity is required.");
   if(!jwksCache || jwksCache.expires<Date.now()) {
