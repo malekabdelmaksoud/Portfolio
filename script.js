@@ -333,10 +333,13 @@ function handleUserQuery(query) {
 
 async function generateAiAnswer(rawQuery) {
   try {
+    const previousQuestions = typeof ChatStore !== "undefined"
+      ? ChatStore.getHistory().filter(item => item.role === "user").slice(-5,-1).map(item => String(item.text || "").slice(0,300))
+      : [];
     const response = await fetch(portfolioApiBase + "/api/assistant", {
       method: "POST", credentials: "omit",
       headers: {"content-type":"application/json","accept":"application/json"},
-      body: JSON.stringify({question:String(rawQuery || "").slice(0,800)})
+      body: JSON.stringify({question:String(rawQuery || "").slice(0,800),context:previousQuestions})
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Service indisponible.");
