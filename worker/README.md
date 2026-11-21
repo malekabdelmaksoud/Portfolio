@@ -25,6 +25,7 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 ## Security model
 
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
+- Public visitor accounts are planned to use native Worker email OTP with D1-backed server sessions; Cloudflare Access must not be used for public users.
 - There is no client-side admin password, role, or localStorage admin session.
 - Visitor assistant reads only D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or invent factual claims.
 - Imported facts start unapproved. The eight existing project cards remain published; newly created projects start hidden.
@@ -44,14 +45,12 @@ Create **two separate Self-hosted Access applications** on that hostname. Do not
 - Policy: **Allow** only the owner's exact verified email address.
 - Use Cloudflare Access email one-time PIN or another verified identity provider.
 
-### 2. Visitor account application
+### 2. Public visitor authentication (target architecture)
 
-- Public hostname: `melek-portfolio-api.melekabdelmaksoud72.workers.dev`
-- Paths: `/account.html` and `/api/user/*`
-- Policy: **Allow** authenticated email identities (any verified email).
-- This is safe because every chat-history query is scoped to the email from the signed Access JWT. A visitor cannot read or delete another visitor's chats.
-
-Do not add `/api/assistant`, `/api/projects`, or `/api/health` to either application. Do not use an owner-only policy for the visitor account application.
+- Do NOT create a Cloudflare Access application for `/account.html` or `/api/user/*`.
+- Public accounts must use native email OTP and server-side D1 sessions implemented by the Worker.
+- Cloudflare Access seats are reserved for the administrator application only.
+- Until native OTP is implemented and deployed, the existing visitor account endpoints still require the legacy Access JWT flow; do not remove that flow before the replacement is tested and ready.
 
 ### 3. Configure Worker secrets
 
