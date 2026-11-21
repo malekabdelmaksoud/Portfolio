@@ -85,6 +85,7 @@ export async function refreshWebKnowledge(env, fetcher = fetch) {
   }
   await env.DB.prepare("INSERT INTO web_learning_runs(id,fetched,saved,failed_json,finished_at) VALUES(?,?,?,?,CURRENT_TIMESTAMP)")
     .bind(crypto.randomUUID(), items.length, saved, JSON.stringify(failed)).run();
+  await env.DB.prepare("DELETE FROM web_search_usage WHERE created_at < datetime('now','-7 days')").run();
   return { fetched: items.length, saved, failed };
 }
 export async function liveWebSearch(env, query) {
