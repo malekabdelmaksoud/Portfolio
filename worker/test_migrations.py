@@ -56,7 +56,8 @@ class MigrationTests(unittest.TestCase):
         other = self.db.execute("SELECT content FROM chat_messages WHERE user_email=?", ("b@example.test",)).fetchall()
         self.assertEqual(own, [("Private question",)])
         self.assertEqual(other, [])
-\n    def test_fact_approval_defaults_to_false(self):
+
+    def test_fact_approval_defaults_to_false(self):
         self.db.execute(
             "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
             ("extra-001", "profile", "Texte", "Text", "index.html", "#about", "نص")
