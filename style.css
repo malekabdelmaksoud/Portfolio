@@ -1629,16 +1629,6 @@ body.ai-workspace-open { overflow: hidden; }
     padding: 10px 18px;
     font-size: 12.5px;
   }
-  .ai-chat-popup {
-    bottom: max(72px, calc(env(safe-area-inset-bottom, 16px) + 56px));
-    right: 14px;
-    left: 14px;
-    width: calc(100vw - 28px);
-    height: min(540px, calc(100dvh - 90px));
-  }
-  .ai-chat-input-form input {
-    font-size: 16px; /* Prevents auto-zoom on iOS Safari */
-  }
 }
 
 /* ── Print Styles for Zero Blank Pages & Perfect A4 PDF ── */
