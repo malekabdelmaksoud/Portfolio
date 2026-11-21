@@ -69,6 +69,54 @@ class MigrationTests(unittest.TestCase):
         rows = self.db.execute("SELECT category, approved FROM facts WHERE id IN (?,?) ORDER BY id", ("achievement-001", "cert-001")).fetchall()
         self.assertEqual(rows, [("achievements", 0), ("certifications", 0)])
 
+    def test_chat_retention_indexes_exist(self):
+        indexes = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+        self.assertIn("idx_chats_retention_order", indexes)
+        self.assertIn("idx_chat_messages_chat_owner", indexes)
+
+    def test_retention_candidates_delete_oldest_but_keep_one_chat_per_user(self):
+        self.db.execute("PRAGMA foreign_keys = ON")
+        chats = [
+            ("a-old", "a@example.test", "2026-01-01 00:00:00"),
+            ("a-new", "a@example.test", "2026-01-03 00:00:00"),
+            ("b-old", "b@example.test", "2026-01-02 00:00:00"),
+            ("b-new", "b@example.test", "2026-01-04 00:00:00"),
+        ]
+        self.db.executemany("INSERT INTO chats(id,user_email,title,updated_at) VALUES(?,?,?,?)",
+                            [(chat_id, email, chat_id, updated) for chat_id, email, updated in chats])
+        for chat_id, email, content in [
+            ("a-old", "a@example.test", "A" * 100),
+            ("a-new", "a@example.test", "B" * 100),
+            ("b-old", "b@example.test", "C" * 100),
+            ("b-new", "b@example.test", "D" * 100),
+        ]:
+            self.db.execute("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)",
+                            ("msg-" + chat_id, chat_id, email, "user", content))
+
+        candidates = self.db.execute("""
+            WITH per_chat AS (
+              SELECT c.id,c.user_email,c.updated_at,COALESCE(SUM(length(CAST(m.content AS BLOB))),0) AS bytes
+              FROM chats c LEFT JOIN chat_messages m ON m.chat_id=c.id AND m.user_email=c.user_email
+              GROUP BY c.id
+            ), ranked AS (
+              SELECT *,ROW_NUMBER() OVER(PARTITION BY user_email ORDER BY updated_at DESC,id DESC) AS user_rank
+              FROM per_chat
+            ), eligible AS (
+              SELECT * FROM ranked WHERE user_rank>1 AND id<>?
+            ), accumulated AS (
+              SELECT *,SUM(bytes) OVER(ORDER BY updated_at ASC,id ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_bytes
+              FROM eligible
+            )
+            SELECT id,user_email,bytes FROM accumulated
+            WHERE running_bytes-bytes<? ORDER BY updated_at ASC,id ASC LIMIT 100
+        """, ("a-new", 150)).fetchall()
+        self.assertEqual([row[0] for row in candidates], ["a-old", "b-old"])
+        for chat_id, email, _ in candidates:
+            self.db.execute("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?", (chat_id, email))
+            self.db.execute("DELETE FROM chats WHERE id=? AND user_email=?", (chat_id, email))
+        remaining = {row[0] for row in self.db.execute("SELECT id FROM chats")}
+        self.assertEqual(remaining, {"a-new", "b-new"})
+
     def test_fact_approval_defaults_to_false(self):
         self.db.execute(
             "INSERT INTO facts(id,category,text_fr,text_en,source_file,source_selector,text_ar) VALUES(?,?,?,?,?,?,?)",
