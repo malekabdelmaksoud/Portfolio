@@ -16,7 +16,7 @@
   <main class="shell">
     <section class="intro"><p class="eyebrow">ESPACE PRIVÉ · CLOUDFLARE ACCESS</p><h1>Content studio</h1><p>Gérez les informations publiques et les projets du portfolio. Une information n'est publiée qu'après validation explicite.</p></section>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button></nav>
+    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button><button class="tab" data-tab="learning">Auto-learning web <span id="learningCount">—</span></button></nav>
     <section id="factsPanel" class="panel">
       <div class="panel-head"><div><p class="eyebrow">ASSISTANT PORTFOLIO</p><h2>Informations approuvées</h2><p>Les faits approuvés peuvent être utilisés par l'assistant. Les autres restent privés.</p></div><button id="newFact" class="primary">＋ Nouvelle information</button></div>
       <form id="factForm" class="editor" hidden>
@@ -46,6 +46,11 @@
         <div class="form-actions"><button type="button" class="ghost" data-cancel="project">Annuler</button><button class="primary" type="submit">Enregistrer</button></div>
       </form>
       <div id="projectsList" class="records" aria-live="polite"><p class="muted">Chargement…</p></div>
+    </section>
+    <section id="learningPanel" class="panel" hidden>
+      <div class="panel-head"><div><p class="eyebrow">MELEKGPT · RAG AUTOMATIQUE</p><h2>Apprentissage web</h2><p>Le système actualise quotidiennement des sources publiques de confiance. Les extraits sont utilisés comme références, jamais comme instructions ni comme faits personnels.</p></div><button id="refreshLearning" class="primary">↻ Actualiser maintenant</button></div>
+      <div id="learningSummary" class="learning-summary"><p class="muted">Chargement de l'état d'apprentissage…</p></div>
+      <div id="learningList" class="records" aria-live="polite"><p class="muted">Chargement des sources…</p></div>
     </section>
     <footer>Les modifications sont enregistrées dans Cloudflare D1. L'accès administrateur est contrôlé côté serveur via Cloudflare Access.</footer>
   </main>
