@@ -185,3 +185,18 @@ test('admin dashboard has no browser password login', async () => {
     assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
   } finally { await page.close(); }
 });
+
+test('legacy browser authentication cannot create or grant an admin session', async () => {
+  const page = await openPage();
+  try {
+    const result = await page.evaluate(() => {
+      let loginBlocked = false, registerBlocked = false;
+      try { AuthService.login('melekabdelmaksoud72@gmail.com', 'guess'); } catch (_) { loginBlocked = true; }
+      try { AuthService.register('Melek', 'melekabdelmaksoud72@gmail.com', 'guess'); } catch (_) { registerBlocked = true; }
+      return { loginBlocked, registerBlocked, isAdmin: AuthService.isAdmin() };
+    });
+    assert.equal(result.loginBlocked, true);
+    assert.equal(result.registerBlocked, true);
+    assert.equal(result.isAdmin, false);
+  } finally { await page.close(); }
+});
