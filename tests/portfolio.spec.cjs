@@ -51,6 +51,8 @@ after(async () => {
 
 async function openPage() {
   const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  // Keep browser tests isolated from the production API Worker.
+  await page.addInitScript(() => { window.PORTFOLIO_API_BASE = window.location.origin; });
   await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
   return page;
 }
