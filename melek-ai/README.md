@@ -29,7 +29,7 @@ The regression suite covers unsupported requests, unapproved or source-less fact
 
 ## Requirements
 
-Python 3.10+ and PyTorch. A CUDA GPU is optional; CPU training is intended only for smoke tests. The Lenovo RTX 2050 can be used for small experiments, but VRAM and available system RAM determine the practical batch/sequence/model sizes. It is not enough to promise ChatGPT-level performance.
+Python 3.10+ and PyTorch. The public-corpus downloader also uses Hugging Face Datasets. A CUDA GPU is optional; CPU training is intended only for smoke tests. The Lenovo RTX 2050 can be used for small experiments, but VRAM and available system RAM determine the practical batch/sequence/model sizes. It is not enough to promise ChatGPT-level performance.
 
 Install:
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ## Prepare data
 
-Create `data/train.jsonl` (one JSON object per line). Each row must include non-empty `text` and `source`, plus a `license` value of `owned`, `permitted`, or `public-domain`:
+Create `data/train.jsonl` (one JSON object per line). Each row must include non-empty `text` and `source`, plus a supported license (`owned`, `public-domain`, `CC0-1.0`, `CC-BY-4.0`, `MIT`, or `Apache-2.0`):
 
 ```json
 {"text":"Example training text written by the project owner.","source":"owner-authored","license":"owned"}
