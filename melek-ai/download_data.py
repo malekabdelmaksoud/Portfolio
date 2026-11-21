@@ -62,8 +62,9 @@ def main():
     parser.add_argument("--skip-common-corpus", action="store_true")
     parser.add_argument("--skip-arabic-legal", action="store_true")
     parser.add_argument("--skip-tunisian-proverbs", action="store_true")
+    parser.add_argument("--max-tunisian-scan", type=int, default=30000)
     args = parser.parse_args()
-    if args.max_per_language < 1 or args.max_scan < 1:
+    if args.max_per_language < 1 or args.max_scan < 1 or args.max_tunisian_scan < 1:
         parser.error("--max-per-language and --max-scan must be positive")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -246,6 +247,42 @@ def main():
                 print(f"WARNING: Tunisian proverb corpus unavailable: {exc}", file=sys.stderr)
 
 
+
+
+
+        print("Loading LINAGORA FineWeb2 Tunisian Arabic (ODC-By 1.0; quality-filtered)...")
+        try:
+            stream = load_dataset("linagora/fineweb2_Tunisian_Arabic", split="train", streaming=True)
+            tunisian_added = 0
+            scanned = 0
+            for row in stream:
+                scanned += 1
+                if scanned > args.max_tunisian_scan or counts["aeb"] >= args.max_per_language:
+                    break
+                try:
+                    quality = float(row.get("language_score", 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+                if quality < 0.85:
+                    continue
+                text = row.get("text")
+                url = row.get("url")
+                record_id = row.get("id")
+                if not isinstance(url, str) or not url.startswith("https://"):
+                    continue
+                source = (
+                    "linagora/fineweb2_Tunisian_Arabic"
+                    f" | id={str(record_id)[:80]}"
+                    f" | url={url[:800]}"
+                    f" | date={str(row.get('date', 'unknown'))[:40]}"
+                    f" | language_score={quality:.3f}"
+                )
+                if append(text, source, "odc-by-1.0", "aeb"):
+                    tunisian_added += 1
+            print(f"FineWeb2 Tunisian scan={min(scanned, args.max_tunisian_scan)}; added={tunisian_added}; counts={counts}")
+            sources.append("linagora/fineweb2_Tunisian_Arabic")
+        except Exception as exc:
+            print(f"WARNING: FineWeb2 Tunisian corpus unavailable: {exc}", file=sys.stderr)
 
 
     total = sum(counts.values())
