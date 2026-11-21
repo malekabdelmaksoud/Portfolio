@@ -41,7 +41,7 @@ def safe_tunisian_text(value):
     if any(phrase in normalized for phrase in TUNISIAN_BLOCKED_PHRASES):
         return False
     for term in TUNISIAN_BLOCKLIST:
-        if re.search(rf"(?<![\\u0600-\\u06FF]){re.escape(term)}(?![\\u0600-\\u06FF])", normalized):
+        if re.search(rf"(?<![\u0600-\u06FF]){re.escape(term)}(?![\u0600-\u06FF])", normalized):
             return False
     return True
 
