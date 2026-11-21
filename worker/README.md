@@ -8,7 +8,7 @@ The API is a separate Cloudflare Worker named `melek-portfolio-api`. It is isola
 - Database ID: `15577d7f-b636-4fa6-817c-8f0c77731927`
 - `wrangler.toml` is already configured with this database ID.
 - The allowed browser origin is configured as `https://portfolio.melekabdelmaksoud72.workers.dev`.
-- No API deployment has been performed yet.
+- The API Worker has been deployed successfully and D1 migrations `0001`–`0004` have been applied.
 
 ## Deploy through GitHub Actions
 
@@ -18,7 +18,7 @@ The workflow `.github/workflows/deploy-api.yml` is a manual deployment workflow.
 2. In GitHub, open **Settings → Secrets and variables → Actions**.
 3. Add repository secret `CLOUDFLARE_API_TOKEN` with that token.
 4. Add repository variable `CLOUDFLARE_ACCOUNT_ID` with the account ID.
-5. Open **Actions → Deploy portfolio API → Run workflow** and select branch `feature/melek-ai-from-scratch`.
+5. The deployment workflow has already run successfully from the merged `main` branch. Re-run it only when API code or migrations change.
 
 The workflow installs Wrangler, synchronizes the admin assets, applies the D1 migrations remotely, then deploys the Worker. It does not deploy or modify the existing `portfolio` Worker.
 
@@ -27,12 +27,12 @@ The workflow installs Wrangler, synchronizes the admin assets, applies the D1 mi
 - Admin access is Cloudflare Access only. The Worker verifies the Access JWT signature against Cloudflare's published JWKS, issuer, audience, expiry, and exact admin email.
 - There is no client-side admin password, role, or localStorage admin session.
 - Visitor assistant reads only D1 facts with `approved = 1`, returns reviewed Arabic, French, or English text verbatim, and abstains when evidence is missing. It does not call a hosted model or invent factual claims.
-- Imported facts start unapproved. The eight seeded projects are already public on the current portfolio, so their visibility is preserved; newly created projects start hidden.
+- Imported facts start unapproved. The eight existing project cards remain published; newly created projects start hidden.
 - Admin API writes validate inputs and accept HTTPS links only.
 
 ## Configure Cloudflare Access after deployment
 
-After the Worker is deployed and its `.workers.dev` hostname is known:
+The Worker is deployed at `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev`. Access setup is still pending:
 
 1. Create a Cloudflare Access self-hosted application for that hostname.
 2. Protect `/account.html`, `/api/user/*`, `/admin.html`, and `/api/admin/*`. Use Cloudflare Access email one-time PIN (or another verified email identity provider) with an allow policy for authenticated emails. The Worker validates each visitor's signed Access JWT and scopes every chat query to that verified email. Admin API routes additionally require the exact owner email. Do not protect the entire Worker because public `/api/assistant` and `/api/projects` must remain public.
@@ -44,7 +44,7 @@ After the Worker is deployed and its `.workers.dev` hostname is known:
 
 Never commit the email identity or Access secrets to this public repository.
 
-## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://<api-worker-host>/account.html` and sign in with their email. The page lists their own chats, opens message history, creates a conversation, deletes one conversation, or deletes all their conversations. The Worker derives the owner from the verified Access JWT; it never trusts an email supplied in request JSON. D1 migration `0004_user_chat_history.sql` creates the owner-scoped chat and message tables. All reads, inserts, and deletions include the authenticated email.\n\nThe account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
+## Visitor accounts and private chat history\n\nAfter enabling the Access application, visitors can open `https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html` and sign in with their email. The Worker supports owner-scoped chat history APIs backed by D1 migration `0004_user_chat_history.sql`. The account page is a history manager; it does not yet turn the public portfolio chat into a signed-in chat composer. The public assistant remains accessible without login and is not persisted automatically.\n\n## Admin dashboard
 
 After deployment and Access setup, open `https://<api-worker-host>/admin.html`. It supports:
 - Create/edit/delete facts, source references, aliases, and Arabic/French/English text.
@@ -57,7 +57,7 @@ The dashboard never asks for a password; Cloudflare Access supplies the identity
 
 The portfolio chat posts questions to `/api/assistant`. Only approved D1 facts are considered. The 23 seeded facts remain unapproved until reviewed in the dashboard; the assistant intentionally abstains until there is approved evidence.
 
-Once the API hostname is known, set `window.PORTFOLIO_API_BASE` in the portfolio's `api-config.js` to that exact origin. Do not guess or commit a hostname before deployment.
+The portfolio's `api-config.js` already points to the deployed API origin. `ALLOWED_ORIGIN` is configured for the production portfolio.
 
 ## Local development
 
@@ -73,4 +73,4 @@ Access-protected admin routes require a real Cloudflare Access token and cannot 
 
 - This API is a source-bound portfolio assistant and admin CRUD backend, not a general ChatGPT-class model.
 - The from-scratch Transformer is a research prototype only: no licensed training corpus, checkpoint, training run, or production inference exists yet.
-- Per-user email login and server-side chat history/deletion are not implemented yet. The current short follow-up context is browser-side only.
+- Server-side owner-scoped chat-history APIs and D1 tables exist, but the public chat composer is not yet connected to signed-in account persistence.
