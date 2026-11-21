@@ -235,3 +235,23 @@ test('admin can approve a fact using the clean multilingual API payload', async 
     assert.equal(Object.hasOwn(approvalPayload, 'aliases_json'), false);
   } finally { await page.close(); }
 });
+
+test('published API projects replace static cards and follow the selected language', async () => {
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+  await page.route('**/api/projects', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ projects: [{
+      id: 'api-project', title: 'API Project', type: 'WEB',
+      description_fr: 'Description française.', description_en: 'English project description.',
+      url: 'https://github.com/example/api-project', sort_order: 1
+    }] })
+  }));
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#projets .project-card h3')?.innerText === 'API Project');
+    assert.match(await page.locator('#projets .project-card p:not(.project-type)').innerText(), /Description française/);
+    await page.locator('.lang-btn[data-lang="en"]').click();
+    assert.match(await page.locator('#projets .project-card p:not(.project-type)').innerText(), /English project description/);
+    assert.equal(await page.locator('#projets .project-card a').getAttribute('href'), 'https://github.com/example/api-project');
+  } finally { await page.close(); }
+});
