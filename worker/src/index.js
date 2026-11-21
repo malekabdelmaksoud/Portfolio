@@ -145,7 +145,7 @@ async function assistant(request, env) {
   return json({answer:prefix+"\n"+selected.map(f=>f[field]).join("\n"),sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
 }
 async function userChatRoute(request,env,path,method,identity) {
-  const chatMatch=path.match(/^\\/api\\/user\\/chats\\/([0-9a-f-]{36})$/i);
+  const chatMatch=path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
   if(path==="/api/user/me" && method==="GET") return json({authenticated:true,user:identity});
   if(path==="/api/user/chats" && method==="GET") {
     const {results=[]}=await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE user_email=? ORDER BY updated_at DESC LIMIT 100").bind(identity.email).all();
