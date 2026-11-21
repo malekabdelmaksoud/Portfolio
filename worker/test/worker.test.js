@@ -28,7 +28,7 @@ test("health endpoint checks D1 and reports the safe assistant mode",async()=>{
 test("assistant returns reviewed fact text verbatim",async()=>{
  const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),environment());
  const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/Python/);assert.deepEqual(data.sources.map(x=>x.id),["skills-001"]);
+ assert.match(data.answer,/Python/);assert.deepEqual(data.sources.map(x=>x.id),["skills-001"]);\n assert.equal(response.headers.get("access-control-allow-origin"),"https://portfolio.test");\n assert.equal(response.headers.get("access-control-allow-credentials"),"true");
 });
 
 
