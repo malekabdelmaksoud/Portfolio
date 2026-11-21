@@ -1,4 +1,4 @@
-"""Train or continue training MelekGPT from scratch on a provenance-checked corpus."""
+"""Train MelekGPT from random initialization on a provenance-checked corpus."""
 import argparse
 import math
 from pathlib import Path
@@ -7,18 +7,19 @@ import torch
 
 from dataset import load_documents, split_documents
 from model import MelekGPT
+from tokenizer import TOKENIZER_TYPE, build_tokenizer, encode
 
 
-def to_tensor(documents: list[str]) -> torch.Tensor:
+def to_tensor(documents: list[str], tokenizer: dict) -> torch.Tensor:
     text = "\n".join(documents) + "\n"
-    return torch.tensor(list(text.encode("utf-8")), dtype=torch.long)
+    return torch.tensor(encode(text, tokenizer), dtype=torch.long)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("checkpoints/melek-ai.pt"))
-    parser.add_argument("--resume", type=Path, help="Continue from a prior MelekGPT checkpoint")
+    parser.add_argument("--resume", type=Path, help="Continue from a prior Unicode-character MelekGPT checkpoint")
     parser.add_argument("--steps", type=int, default=2000, help="Additional optimizer steps for this run")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--context", type=int, default=256)
@@ -41,12 +42,24 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     documents = load_documents(args.data)
     train_documents, val_documents = split_documents(documents, args.seed)
-    train_data = to_tensor(train_documents)
-    val_data = to_tensor(val_documents)
+
+    saved = None
+    if args.resume:
+        saved = torch.load(args.resume, map_location=device, weights_only=True)
+        if saved.get("vocab") != TOKENIZER_TYPE or not saved.get("trained_from_scratch"):
+            raise ValueError("Resume checkpoint is not a verified Unicode-character MelekGPT checkpoint")
+        tokenizer = saved.get("tokenizer")
+        if not isinstance(tokenizer, dict) or tokenizer.get("type") != TOKENIZER_TYPE:
+            raise ValueError("Resume checkpoint has no supported character tokenizer")
+    else:
+        tokenizer = build_tokenizer(train_documents)
+
+    train_data = to_tensor(train_documents, tokenizer)
+    val_data = to_tensor(val_documents, tokenizer)
     if len(train_data) <= args.context + 1 or len(val_data) <= args.context + 1:
         raise ValueError(
-            "Training and validation splits must each contain more than context + 1 UTF-8 bytes. "
-            "Add more distinct, permitted documents or reduce --context."
+            "Training and validation splits must each contain more than context + 1 characters. "
+            "Add more permitted documents or reduce --context."
         )
 
     config = {
@@ -55,16 +68,14 @@ def main():
         "layers": args.layers,
         "context": args.context,
         "dropout": args.dropout,
+        "vocab_size": len(tokenizer["itos"]),
     }
     model = MelekGPT(**config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
     previous_steps = 0
-    if args.resume:
-        saved = torch.load(args.resume, map_location=device, weights_only=True)
-        if saved.get("vocab") != "utf8-byte-v1" or not saved.get("trained_from_scratch"):
-            raise ValueError("Resume checkpoint is not a verified from-scratch MelekGPT checkpoint")
+    if saved:
         if saved.get("config") != config:
-            raise ValueError("Resume checkpoint architecture does not match the requested model configuration")
+            raise ValueError("Resume checkpoint architecture or vocabulary does not match this training run")
         model.load_state_dict(saved["model"])
         if saved.get("optimizer"):
             optimizer.load_state_dict(saved["optimizer"])
@@ -79,9 +90,9 @@ def main():
 
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
     print(
-        f"device={device}; params={parameter_count:,}; documents={len(documents)} "
-        f"(train={len(train_documents)}, validation={len(val_documents)}); "
-        f"train_bytes={len(train_data):,}; validation_bytes={len(val_data):,}"
+        f"device={device}; params={parameter_count:,}; vocab={config['vocab_size']}; "
+        f"documents={len(documents)} (train={len(train_documents)}, validation={len(val_documents)}); "
+        f"train_characters={len(train_data):,}; validation_characters={len(val_data):,}"
     )
     final_validation_loss = None
     for step in range(1, args.steps + 1):
@@ -109,7 +120,8 @@ def main():
         "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "config": config,
-        "vocab": "utf8-byte-v1",
+        "tokenizer": tokenizer,
+        "vocab": TOKENIZER_TYPE,
         "trained_from_scratch": True,
         "training": {
             "steps": args.steps,
@@ -118,6 +130,8 @@ def main():
             "documents": len(documents),
             "train_documents": len(train_documents),
             "validation_documents": len(val_documents),
+            "train_characters": len(train_data),
+            "validation_characters": len(val_data),
             "final_validation_loss": final_validation_loss,
             "final_validation_perplexity": (
                 math.exp(min(final_validation_loss, 50))
