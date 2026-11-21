@@ -75,9 +75,9 @@ jobs:
       - name: Evaluate held-out text and print sample generations
         run: |
           python melek-ai/evaluate.py --data melek-ai/data/train.jsonl --checkpoint melek-ai/checkpoints/melek-ai.pt
-          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "assistant: Bonjour, je suis" --tokens 80
-          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "assistant: Hello, I am" --tokens 80
-          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "assistant: مرحبا" --tokens 80
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: Bonjour, je suis" --tokens 80
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: Hello, I am" --tokens 80
+          python melek-ai/generate.py --checkpoint melek-ai/checkpoints/melek-ai.pt --prompt "Assistant: مرحبا" --tokens 80
       - name: Publish experimental from-scratch checkpoint
         uses: actions/upload-artifact@v4
         with:
