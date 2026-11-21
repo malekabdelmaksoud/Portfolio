@@ -2,7 +2,7 @@ name: Melek AI evidence guard tests
 
 concurrency:
   group: melek-ai-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
