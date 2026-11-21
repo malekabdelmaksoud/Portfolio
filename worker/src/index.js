@@ -119,6 +119,7 @@ async function assistant(request, env) {
   let body;
   try { body=await readBody(request,4000); } catch { return json({error:"Invalid request body."},400); }
   const question=String(body.question||"").trim().slice(0,800);
+  const mode=body.mode==="analyze"?"analyze":"chat";
   const q=terms(question);
   const context=Array.isArray(body.context)?body.context.slice(-4).filter(x=>typeof x==="string").map(x=>x.slice(0,300)).join(" "):"";
   const isFollowUp=/\b(more|details|explain|elaborate|encore|explique|plus)\b|زيد|زيدني|فسرلي|فصلي/i.test(normalize(question));
@@ -142,7 +143,8 @@ async function assistant(request, env) {
   const english=/\b(what|who|where|when|which|tell|show|experience|skills|projects|education|do|does|can|could|is|are|your|about|how|please)\b/i.test(question);
   const field=arabic?"text_ar":english?"text_en":"text_fr";
   const prefix=arabic?"حسب المعلومات المنشورة والمعتمدة في Portfolio:":english?"According to the approved information published in the portfolio:":"D'après les informations approuvées publiées dans le portfolio :";
-  return json({answer:prefix+"\n"+selected.map(f=>f[field]).join("\n"),sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
+  const answer=mode==="analyze" ? prefix+"\n\nAnalyse des informations approuvées :\n"+selected.map((f,i)=>(i+1)+". "+f[field]+"\n   Source : "+f.source_file+" — "+f.source_selector).join("\n\n")+"\n\nCette analyse se limite aux éléments vérifiés disponibles dans le portfolio." : prefix+"\n"+selected.map(f=>f[field]).join("\n");
+  return json({answer,mode,sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
 }
 async function userChatRoute(request,env,path,method,identity) {
   const chatMatch=path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
@@ -157,6 +159,14 @@ async function userChatRoute(request,env,path,method,identity) {
     const id=crypto.randomUUID();
     await env.DB.prepare("INSERT INTO chats(id,user_email,title) VALUES(?,?,?)").bind(id,identity.email,title).run();
     return json({chat:{id,title}},201);
+  }
+  if(chatMatch && method==="PUT") {
+    const body=await readBody(request,2000);
+    const title=String(body.title||"").trim().slice(0,120);
+    if(!title) return json({error:"A conversation title is required."},400);
+    const result=await env.DB.prepare("UPDATE chats SET title=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(title,chatMatch[1],identity.email).run();
+    if(!result.meta.changes) return json({error:"Chat not found."},404);
+    return json({saved:true,id:chatMatch[1],title});
   }
   if(chatMatch && method==="GET") {
     const chat=await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1],identity.email).first();
