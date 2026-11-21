@@ -25,9 +25,10 @@ Re-check the upstream dataset cards before every new download.
 3. **Tunisian Proverbs with Image Associations** —
    https://huggingface.co/datasets/HabibaAbderrahim/Tunisian-Proverbs-with-Image-Associations-A-Cultural-and-Linguistic-Dataset
    - Dataset card declares CC-BY-4.0; 999 proverb entries.
-   - Text fields only: Tunisian proverb, context, and Arabic explanation. Image prompts
-     and image data are excluded.
-   - A conservative blocklist removes a small set of obvious insults/abusive phrases.
+   - Text fields only: Tunisian proverb/context for Derja and the Arabic explanation for
+     formal Arabic. Image prompts and image data are excluded.
+   - Image columns are removed before iteration to avoid downloading image binaries. A
+     conservative blocklist removes a small set of obvious insults/abusive phrases.
      This is not full human moderation; inspect the generated sample before training.
 
 ## Explicit exclusions
