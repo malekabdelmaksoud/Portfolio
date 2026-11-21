@@ -1,0 +1,4 @@
+ACCESS_ISSUER=https://YOUR-TEAM.cloudflareaccess.com
+ACCESS_AUD=YOUR_ACCESS_APPLICATION_AUD
+ADMIN_EMAIL=melekabdelmaksoud72@gmail.com
+ALLOWED_ORIGIN=http://localhost:8787
