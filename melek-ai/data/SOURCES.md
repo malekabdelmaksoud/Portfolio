@@ -28,7 +28,12 @@ The downloader writes a local `data/train.jsonl` file and never commits raw sour
    - A small conservative blocklist filters known abusive phrases; this is not complete human moderation. Review samples before training.
    - Cite Habiba Abderrahim, Hedi Ayadi and Fadoua Ouamani, DOI: 10.57967/hf/5189.
 
-5. **Tunisian Chatbot Instruction Data** — https://huggingface.co/datasets/abdouuu/tunisian_chatbot_data
+5. **FineWeb2 Tunisian Arabic (LINAGORA)** — https://huggingface.co/datasets/linagora/fineweb2_Tunisian_Arabic
+   - Dataset card declares Open Data Commons Attribution (ODC-By) 1.0 and identifies 265,217 Tunisian Arabic (`aeb`) rows.
+   - The downloader uses only text rows with `language_score >= 0.85`, requires an HTTPS source URL, keeps the source URL, record ID and date, and filters obvious email/phone patterns.
+   - The corpus originates from Common Crawl; Common Crawl terms and ODC-By attribution obligations must be retained. Quality filtering is automatic and does not guarantee absence of personal or harmful content.
+
+6. **Tunisian Chatbot Instruction Data** — https://huggingface.co/datasets/abdouuu/tunisian_chatbot_data
    - A small Tunisian Derja instruction/response dataset listed in public Tunisian NLP resource collections.
    - Its license and source provenance must be verified from the live dataset card before use. It is therefore **not included in the automatic training downloader** until that verification is available.
 
