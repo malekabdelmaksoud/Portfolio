@@ -37,11 +37,14 @@ function parseFeed(xml, feed) {
     let url;
     try {
       url = new URL(decodeEntities(href));
-      if (url.protocol !== "https:" || !ALLOWED_ARTICLE_HOSTS.has(url.hostname)) continue;
+      const feedHosts = feed.host === "export.arxiv.org" ? new Set(["arxiv.org", "export.arxiv.org"]) : new Set([feed.host]);
+      if (url.protocol !== "https:" || !ALLOWED_ARTICLE_HOSTS.has(url.hostname) || !feedHosts.has(url.hostname)) continue;
       url.hash = "";
     } catch { continue; }
     const summary = plainText(tagValue(block, "summary") || tagValue(block, "description") || tagValue(block, "content"), 3200);
     if (!title || !summary || summary.length < 60) continue;
+    // Drop obvious instruction-injection payloads before they can enter retrieval context.
+    if (/ignore (all |any )?(previous|prior) instructions|reveal (the )?(system prompt|secrets)|send (the )?(conversation|data) to|you are now (the )?(system|assistant)|bypass (all )?(safety|security)/i.test(summary)) continue;
     const publishedRaw = plainText(tagValue(block, "published") || tagValue(block, "updated") || tagValue(block, "pubDate"), 80);
     const publishedDate = publishedRaw ? new Date(publishedRaw) : null;
     const published = publishedDate && Number.isFinite(publishedDate.getTime()) ? publishedDate.toISOString() : null;
@@ -60,7 +63,8 @@ export async function refreshWebKnowledge(env, fetcher = fetch) {
     try {
       const response = await fetcher(feed.url, {
         headers: { "accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "user-agent": "MelekGPT-WebKnowledge/1.0 (+portfolio)" },
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(12000),
+        redirect: "manual"
       });
       if (!response.ok) throw new Error("HTTP " + response.status);
       const xml = await response.text();
