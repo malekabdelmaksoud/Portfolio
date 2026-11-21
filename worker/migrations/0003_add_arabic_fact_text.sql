@@ -1,0 +1,25 @@
+-- Add approved Arabic-language response text to each draft fact.
+ALTER TABLE facts ADD COLUMN text_ar TEXT NOT NULL DEFAULT '';
+UPDATE facts SET text_ar='ملاك عبد المقصود طالبة في السنة الأخيرة من الإجازة في تكنولوجيا المعلومات بالمعهد العالي للدراسات التكنولوجية بسيدي بوزيد، اختصاص تطوير الويب والوسائط المتعددة.' WHERE id='profile-001';
+UPDATE facts SET text_ar='يعرض ملف الأعمال اهتمامًا بتطبيقات الويب والاستخدامات العملية للذكاء الاصطناعي وجودة البرمجيات.' WHERE id='profile-002';
+UPDATE facts SET text_ar='الموقع المذكور في ملف الأعمال هو صفاقس، تونس.' WHERE id='location-001';
+UPDATE facts SET text_ar='إجازة في تكنولوجيا المعلومات — المعهد العالي للدراسات التكنولوجية بسيدي بوزيد (2024–الآن).' WHERE id='education-001';
+UPDATE facts SET text_ar='بكالوريا في العلوم التجريبية — معهد الطيب المهيري، صفاقس (2023–2024).' WHERE id='education-002';
+UPDATE facts SET text_ar='لغات البرمجة المذكورة: C و C# و Java و Python و JavaScript و PHP.' WHERE id='skills-001';
+UPDATE facts SET text_ar='تقنيات الويب المذكورة: HTML و CSS و Angular.' WHERE id='skills-002';
+UPDATE facts SET text_ar='الأطر والأدوات المذكورة: Laravel و Symfony و Spring Boot و .NET و Android Studio.' WHERE id='skills-003';
+UPDATE facts SET text_ar='الأنظمة والشبكات: صيانة الحواسيب، تمديد كابلات الشبكات، واستخدام OCS Inventory.' WHERE id='skills-004';
+UPDATE facts SET text_ar='تربص في الإعلامية بمستشفى الهادي شاكر في صفاقس: المساهمة في إعداد تطبيق للرعاية، والتعرّف على الملف الطبي الإلكتروني، واستخدام OCS Inventory لجرد المعدات المعلوماتية.' WHERE id='experience-001';
+UPDATE facts SET text_ar='تربص في تطوير الويب لدى Advanced Computer Solutions (ACS) في جانفي 2026.' WHERE id='experience-002';
+UPDATE facts SET text_ar='تربص في الشبكات لدى Netsys Com Support من جوان إلى جويلية 2025.' WHERE id='experience-003';
+UPDATE facts SET text_ar='تربص في صيانة الحواسيب لدى CISEN من جانفي إلى فيفري 2025.' WHERE id='experience-004';
+UPDATE facts SET text_ar='منصة التعلّم الإلكتروني: منصة مطوّرة بلغة Java لإدارة الدروس والتسجيلات ومتابعة تقدّم المتعلّمين.' WHERE id='project-001';
+UPDATE facts SET text_ar='مشروع PHP: تطبيق ويب باستخدام PHP و CSS للتدرّب على تطوير الويب من جهة الخادم.' WHERE id='project-002';
+UPDATE facts SET text_ar='تطبيق Laravel: تطبيق ويب متكامل يطبّق معمارية MVC وعمليات ترحيل قاعدة البيانات والمصادقة.' WHERE id='project-003';
+UPDATE facts SET text_ar='إدارة متجر: تطبيق Java لجرد المنتجات وإدارة المخزون وعمليات البيع.' WHERE id='project-004';
+UPDATE facts SET text_ar='Opportunity Hunter: خادم MCP يعمل على Cloudflare Workers للبحث عن عروض التربص ومشاريع ختم الدراسة والتدريب بالتناوب ووظائف المبتدئين المنشورة للعموم.' WHERE id='project-005';
+UPDATE facts SET text_ar='اللغات المذكورة: العربية (اللغة الأم)، الفرنسية (متوسط)، الإنجليزية (متوسط)، والإسبانية (مبتدئ).' WHERE id='language-001';
+UPDATE facts SET text_ar='يوفّر ملف الأعمال وسائل التواصل عبر البريد الإلكتروني وLinkedIn وGitHub.' WHERE id='contact-001';
+UPDATE facts SET text_ar='أعمال تطبيقية في البرمجة كائنية التوجّه: تمارين Java تطبّق مفاهيم الوراثة وتعدّد الأشكال والتغليف.' WHERE id='project-006';
+UPDATE facts SET text_ar='مشروع Symfony: تطبيق ويب يستكشف التوجيه ومتحكّمات Twig وإدارة قواعد البيانات باستخدام Doctrine.' WHERE id='project-007';
+UPDATE facts SET text_ar='أول تطبيق C#: مشروع تمهيدي للتعرّف على C# وبيئة .NET وإنشاء الواجهات.' WHERE id='project-008';
