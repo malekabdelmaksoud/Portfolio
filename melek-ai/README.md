@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ## Prepare data
 
-Create `data/train.jsonl` (one JSON object per line):
+Create `data/train.jsonl` (one JSON object per line). Each row must include non-empty `text` and `source`, plus a `license` value of `owned`, `permitted`, or `public-domain`:
 
 ```json
 {"text":"Example training text written by the project owner.","source":"owner-authored","license":"owned"}
@@ -57,7 +57,7 @@ python train.py --data data/train.jsonl --out checkpoints/melek-ai.pt --steps 20
 python generate.py --checkpoint checkpoints/melek-ai.pt --prompt "Bonjour, je suis"
 ```
 
-Start with defaults for a smoke test. Increase training steps only after validating dataset quality and monitoring loss. Generated text is experimental and must not be treated as verified portfolio facts.
+Start with defaults only after preparing enough distinct documents. The trainer deduplicates identical text and creates a deterministic document-level train/validation split; it refuses to reuse training text as validation data. Both splits must contain more than `context + 1` UTF-8 bytes, so reduce `--context` or add more permitted documents if it stops early. Increase training steps only after validating dataset quality and monitoring both losses. Generated text is experimental and must not be treated as verified portfolio facts.
 
 ## Anti-hallucination policy for the deployed portfolio
 
