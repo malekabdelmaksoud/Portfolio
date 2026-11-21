@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#14211e">
+  <title>Administration — Portfolio</title>
+  <link rel="stylesheet" href="admin.css">
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a href="/" class="brand">MA<span>.</span><small>ADMIN</small></a><div class="identity"><span class="dot"></span><span id="identity">Vérification de la session…</span><a href="/" class="back">Voir le portfolio ↗</a></div></header>
+  <main class="shell">
+    <section class="intro"><p class="eyebrow">ESPACE PRIVÉ · CLOUDFLARE ACCESS</p><h1>Content studio</h1><p>Gérez les informations publiques et les projets du portfolio. Une information n'est publiée qu'après validation explicite.</p></section>
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button></nav>
+    <section id="factsPanel" class="panel">
+      <div class="panel-head"><div><p class="eyebrow">ASSISTANT PORTFOLIO</p><h2>Informations approuvées</h2><p>Les faits approuvés peuvent être utilisés par l'assistant. Les autres restent privés.</p></div><button id="newFact" class="primary">＋ Nouvelle information</button></div>
+      <form id="factForm" class="editor" hidden>
+        <div class="form-head"><h3 id="factFormTitle">Nouvelle information</h3><button type="button" class="ghost" data-cancel="fact">Fermer</button></div>
+        <div class="fields two">
+          <label>ID unique<input name="id" required pattern="[a-zA-Z0-9_-]{2,80}" placeholder="fact-001"></label>
+          <label>Catégorie<select name="category"><option value="profile">Profil</option><option value="education">Formation</option><option value="skills">Compétences</option><option value="experience">Expérience</option><option value="project">Projet</option><option value="languages">Langues</option><option value="contact">Contact</option></select></label>
+        </div>
+        <div class="fields two"><label>Texte français<textarea name="text_fr" rows="3" required maxlength="3000"></textarea></label><label>English text<textarea name="text_en" rows="3" required maxlength="3000"></textarea></label></div>
+        <label>Alias de recherche (séparés par des virgules)<input name="aliases" placeholder="stage, internship, تربص"></label>
+        <div class="fields two"><label>Fichier source<input name="source_file" value="index.html" required></label><label>Sélecteur / provenance<input name="source_selector" required placeholder="#apropos .about-copy"></label></div>
+        <label>Lien public HTTPS (facultatif)<input name="url" type="url" placeholder="https://github.com/..."></label>
+        <label class="check"><input name="approved" type="checkbox"> Approuver et rendre cette information disponible à l'assistant</label>
+        <div class="form-actions"><button type="button" class="ghost" data-cancel="fact">Annuler</button><button class="primary" type="submit">Enregistrer</button></div>
+      </form>
+      <div id="factsList" class="records" aria-live="polite"><p class="muted">Chargement…</p></div>
+    </section>
+    <section id="projectsPanel" class="panel" hidden>
+      <div class="panel-head"><div><p class="eyebrow">PORTFOLIO PUBLIC</p><h2>Projets</h2><p>Les projets visibles apparaissent dans la grille publique du portfolio.</p></div><button id="newProject" class="primary">＋ Nouveau projet</button></div>
+      <form id="projectForm" class="editor" hidden>
+        <div class="form-head"><h3 id="projectFormTitle">Nouveau projet</h3><button type="button" class="ghost" data-cancel="project">Fermer</button></div>
+        <div class="fields two"><label>ID unique<input name="id" required pattern="[a-zA-Z0-9_-]{2,80}" placeholder="project-006"></label><label>Nom du projet<input name="title" required maxlength="200"></label></div>
+        <label>Technologies / catégorie<input name="type" required maxlength="200" placeholder="JAVA · WEB"></label>
+        <div class="fields two"><label>Description française<textarea name="description_fr" rows="3" required maxlength="2000"></textarea></label><label>English description<textarea name="description_en" rows="3" required maxlength="2000"></textarea></label></div>
+        <div class="fields two"><label>Lien du projet (HTTPS)<input name="url" type="url" required></label><label>Ordre d'affichage<input name="sort_order" type="number" min="0" max="10000" value="10" required></label></div>
+        <label class="check"><input name="visible" type="checkbox"> Publier ce projet sur le portfolio</label>
+        <div class="form-actions"><button type="button" class="ghost" data-cancel="project">Annuler</button><button class="primary" type="submit">Enregistrer</button></div>
+      </form>
+      <div id="projectsList" class="records" aria-live="polite"><p class="muted">Chargement…</p></div>
+    </section>
+    <footer>Les modifications sont enregistrées dans Cloudflare D1. L'accès administrateur est contrôlé côté serveur via Cloudflare Access.</footer>
+  </main>
+</body>
+</html>
