@@ -5,6 +5,13 @@ concurrency:
   cancel-in-progress: false
 
 on:
+  workflow_dispatch:
+    inputs:
+      train_checkpoint:
+        description: Train and evaluate a fresh experimental MelekGPT checkpoint
+        type: boolean
+        required: true
+        default: true
   push:
     branches: [main]
     paths:
@@ -32,6 +39,7 @@ jobs:
 
 
   public-corpus-sample:
+    if: github.event_name == 'workflow_dispatch' && inputs.train_checkpoint
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
