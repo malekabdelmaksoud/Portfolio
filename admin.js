@@ -33,6 +33,7 @@ function renderLearning(){
  const latest=(data.runs||[])[0];
  stats.append(node("div","learning-stat",latest?"Dernière actualisation : "+new Date(latest.finished_at+"Z").toLocaleString():"Aucune actualisation exécutée"));
  stats.append(node("div","learning-stat",latest?latest.saved+" entrées enregistrées · "+latest.fetched+" trouvées":"Planification quotidienne à 03:00 UTC"));
+ stats.append(node("div","learning-stat",data.liveSearchEnabled?"Recherche web en direct : activée":"Recherche web en direct : non configurée"));
  summary.append(stats);
  if(!data.items?.length){root.append(node("p","muted","Aucune source indexée pour le moment. Lancez une actualisation."));return;}
  for(const item of data.items){
