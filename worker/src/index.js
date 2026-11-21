@@ -26,7 +26,7 @@ function allowedOrigin(request, env) {
 function corsHeaders(request, env) {
   const origin=request.headers.get("Origin");
   const allowed=(env.ALLOWED_ORIGIN || new URL(request.url).origin).replace(/\/$/,"");
-  return origin===allowed ? {"access-control-allow-origin":origin,"vary":"Origin","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,CF-Access-Jwt-Assertion"} : {};
+  return origin===allowed ? {"access-control-allow-origin":origin,"vary":"Origin","access-control-allow-methods":"GET,POST,PUT,DELETE,OPTIONS","access-control-allow-headers":"Content-Type,CF-Access-Jwt-Assertion","access-control-allow-credentials":"true"} : {};
 }
 function withCors(response, cors) { const headers=new Headers(response.headers); for(const [k,v] of Object.entries(cors)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 async function readBody(request, max=16000) {
