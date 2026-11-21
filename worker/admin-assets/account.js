@@ -116,8 +116,8 @@
   async function load(){
     try{
       const me=await api("/api/user/me");$("identity").textContent=me.user.email;
-      $("status").textContent="Compte vérifié · historique privé · auto-learning web activé";
-      try{const learning=await api("/api/learning/status");$("status").textContent="Compte vérifié · auto-learning web actif · "+learning.sourceCount+" sources indexées";}catch(_){}
+      $("status").textContent="Compte vérifié · historique privé · nettoyage des plus anciennes si stockage saturé";
+      try{const learning=await api("/api/learning/status");$("status").textContent="Compte vérifié · historique privé · nettoyage auto · "+learning.sourceCount+" sources indexées";}catch(_){}
       await loadModels();await refreshChats();if(chats.length)await openChat(chats[0].id);
     }
     catch(e){$("identity").textContent="Connexion requise";$("status").textContent=e.message;toast(e.message);}
