@@ -143,9 +143,10 @@ async function verifyAdmin(request, env) {
 }
 async function assistant(request, env) {
   let body;
-  try { body=await readBody(request,10000); } catch { return json({error:"Invalid request body."},400); }
+  try { body=await readBody(request,24000); } catch { return json({error:"Invalid request body."},400); }
   const question=String(body.question||"").trim().slice(0,1200);
-  if(!question) return json({error:"A question is required."},400);
+  const attachmentText=String(body.attachmentText||"").slice(0,10000);
+  if(!question&&!attachmentText) return json({error:"A question or readable attachment is required."},400);
   if(!env.AI || typeof env.AI.run!=="function") return json({error:"The AI model service is not configured yet."},503);
   const models=getAiModels(env);
   const defaultModel=models.find(x=>x.id===env.AI_DEFAULT_MODEL)?.id || models[0].id;
@@ -163,7 +164,7 @@ async function assistant(request, env) {
   for(const row of ranked){if(!selected.some(f=>f.id===row.fact.id))selected.push(row.fact);if(selected.length>=6)break;}
   const history=Array.isArray(body.history)?body.history.slice(-8).filter(x=>x&&["user","assistant"].includes(x.role)&&typeof x.content==="string")
     .map(x=>({role:x.role,content:x.content.slice(0,1800)})):[];
-  const portfolioIntent=isPortfolioQuestion(question);
+  const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
   const evidence=selected.map((f,i)=>[
     (i+1)+". ["+f.category+"]","Arabic: "+(f.text_ar||""),"French: "+(f.text_fr||""),"English: "+(f.text_en||""),
     "Source: "+f.source_file+" — "+f.source_selector
