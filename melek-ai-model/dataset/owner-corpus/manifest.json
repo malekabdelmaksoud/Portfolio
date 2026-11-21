@@ -1,0 +1,12 @@
+{
+  "schema": "melek-ai-dataset-v1",
+  "seed": 42,
+  "source": "melek-ai/knowledge_base.json",
+  "license": "owned",
+  "license_basis": "Public portfolio statements extracted from repository-owned portfolio content.",
+  "cleaning": "NFKC normalization, newline normalization, whitespace collapse, exact normalized deduplication.",
+  "train_rows": 58,
+  "validation_rows": 11,
+  "train_sha256": "408825c1fcda2db371ee12b028612e9690352e986a6f110f6e93b1e1c5a98231",
+  "validation_sha256": "8f432cd2d903af2691c8e181dc317fc17380b257e09ecd7003dcc3001ce114ae"
+}

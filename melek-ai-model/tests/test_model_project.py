@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT))
 from dataset.dataset import load_jsonl, validate_row
 from model_config.validate_config import load_config, validate_config
 from tokenizer.byte_utf8 import decode, encode
+from dataset.prepare import clean_text
 
 
 class ConfigTests(unittest.TestCase):
@@ -44,6 +45,15 @@ class DatasetTests(unittest.TestCase):
     def test_unlicensed_row_is_rejected(self):
         with self.assertRaises(ValueError):
             validate_row({"text": "x", "source": "unknown", "license": "unknown"}, 1)
+
+    def test_clean_text_normalizes_whitespace(self):
+        self.assertEqual(clean_text("  Bonjour\r\n\r\n  monde  "), "Bonjour\n\nmonde")
+
+    def test_owner_corpus_split_exists_and_is_owned(self):
+        manifest = json.loads((ROOT / "dataset/owner-corpus/manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["train_rows"], 58)
+        self.assertEqual(manifest["validation_rows"], 11)
+        self.assertEqual(manifest["license"], "owned")
 
 
 class ParameterCountTests(unittest.TestCase):

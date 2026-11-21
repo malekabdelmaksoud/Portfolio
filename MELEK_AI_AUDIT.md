@@ -98,3 +98,7 @@ No checkpoint was trained in this execution. The architecture and parameter coun
 
 The independent project uses original decoder-only Transformer code, UTF-8 byte tokens, JSONL dataset validation, random initialization, checkpoint metadata, generation and evaluation scripts. PyTorch training could not be executed in this environment because installing the runtime exceeded the available disk in the attempted test virtual environment.
 
+## Training preparation — 2026-11-21
+
+The owner-controlled portfolio corpus was cleaned and deterministically split: 58 train and 11 held-out validation rows. A 25-step smoke configuration was added. The environment has no NVIDIA/CUDA tools or PyTorch; a CPU PyTorch installation attempt failed due to unavailable DNS/network access. Therefore no checkpoint or measured loss was created. Windows RTX 2050 setup commands are documented in `melek-ai-model/README.md`.
+

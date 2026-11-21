@@ -14,6 +14,10 @@ def validate_row(row: object, line_number: int) -> dict:
         raise ValueError(f"line {line_number}: text must be a non-empty string")
     if not isinstance(source, str) or not source.strip():
         raise ValueError(f"line {line_number}: source is required")
+    allowed_keys = {"text", "source", "license", "language"}
+    unsupported = set(row) - allowed_keys
+    if unsupported:
+        raise ValueError(f"line {line_number}: unsupported fields: {', '.join(sorted(unsupported))}")
     if license_name not in ALLOWED_LICENSES:
         raise ValueError(f"line {line_number}: license must be owned, permitted or public-domain")
     return {"text": text, "source": source, "license": license_name}

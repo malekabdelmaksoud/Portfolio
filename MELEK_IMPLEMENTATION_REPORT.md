@@ -32,6 +32,18 @@ The migration is additive and does not rewrite or delete existing facts, project
 
 No model was trained from scratch. The model project is implemented as a configurable 192-width, 4-head, 4-layer decoder-only Transformer, but there is no trained checkpoint.
 
+## First training experiment
+
+- Dataset source: `melek-ai/knowledge_base.json`, repository-owned public portfolio facts.
+- License basis: owner-controlled public portfolio content; no third-party downloaded corpus.
+- Prepared corpus: 58 training rows and 11 validation rows.
+- Split: deterministic seed 42, 15% validation, NFKC/whitespace normalization and exact deduplicated text.
+- Train SHA-256: `408825c1fcda2db371ee12b028612e9690352e986a6f110f6e93b1e1c5a98231`
+- Validation SHA-256: `8f432cd2d903af2691c8e181dc317fc17380b257e09ecd7003dcc3001ce114ae`
+- Smoke setup: 25 steps, context 128, batch 1.
+- Hardware: NOT AVAILABLE locally; no `nvidia-smi`, no CUDA runtime, no PyTorch.
+- Result: NOT TRAINED. No checkpoint, loss, duration or perplexity exists.
+
 The Worker calls only `MELEK_AI_SERVICE_URL`. It rejects responses unless `trained_from_scratch` is explicitly true and performs no third-party fallback.
 
 Actual untrained architecture parameter count: `1,875,840` with tied input/output embeddings. This is a configuration count, not a trained model claim.
@@ -56,7 +68,7 @@ Portfolio integration: Implemented as an independent HTTP adapter, but it curren
 
 Passed:
 
-- Independent model project tests: 8/8
+- Independent model project tests: 10/10
 - Worker tests: 15/15
 - D1 migration tests: 6/6
 - Playwright portfolio tests: 14/14
@@ -119,3 +131,4 @@ NOT TESTED:
 - `abe3256` — `feat: implement native OTP and Workers AI workspace`
 - `0002746` — implementation report
 - `a683ffe` — `feat: add independent Melek AI model project`
+- Training preparation commit to follow
