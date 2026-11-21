@@ -42,7 +42,7 @@ function validateFact(x) {
   if(!x || typeof x!=="object") return "A fact object is required.";
   if(!safeId(x.id)) return "ID must contain 2–80 letters, numbers, underscores or hyphens.";
   if(!["profile","contact","education","skills","experience","project","languages"].includes(x.category)) return "Unsupported fact category.";
-  for(const k of ["text_fr","text_en"]) if(typeof x[k]!=="string" || !x[k].trim() || x[k].length>3000) return k+" is required (max 3000 characters).";
+  for(const k of ["text_fr","text_en","text_ar"]) if(typeof x[k]!=="string" || !x[k].trim() || x[k].length>3000) return k+" is required (max 3000 characters).";
   if(!Array.isArray(x.aliases) || x.aliases.length>40 || x.aliases.some(a=>typeof a!=="string" || a.length>100)) return "Aliases must be up to 40 short strings.";
   if(!x.source || typeof x.source.file!=="string" || typeof x.source.selector!=="string") return "A source file and selector are required.";
   if(x.url && (!/^https:\/\//i.test(x.url) || x.url.length>500)) return "Links must be HTTPS URLs.";
@@ -97,10 +97,10 @@ async function assistant(request, env) {
   const isFollowUp=/\b(more|details|explain|elaborate|encore|explique|plus)\b|زيد|زيدني|فسرلي|فصلي/i.test(normalize(question));
   const searchTerms=isFollowUp && context ? terms(context+" "+question) : q;
   if(!searchTerms.size) return json({answer:/[\u0600-\u06ff]/.test(question)?"اسأل سؤال واضح ومحدد.":"Please ask a specific question.",sources:[]});
-  const {results=[]}=await env.DB.prepare("SELECT id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
+  const {results=[]}=await env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
   if(!results.length) return json({answer:abstentionFor(question),sources:[]});
   const ranked=results.map(f=>{
-    const hay=terms([f.text_fr,f.text_en,...parseJson(f.aliases_json,[])].join(" "));
+    const hay=terms([f.text_fr,f.text_en,f.text_ar,...parseJson(f.aliases_json,[])].join(" "));
     const matched=[...searchTerms].filter(t=>hay.has(t));
     return {fact:f,coverage:matched.length/searchTerms.size};
   }).filter(x=>x.coverage>=0.5).sort((a,b)=>b.coverage-a.coverage);
@@ -113,7 +113,7 @@ async function assistant(request, env) {
   }
   const arabic=/[\u0600-\u06ff]/.test(question);
   const english=/\b(what|who|where|when|which|tell|show|experience|skills|projects|education)\b/i.test(question);
-  const field=english?"text_en":"text_fr";
+  const field=arabic?"text_ar":english?"text_en":"text_fr";
   const prefix=arabic?"حسب المعلومات المنشورة والمعتمدة في Portfolio:":english?"According to the approved information published in the portfolio:":"D'après les informations approuvées publiées dans le portfolio :";
   return json({answer:prefix+"\n"+selected.map(f=>f[field]).join("\n"),sources:selected.map(f=>({id:f.id,category:f.category,source:f.source_file}))});
 }
@@ -126,16 +126,16 @@ async function adminRoute(request, env, path, method) {
   }
   if(path==="/api/admin/facts" && method==="POST") {
     const x=await readBody(request); const error=validateFact(x); if(error)return json({error},400);
-    await env.DB.prepare("INSERT INTO facts(id,category,text_fr,text_en,aliases_json,source_file,source_selector,public_url,approved,updated_at) VALUES(?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)")
-      .bind(x.id,x.category,x.text_fr.trim(),x.text_en.trim(),JSON.stringify(x.aliases),x.source.file,x.source.selector,x.url||null,x.approved?1:0).run();
+    await env.DB.prepare("INSERT INTO facts(id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url,approved,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)")
+      .bind(x.id,x.category,x.text_fr.trim(),x.text_en.trim(),x.text_ar.trim(),JSON.stringify(x.aliases),x.source.file,x.source.selector,x.url||null,x.approved?1:0).run();
     return json({saved:true,id:x.id},201);
   }
   const factMatch=path.match(/^\/api\/admin\/facts\/([a-z0-9_-]+)$/i);
   if(factMatch && !safeId(factMatch[1])) return json({error:"Invalid ID."},400);
   if(factMatch && method==="PUT") {
     const x=await readBody(request); x.id=factMatch[1]; const error=validateFact(x); if(error)return json({error},400);
-    const result=await env.DB.prepare("UPDATE facts SET category=?,text_fr=?,text_en=?,aliases_json=?,source_file=?,source_selector=?,public_url=?,approved=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
-      .bind(x.category,x.text_fr.trim(),x.text_en.trim(),JSON.stringify(x.aliases),x.source.file,x.source.selector,x.url||null,x.approved?1:0,x.id).run();
+    const result=await env.DB.prepare("UPDATE facts SET category=?,text_fr=?,text_en=?,text_ar=?,aliases_json=?,source_file=?,source_selector=?,public_url=?,approved=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .bind(x.category,x.text_fr.trim(),x.text_en.trim(),x.text_ar.trim(),JSON.stringify(x.aliases),x.source.file,x.source.selector,x.url||null,x.approved?1:0,x.id).run();
     if(!result.meta.changes)return json({error:"Fact not found."},404);
     return json({saved:true,id:x.id});
   }
