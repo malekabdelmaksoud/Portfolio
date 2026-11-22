@@ -141,3 +141,5 @@ html,body{overflow:hidden}.app-shell,.main-panel{height:100dvh;height:100svh;min
 .auth-copy{font-size:12px;margin-bottom:12px}.auth-tabs{margin:8px 0}
 .auth-card input{height:40px}.otp-details,.password-reset{margin-top:8px;padding-top:7px}
 }
+
+.forgot-password-link{display:inline-block;margin-top:14px;color:#9dbbf1;font-size:12px;text-decoration:none}.forgot-password-link:hover{text-decoration:underline}.auth-hint{color:#8994a5;font-size:11px;line-height:1.5;margin:10px 0 0;text-align:left}
