@@ -11,7 +11,7 @@ function environment() {
     {id:"project-001",category:"project",text_fr:"Projet Laravel publié sur le portfolio.",text_en:"Laravel project published in the portfolio.",text_ar:"مشروع Laravel منشور في ملف الأعمال.",aliases_json:'["project","projets","مشاريع","المشاريع"]',source_file:"index.html",source_selector:"#projets .project-card",public_url:"https://github.com/example/project",approved:1},
     {id:"private-001",category:"profile",text_fr:"Secret private draft.",text_en:"Secret private draft.",text_ar:"مسودة خاصة سرية.",aliases_json:'["secret"]',source_file:"draft.md",source_selector:"#private",public_url:null,approved:0}
   ];
-  const projects=[{id:"project-001",title:"Demo",type:"WEB",description_fr:"Projet public",description_en:"Public project",url:"https://github.com/example/demo",sort_order:1,visible:1},{id:"hidden-001",title:"Hidden",type:"WEB",description_fr:"Brouillon",description_en:"Draft",url:"https://github.com/example/hidden",sort_order:2,visible:0}];
+  const projects=[{id:"project-001",title:"Laravel",type:"WEB",description_fr:"Projet Laravel publié sur le portfolio.",description_en:"Laravel project published in the portfolio.",url:"https://github.com/example/project",sort_order:1,visible:1},{id:"hidden-001",title:"Hidden",type:"WEB",description_fr:"Brouillon",description_en:"Draft",url:"https://github.com/example/hidden",sort_order:2,visible:0}];
   const users=[{id:"u-001",email:"visitor@example.test",display_name:"Visitor"}];
   const chats=[{id:"c-001",user_email:"visitor@example.test",title:"Chat 1",created_at:"2026-11-20",updated_at:"2026-11-20"}];
   const chatMessages=[{id:"m-001",chat_id:"c-001",user_email:"visitor@example.test",role:"user",content:"Hello",created_at:"2026-11-20"}];
