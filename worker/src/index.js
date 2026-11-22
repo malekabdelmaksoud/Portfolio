@@ -1351,7 +1351,7 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
       model: activeModel,
       requested_model: requestedModel,
       sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file })),
-      grounded_by_portfolio: selected.length > 0
+      grounded_by_portfolio: selected.length > 0 || Boolean(publishedPortfolioContext)
     });
   } catch (error) {
     return json({
