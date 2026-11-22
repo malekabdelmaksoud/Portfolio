@@ -1,6 +1,6 @@
 -- Add approved Arabic-language response text to each draft fact.
 ALTER TABLE facts ADD COLUMN text_ar TEXT NOT NULL DEFAULT '';
-UPDATE facts SET text_ar='ملاك عبد المقصود طالبة في السنة الأخيرة من الإجازة في تكنولوجيا المعلومات بالمعهد العالي للدراسات التكنولوجية بسيدي بوزيد، اختصاص تطوير الويب والوسائط المتعددة.' WHERE id='profile-001';
+UPDATE facts SET text_ar='مالك عبد المقصود طالب في السنة الأخيرة من الإجازة في تكنولوجيا المعلومات بالمعهد العالي للدراسات التكنولوجية بسيدي بوزيد، اختصاص تطوير الويب والوسائط المتعددة.' WHERE id='profile-001';
 UPDATE facts SET text_ar='يعرض ملف الأعمال اهتمامًا بتطبيقات الويب والاستخدامات العملية للذكاء الاصطناعي وجودة البرمجيات.' WHERE id='profile-002';
 UPDATE facts SET text_ar='الموقع المذكور في ملف الأعمال هو صفاقس، تونس.' WHERE id='location-001';
 UPDATE facts SET text_ar='إجازة في تكنولوجيا المعلومات — المعهد العالي للدراسات التكنولوجية بسيدي بوزيد (2024–الآن).' WHERE id='education-001';

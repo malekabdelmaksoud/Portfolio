@@ -897,7 +897,7 @@ const STOP = new Set(
   "le la les un une des du de et ou est sont qui quoi comment pourquoi quand ou dans sur pour avec mon ma mes ton ta tes moi je il elle au aux en par d cette ces " +
   "quel quelle quels quelles ce cet cette ces presente presentes presentee presentees affiche affiches affichee affichees montrez montre donne donnez " +
   "portfolio information informations detail details " +
-  "شنو شنوّة شنوة شنية شنوما شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو متاع متاعها متاعو متاعك ملاك ماليك زيد زيدني فسرلي فصلي more details explain elaborate encore details explique plus")
+  "شنو شنوّة شنوة شنية شنوما شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو متاع متاعها متاعو متاعك ملاك مالك ماليك زيد زيدني فسرلي فصلي more details explain elaborate encore details explique plus")
   .split(/\s+/)
 );
 
@@ -912,7 +912,7 @@ function terms(value) {
 }
 
 function abstentionFor(question) {
-  if (/[\u0600-\u06ff]/.test(question)) return "المعلومة هاذي موش موجودة في المعلومات المنشورة والمعتمدة في Portfolio. تنجم تتصل بملاك للتأكد.";
+  if (/[\u0600-\u06ff]/.test(question)) return "المعلومة هاذي موش موجودة في المعلومات المنشورة والمعتمدة في Portfolio. تنجم تتصل بمالك للتأكد.";
   if (/\b(quel|quelle|quels|quelles|est|sont|dans|avec|pour|qui|comment)\b/i.test(question)) return "Cette information n'est pas disponible dans le contenu public approuvé du portfolio. Contactez Melek pour confirmation.";
   return "This detail is not present in the approved public portfolio information. Please contact Melek for confirmation.";
 }
@@ -1025,10 +1025,10 @@ async function assistant(request, env) {
 
   if (isGreeting(question)) {
     const greetingAnswer = /[\u0600-\u06ff]/.test(question)
-      ? "عسلامة ومرحباً بيك! أنا المساعد الذكي لملاك عبد المقصود. نجم نعاونك ونعطيك معلومات على قرايتها في ISET سيدي بوزيد، مهاراتها في تطوير الويب والبرمجيات (Java, Python, PHP, Laravel, Angular, C#)، ومشاريعها وتربصاتها. كيفاش نجم نعاونك اليوم؟"
+      ? "عسلامة ومرحباً بيك! أنا المساعد الذكي لمالك عبد المقصود. نجم نعاونك ونعطيك معلومات على قرايتو في ISET سيدي بوزيد، مهاراتو في تطوير الويب والبرمجيات (Java, Python, PHP, Laravel, Angular, C#)، ومشاريعو وتربصاتو. كيفاش نجم نعاونك اليوم؟"
       : /\b(bonjour|salut|coucou|bonsoir)\b/i.test(question) || !/\b(hello|hi|hey)\b/i.test(question)
         ? "Bonjour ! Je suis l'assistant virtuel de Melek Abdelmaksoud. Je peux vous renseigner sur son parcours à l'ISET de Sidi Bouzid, ses compétences techniques (Java, Python, PHP, Laravel, Angular, C#), ses projets et ses coordonnées. Comment puis-je vous aider ?"
-        : "Hello! I am Melek Abdelmaksoud's portfolio assistant. I can tell you about her education at ISET Sidi Bouzid, technical skills (Java, Python, PHP, Laravel, Angular, C#), portfolio projects, and contact info. How can I assist you today?";
+        : "Hello! I am Melek Abdelmaksoud's portfolio assistant. I can tell you about his education at ISET Sidi Bouzid, technical skills (Java, Python, PHP, Laravel, Angular, C#), portfolio projects, and contact info. How can I assist you today?";
     return json({ answer: greetingAnswer, mode, model: "approved-facts-only", requested_model: requestedModel, sources: [] });
   }
 
