@@ -179,7 +179,7 @@ async function runTest() {
     // English question in Chat mode
     const chatRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Do you know Python and what are your main skills?", mode: "chat" })
     });
     assert.equal(chatRes.status, 200);
@@ -191,7 +191,7 @@ async function runTest() {
     // French question in Analyze mode
     const analyzeRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Présente-moi le parcours et les compétences de Melek.", mode: "analyze" })
     });
     assert.equal(analyzeRes.status, 200);
@@ -203,7 +203,7 @@ async function runTest() {
     // Tunisian Arabic question
     const arabicRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "شنو المشاريع متاع ملاك؟", mode: "chat" })
     });
     assert.equal(arabicRes.status, 200);
@@ -366,7 +366,7 @@ async function runTest() {
     // Query with default model
     const m1Res = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Tell me about Melek's projects", model_id: "melek-ai-v1", mode: "chat" })
     });
     assert.equal(m1Res.status, 200);
@@ -376,7 +376,7 @@ async function runTest() {
     // Query with experimental model
     const m2Res = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Tell me about Melek's projects", model_id: "melek-ai-experimental", mode: "analyze" })
     });
     assert.equal(m2Res.status, 200);
@@ -403,7 +403,7 @@ async function runTest() {
     // Empty question
     const emptyRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "" })
     });
     assert.equal(emptyRes.status, 400);
@@ -417,7 +417,7 @@ async function runTest() {
     // Malformed JSON body
     const badJsonRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: "INVALID_JSON_BODY{{"
     });
     assert.equal(badJsonRes.status, 400);

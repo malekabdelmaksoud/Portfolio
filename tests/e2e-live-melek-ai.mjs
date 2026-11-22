@@ -375,7 +375,7 @@ async function run() {
     // Test Live Assistant on Cloudflare API
     const liveChatRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Do you know Python and what are your main skills?", mode: "chat" })
     });
     assert.equal(liveChatRes.status, 200);
@@ -387,7 +387,7 @@ async function run() {
     // Test Analyze mode on Live Cloudflare API
     const liveAnalyzeRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Présente-moi les compétences et projets de Melek.", mode: "analyze" })
     });
     assert.equal(liveAnalyzeRes.status, 200);
@@ -399,7 +399,7 @@ async function run() {
     // Test Tunisian Arabic on Live Cloudflare API
     const liveArabicRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "شنو المشاريع متاع ملاك؟", mode: "chat" })
     });
     assert.equal(liveArabicRes.status, 200);
@@ -567,7 +567,7 @@ async function run() {
     // Live Cloudflare test of default model
     const mDefaultRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "Tell me about Melek's projects", model_id: "melek-ai-v1", mode: "chat" })
     });
     assert.equal(mDefaultRes.status, 200);
@@ -598,7 +598,7 @@ async function run() {
     // Live validation: empty question
     const emptyRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: JSON.stringify({ question: "" })
     });
     assert.equal(emptyRes.status, 400);
@@ -606,7 +606,7 @@ async function run() {
     // Live validation: malformed body
     const badRes = await fetch(API_BASE + "/api/assistant", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "origin": FRONTEND_BASE },
       body: "NOT_VALID_JSON{{"
     });
     assert.equal(badRes.status, 400);
