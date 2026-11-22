@@ -467,6 +467,17 @@
         return;
       }
       btn.hidden = false;
+      const fallbackBtn = $("google-fallback-btn");
+      if (fallbackBtn && !fallbackBtn.dataset.bound) {
+        fallbackBtn.dataset.bound = "true";
+        fallbackBtn.addEventListener("click", () => {
+          if (window.google?.accounts?.id) {
+            window.google.accounts.id.prompt();
+          } else {
+            toast("Chargement de Google sign-in…");
+          }
+        });
+      }
       await new Promise((resolve, reject) => {
         if (window.google?.accounts?.id) return resolve();
         const script = document.createElement("script");
@@ -487,14 +498,17 @@
           } catch (error) { $("auth-error").textContent = error.message; }
         }
       });
-      btn.replaceChildren();
-      window.google.accounts.id.renderButton(btn, {
-        theme: "outline",
-        size: "large",
-        shape: "pill",
-        text: "continue_with",
-        width: 320
-      });
+      try {
+        window.google.accounts.id.renderButton(btn, {
+          theme: "outline",
+          size: "large",
+          shape: "pill",
+          text: "continue_with",
+          width: 320
+        });
+      } catch (e) {
+        console.warn("Google renderButton fallback retained:", e);
+      }
       $("email-divider").hidden = false;
     } catch (error) {
       console.warn("Google sign-in init issue:", error);

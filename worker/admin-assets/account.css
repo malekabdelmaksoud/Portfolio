@@ -21,7 +21,12 @@
 .otp-details summary{cursor:pointer;font-size:12px}
 .password-reset{margin-top:12px;text-align:left;border-top:1px solid #303844;padding-top:10px;color:#98a2b1}
 .password-reset summary{cursor:pointer;font-size:12px}
-.google-signin{display:flex;justify-content:center;margin:14px 0 4px}
+.google-signin{display:flex;justify-content:center;margin:14px 0 4px;min-height:42px}
+.google-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:320px;height:42px;border-radius:21px;border:1px solid #3e4856;background:#181d24;color:#edf1f7;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s;text-decoration:none}
+.google-btn:hover{background:#222832;border-color:#5a687d}
+.google-btn svg{flex-shrink:0}
+:root[data-theme="light"] .google-btn{background:#f8fafc;border-color:#dce2eb;color:#202632}
+:root[data-theme="light"] .google-btn:hover{background:#edf2f7;border-color:#cbd5e1}
 .email-divider{display:flex;align-items:center;gap:10px;margin:12px 0;color:#7f8896;font-size:11px}
 .email-divider::before,.email-divider::after{content:"";height:1px;background:#303844;flex:1}
 #turnstile-wrap{min-height:1px;margin-top:12px}
