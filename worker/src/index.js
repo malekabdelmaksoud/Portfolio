@@ -530,11 +530,8 @@ async function abuseCheck(env, key, kind, limit, seconds) {
 }
 
 async function verifyTurnstile(request, env, body) {
-  // Turnstile is optional. When both keys are absent, existing server-side
-  // abuse limits still protect OTP endpoints; a partial configuration fails closed.
-  if (!env.TURNSTILE_SECRET && !env.TURNSTILE_SITE_KEY) return;
-  if (!env.TURNSTILE_SECRET || !env.TURNSTILE_SITE_KEY) {
-    throw apiError("Turnstile is only partially configured.", "TURNSTILE_NOT_CONFIGURED", 503);
+  if (!env.TURNSTILE_SECRET) {
+    throw apiError("Turnstile verification is not configured.", "TURNSTILE_NOT_CONFIGURED", 503);
   }
   if (!body.turnstileToken) {
     throw apiError("Turnstile verification is required.", "TURNSTILE_REQUIRED", 400);
