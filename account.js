@@ -361,13 +361,18 @@
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
       addMessage("user", question);
       pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
-      const context = [...$("messages").querySelectorAll(".message")].slice(-8, -1).map(node => node.querySelector(".message-text")?.textContent || "");
+      const previousMessages = [...$("messages").querySelectorAll(".message")].slice(-12, -2);
+      const history = previousMessages.map(node => ({
+        role: node.classList.contains("user") ? "user" : "assistant",
+        content: node.querySelector(".message-text")?.textContent || ""
+      })).filter(item => item.content.trim());
+      const context = history.map(item => item.role + ": " + item.content);
       const response = await fetch(base + "/api/assistant", {
         method: "POST",
         credentials: "include",
         signal: abortController.signal,
         headers: { "content-type": "application/json", "accept": "application/json" },
-        body: JSON.stringify({ question, mode, context, model_id: selectedModel })
+        body: JSON.stringify({ question, mode, context, history, model_id: selectedModel })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
