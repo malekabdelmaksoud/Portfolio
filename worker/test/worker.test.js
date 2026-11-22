@@ -248,7 +248,7 @@ test("assistant builds owner CV from all approved portfolio facts and visible pr
  assert.match(prompt,/ملف مطور ويب/);
  assert.match(prompt,/تكوين في الإعلامية/);
  assert.match(prompt,/خبرة في تطوير الويب/);
- assert.match(prompt,/C, Java, Python and PHP/);
+ assert.match(prompt,/C و Java و Python و PHP/);
  assert.match(prompt,/Laravel project published in the portfolio/);
  assert.match(prompt,/synthesize a useful structured CV/);
  assert.equal(data.grounded_by_portfolio,true);
