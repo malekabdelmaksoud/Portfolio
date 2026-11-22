@@ -1403,6 +1403,22 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
 }
 
 async function userChatRoute(request, env, path, method, identity) {
+  const shareMatch = path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})\/share$/i);
+  if (shareMatch && method === "POST") {
+    const chat = await env.DB.prepare("SELECT id,title FROM chats WHERE id=? AND user_email=?").bind(shareMatch[1], identity.email).first();
+    if (!chat) return json({ error: "Chat not found." }, 404);
+    const { results = [] } = await env.DB.prepare("SELECT role,content,created_at FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY rowid LIMIT 500").bind(shareMatch[1], identity.email).all();
+    if (!results.length) return json({ error: "Add at least one message before sharing." }, 400);
+    const prompt = results.find(message => message.role === "user")?.content || "";
+    const token = bytesToBase64url(crypto.getRandomValues(new Uint8Array(32)));
+    await env.DB.prepare("INSERT INTO shared_conversations(token,chat_id,user_email,title,prompt,messages_json) VALUES(?,?,?,?,?,?)")
+      .bind(token, chat.id, identity.email, chat.title, prompt, JSON.stringify(results)).run();
+    return json({ shared: true, token, url: new URL("/share.html?token=" + encodeURIComponent(token), request.url).toString() }, 201);
+  }
+  if (shareMatch && method === "DELETE") {
+    const result = await env.DB.prepare("UPDATE shared_conversations SET revoked_at=CURRENT_TIMESTAMP WHERE chat_id=? AND user_email=? AND revoked_at IS NULL").bind(shareMatch[1], identity.email).run();
+    return json({ revoked: true, count: result.meta?.changes || 0 });
+  }
   const messageMatch = path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})\/messages\/([0-9a-f-]{36})$/i);
   const chatMatch = path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
   if (messageMatch && method === "PATCH") {
@@ -2136,6 +2152,14 @@ export default {
         const result = await authRoutes(request, env, path, method);
         if (result) return withCors(result, cors);
       }
+      const publicShareMatch = path.match(/^\/api\/share\/([A-Za-z0-9_-]{32,64})$/);
+      if (publicShareMatch && method === "GET") {
+        const share = await env.DB.prepare("SELECT title,prompt,messages_json,created_at FROM shared_conversations WHERE token=? AND revoked_at IS NULL").bind(publicShareMatch[1]).first();
+        if (!share) return withCors(json({ error: "This shared conversation is unavailable or has been revoked." }, 404, { "cache-control": "no-store" }), cors);
+        let messages = [];
+        try { messages = JSON.parse(share.messages_json); } catch (_) {}
+        return withCors(json({ title: share.title, prompt: share.prompt, messages, created_at: share.created_at }, 200, { "cache-control": "no-store" }), cors);
+      }
       if (path === "/api/assistant" && method === "POST") return withCors(await assistant(request, env), cors);
       if (path === "/api/projects" && method === "GET") {
         const { results = [] } = await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
@@ -2155,7 +2179,7 @@ export default {
           return withCors(Response.redirect(new URL("/account.html", request.url).toString(), 302), cors);
         }
       }
-      const publicShellAssets = new Set(["/account.html", "/account.css", "/account.js", "/api-config.js", "/password-reset.html", "/password-reset.js", "/qr-approve.html", "/qr-approve.js", "/admin.html", "/admin.css", "/admin.js"]);
+      const publicShellAssets = new Set(["/share.html", "/account.html", "/account.css", "/account.js", "/api-config.js", "/password-reset.html", "/password-reset.js", "/qr-approve.html", "/qr-approve.js", "/admin.html", "/admin.css", "/admin.js"]);
       if (method === "GET" && publicShellAssets.has(path) && env.ASSETS) {
         return withCors(await env.ASSETS.fetch(request), cors);
       }
