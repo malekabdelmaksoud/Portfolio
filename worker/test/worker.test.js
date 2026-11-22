@@ -373,7 +373,12 @@ test("allowedOrigin in production rejects localhost, 127.0.0.1, and empty ALLOWE
     headers: { "Origin": "https://api.test", "content-type": "application/json" },
     body: "{}"
   }), emptyEnv);
-  assert.equal(sameOriginEmptyRes.status, 403, "Case A: Empty ALLOWED_ORIGIN must reject even Same-Origin");
+  assert.notEqual(sameOriginEmptyRes.status, 403, "Same-origin API requests must not depend on the cross-origin allowlist");
+  assert.equal(
+    sameOriginEmptyRes.headers.get("access-control-allow-origin"),
+    "https://api.test",
+    "Same-origin API requests must receive matching CORS headers"
+  );
 
   // Case B: Missing (undefined) ALLOWED_ORIGIN in production rejects all
   const missingEnv = authEnvironment({
@@ -385,7 +390,11 @@ test("allowedOrigin in production rejects localhost, 127.0.0.1, and empty ALLOWE
     headers: { "Origin": "https://api.test", "content-type": "application/json" },
     body: "{}"
   }), missingEnv);
-  assert.equal(missingAllowedRes.status, 403, "Case B: Missing ALLOWED_ORIGIN must reject in production");
+  assert.notEqual(missingAllowedRes.status, 403, "Same-origin API requests must work even if the external allowlist is absent");
+  assert.equal(
+    missingAllowedRes.headers.get("access-control-allow-origin"),
+    "https://api.test"
+  );
 
   // Case C: Valid ALLOWED_ORIGIN in production allows configured origin and returns Access-Control-Allow-Origin
   const validProdEnv = authEnvironment({
