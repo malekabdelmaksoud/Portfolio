@@ -58,6 +58,7 @@ function environment() {
       if(sql.includes("COUNT(*) AS c FROM chats")) return {c:chats.length};
       if(sql.includes("COUNT(*) AS c FROM chat_messages")) return {c:chatMessages.length};
       if(sql.includes("FROM shared_conversations")) return sharedConversations.find(item=>item.token===params[0]&&!item.revoked_at)||null;
+      if(sql.includes("SELECT id,title FROM chats WHERE id=? AND user_email=?")) return chats.find(chat=>chat.id===params[0]&&chat.user_email===params[1])||null;
       if(sql.includes("SELECT 1")) return {ok:1};
       if(sql.includes("SELECT COALESCE(MAX")) return {max_order:projects.reduce((max,p)=>Math.max(max,p.sort_order||0),0)};
       if(sql.includes("SELECT id,url,title FROM projects")) {
@@ -75,7 +76,7 @@ function environment() {
       if(sql.includes("FROM projects")) return {results:sql.includes("WHERE visible=1")?projects.filter(p=>p.visible===1):projects};
       if(sql.includes("FROM users")) return {results:users};
       if(sql.includes("FROM chats")) return {results:chats};
-      if(sql.includes("FROM chat_messages")) return {results:chatMessages};
+      if(sql.includes("FROM chat_messages")) return {results:sql.includes("WHERE chat_id=? AND user_email=?")?chatMessages.filter(message=>message.chat_id===params[0]&&message.user_email===params[1]):chatMessages};
       return {results:[]};
     },async run(){
       if(sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({token:params[0],chat_id:params[1],user_email:params[2],title:params[3],prompt:params[4],messages_json:params[5],created_at:new Date().toISOString(),revoked_at:null}); return {meta:{changes:1}}; }
