@@ -127,7 +127,7 @@ async batch(statements){
     throw err;
   }
 }};
-  return {DB,BACKUP_BUCKET,BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
+  return {DB,BACKUP_BUCKET,AI:{async run(model,options){return {response:"Mock AI answer: "+options.messages.at(-1).content};}},BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
@@ -675,36 +675,54 @@ test("Melek AI status reports development truthfully",async()=>{
  assert.equal(data.third_party_fallback_disabled,true);
 });
 
-test("chat mode is preserved as a request field",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"chat"}),environment());
+test("general questions are answered by Workers AI without matching portfolio facts",async()=>{
+ const env=environment();
+ let captured;
+ env.AI={async run(model,options){captured={model,options};return {response:"Python is a general-purpose programming language."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is Python?",mode:"chat"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
  assert.equal(data.mode,"chat");
- assert.equal(data.model,"approved-facts-only");
+ assert.match(data.answer,/general-purpose programming language/i);
+ assert.equal(data.grounded_by_portfolio,false);
+ assert.match(captured.options.messages[0].content,/not restricted to the portfolio database/i);
 });
 
-test("analyze mode is preserved as a request field",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",mode:"analyze"}),environment());
+test("analysis mode and conversation history reach the generative model",async()=>{
+ const env=environment();
+ let captured;
+ env.AI={async run(model,options){captured=options;return {response:"Here is a structured analysis."};}};
+ const response=await worker.fetch(request("/api/assistant",{
+  question:"Analyze it further",mode:"analyze",
+  history:[{role:"user",content:"Here is my business idea."},{role:"assistant",content:"It has three parts."}]
+ }),env);
  const data=await response.json();
  assert.equal(response.status,200);
  assert.equal(data.mode,"analyze");
- assert.equal(data.model,"approved-facts-only");
+ assert.match(data.answer,/structured analysis/i);
+ assert.equal(captured.messages[1].content,"Here is my business idea.");
+ assert.equal(captured.messages[2].content,"It has three parts.");
+ assert.match(captured.messages[0].content,/Current mode: analysis/i);
 });
 
-test("unavailable independent inference has no third-party fallback",async()=>{
- const env={...environment(),MELEK_AI_SERVICE_URL:""};
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),env);
+test("portfolio facts are optional grounding for personal project questions",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"The portfolio includes a Laravel project."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is the Laravel project?"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
- assert.doesNotMatch(JSON.stringify(data),/@cf\/|GLM|Llama|OpenAI|Gemini/i);
+ assert.match(data.answer,/Laravel project/i);
+ assert.equal(data.grounded_by_portfolio,true);
+ assert.ok(data.sources.length>0);
 });
 
-test("model selection is preserved and extensible in assistant requests",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",model_id:"melek-ai-custom"}),environment());
+test("model selection is restricted to configured Workers AI models",async()=>{
+ const env=environment();
+ const response=await worker.fetch(request("/api/assistant",{question:"Explain recursion",model_id:"attacker-controlled-model"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
- assert.equal(data.requested_model,"melek-ai-custom");
+ assert.equal(data.requested_model,"attacker-controlled-model");
+ assert.equal(data.model,"@cf/zai-org/glm-4.7-flash");
 });
 
 test("repository import rejects external URLs from an authenticated admin",async()=>{
