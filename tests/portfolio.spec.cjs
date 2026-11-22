@@ -138,11 +138,11 @@ test('floating AI button sends the current tab straight to the API sign-in page'
   const page = await openPage();
   try {
     const loginLink = page.locator('#aiWorkspaceNewTab');
-    assert.match(await loginLink.getAttribute('href'), /login\\?next=%2Faccount/);
+    assert.ok((await loginLink.getAttribute('href')).includes('/login?next=%2Faccount'));
     const navigation = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
     await page.locator('#aiChatToggle').click();
     await navigation;
-    assert.match(page.url(), /login\\?next=%2Faccount/);
+    assert.ok(page.url().includes('/login?next=%2Faccount'));
   } finally { await page.close(); }
 });
 
