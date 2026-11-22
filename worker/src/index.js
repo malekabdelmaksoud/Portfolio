@@ -1815,6 +1815,11 @@ export default {
         return withCors(await userChatRoute(request, env, path, method, identity), cors);
       }
       if (path.startsWith("/api/admin/")) return withCors(await adminRoute(request, env, path, method), cors);
+      // Serve the account/admin shell and its local frontend assets from this Worker origin.
+      const publicShellAssets = new Set(["/account.html", "/account.css", "/account.js", "/api-config.js", "/admin.html", "/admin.css", "/admin.js"]);
+      if (method === "GET" && publicShellAssets.has(path) && env.ASSETS) {
+        return withCors(await env.ASSETS.fetch(request), cors);
+      }
       return withCors(json({ error: "Not found." }, 404), cors);
     } catch (error) {
       const message = String(error?.message || "The server could not complete this request.");
