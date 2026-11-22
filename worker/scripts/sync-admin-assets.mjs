@@ -1,8 +1,10 @@
 import { copyFileSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(process.cwd(), "..");
-const output = resolve(process.cwd(), "admin-assets");
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const root = resolve(scriptDir, "../..");
+const output = resolve(scriptDir, "../admin-assets");
 mkdirSync(output, { recursive: true });
 for (const file of ["admin.html", "admin.css", "admin.js", "account.html", "account.css", "account.js", "api-config.js", "login.html", "register.html", "auth-pages.css", "auth-pages.js"]) {
   copyFileSync(resolve(root, file), resolve(output, file));

@@ -12,9 +12,50 @@ function environment() {
     {id:"private-001",category:"profile",text_fr:"Secret private draft.",text_en:"Secret private draft.",text_ar:"مسودة خاصة سرية.",aliases_json:'["secret"]',source_file:"draft.md",source_selector:"#private",public_url:null,approved:0}
   ];
   const projects=[{id:"project-001",title:"Demo",type:"WEB",description_fr:"Projet public",description_en:"Public project",url:"https://github.com/example/demo",sort_order:1,visible:1},{id:"hidden-001",title:"Hidden",type:"WEB",description_fr:"Brouillon",description_en:"Draft",url:"https://github.com/example/hidden",sort_order:2,visible:0}];
+  const users=[{id:"u-001",email:"visitor@example.test",display_name:"Visitor"}];
+  const chats=[{id:"c-001",user_email:"visitor@example.test",title:"Chat 1",created_at:"2026-11-20",updated_at:"2026-11-20"}];
+  const chatMessages=[{id:"m-001",chat_id:"c-001",user_email:"visitor@example.test",role:"user",content:"Hello",created_at:"2026-11-20"}];
+  const backupLogs=[];
+  const r2Storage=new Map();
+  const BACKUP_BUCKET={
+    async put(key,value,options={}){
+      const data=value instanceof Uint8Array?value:new TextEncoder().encode(String(value));
+      r2Storage.set(key,{data,customMetadata:options.customMetadata||{},uploaded:new Date().toISOString(),size:data.byteLength});
+      return {key,size:data.byteLength};
+    },
+    async get(key){
+      const item=r2Storage.get(key);
+      if(!item)return null;
+      return {
+        key,
+        size:item.size,
+        uploaded:item.uploaded,
+        customMetadata:item.customMetadata,
+        async arrayBuffer(){return item.data.buffer.slice(item.data.byteOffset,item.data.byteOffset+item.data.byteLength);},
+        body:item.data
+      };
+    },
+    async list({prefix=""}={}){
+      const objects=[];
+      for(const [k,v] of r2Storage.entries()){
+        if(k.startsWith(prefix)) objects.push({key:k,size:v.size,uploaded:v.uploaded,customMetadata:v.customMetadata});
+      }
+      return {objects};
+    },
+    async delete(key){
+      r2Storage.delete(key);
+      return true;
+    }
+  };
+
   const DB={prepare(sql){
     let params=[];
     return {bind(...values){params=values;return this;},async first(){
+      if(sql.includes("COUNT(*) AS c FROM facts")) return {c:facts.length};
+      if(sql.includes("COUNT(*) AS c FROM projects")) return {c:projects.length};
+      if(sql.includes("COUNT(*) AS c FROM users")) return {c:users.length};
+      if(sql.includes("COUNT(*) AS c FROM chats")) return {c:chats.length};
+      if(sql.includes("COUNT(*) AS c FROM chat_messages")) return {c:chatMessages.length};
       if(sql.includes("SELECT 1")) return {ok:1};
       if(sql.includes("SELECT COALESCE(MAX")) return {max_order:projects.reduce((max,p)=>Math.max(max,p.sort_order||0),0)};
       if(sql.includes("SELECT id,url,title FROM projects")) {
@@ -23,13 +64,32 @@ function environment() {
       }
       if(sql.includes("FROM projects WHERE id=? AND")) return projects.find(p=>p.id===params[0]&&p.url===params[1])||null;
       if(sql.includes("FROM facts")) return facts.find(f=>f.id===params[0])||null;
+      if(sql.includes("FROM backup_logs")) return backupLogs[0]||null;
       if(sql.includes("abuse_windows")) return {count:1};
       return {ok:1};
     },async all(){
+      if(sql.includes("FROM backup_logs")) return {results:backupLogs};
       if(sql.includes("FROM facts")) return {results:facts.filter(f=>sql.includes("approved=1")?f.approved===1:true)};
       if(sql.includes("FROM projects")) return {results:sql.includes("WHERE visible=1")?projects.filter(p=>p.visible===1):projects};
+      if(sql.includes("FROM users")) return {results:users};
+      if(sql.includes("FROM chats")) return {results:chats};
+      if(sql.includes("FROM chat_messages")) return {results:chatMessages};
       return {results:[]};
     },async run(){
+      if(sql.includes("INSERT INTO backup_logs")) {
+        backupLogs.unshift({id:params[0],backup_key:params[1],status:params[2],size_bytes:params[3],sha256_plain:params[4],sha256_cipher:params[5],tables_summary:params[6],error_message:params[7],created_at:new Date().toISOString()});
+        return {meta:{changes:1}};
+      }
+      if(sql.includes("DELETE FROM facts")) { facts.length=0; return {meta:{changes:1}}; }
+      if(sql.includes("DELETE FROM projects")) { projects.length=0; return {meta:{changes:1}}; }
+      if(sql.includes("DELETE FROM users")) { users.length=0; return {meta:{changes:1}}; }
+      if(sql.includes("DELETE FROM chats")) { chats.length=0; return {meta:{changes:1}}; }
+      if(sql.includes("DELETE FROM chat_messages")) { chatMessages.length=0; return {meta:{changes:1}}; }
+      if(sql.includes("INSERT OR REPLACE INTO facts")) { facts.push({id:params[0],category:params[1],text_fr:params[2],text_en:params[3],text_ar:params[4],aliases_json:params[5],source_file:params[6],source_selector:params[7],public_url:params[8],approved:params[9]}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT OR REPLACE INTO projects")) { projects.push({id:params[0],title:params[1],type:params[2],description_fr:params[3],description_en:params[4],url:params[5],sort_order:params[6],visible:params[7]}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT OR REPLACE INTO users")) { users.push({id:params[0],email:params[1],display_name:params[2],created_at:params[3],last_login_at:params[4],password_hash:params[5],google_sub:params[6]}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT OR REPLACE INTO chats")) { chats.push({id:params[0],user_email:params[1],title:params[2],created_at:params[3],updated_at:params[4]}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT OR REPLACE INTO chat_messages")) { chatMessages.push({id:params[0],chat_id:params[1],user_email:params[2],role:params[3],content:params[4],created_at:params[5]}); return {meta:{changes:1}}; }
       if(sql.includes("INSERT INTO projects")) {
         const [id,title,type,description_fr,description_en,url,sort_order]=params;
         if(projects.some(p=>p.id===id)) {
@@ -41,9 +101,33 @@ function environment() {
         projects.push({id,title,type,description_fr,description_en,url,visible:1,sort_order});
       }
       return {meta:{changes:1}};
-    },async batch(){return [];}};
-  }};
-  return {DB,ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test"};
+    }
+  };
+},
+async batch(statements){
+  const snapshot = {
+    facts: JSON.parse(JSON.stringify(facts)),
+    projects: JSON.parse(JSON.stringify(projects)),
+    users: JSON.parse(JSON.stringify(users)),
+    chats: JSON.parse(JSON.stringify(chats)),
+    chatMessages: JSON.parse(JSON.stringify(chatMessages)),
+    backupLogs: JSON.parse(JSON.stringify(backupLogs))
+  };
+  const results=[];
+  try {
+    if(statements) for(const s of statements) results.push(await s.run());
+    return results;
+  } catch(err) {
+    facts.length = 0; facts.push(...snapshot.facts);
+    projects.length = 0; projects.push(...snapshot.projects);
+    users.length = 0; users.push(...snapshot.users);
+    chats.length = 0; chats.push(...snapshot.chats);
+    chatMessages.length = 0; chatMessages.push(...snapshot.chatMessages);
+    backupLogs.length = 0; backupLogs.push(...snapshot.backupLogs);
+    throw err;
+  }
+}};
+  return {DB,BACKUP_BUCKET,BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
@@ -880,7 +964,43 @@ function authEnvironment(overrides = {}) {
   const sessions = [];
   const chats = [];
   const chatMessages = [];
+  const facts = [];
+  const projects = [];
+  const backupLogs = [];
   const abuseWindows = new Map();
+  const r2Storage = new Map();
+
+  const BACKUP_BUCKET = {
+    async put(key, value, options = {}) {
+      const data = value instanceof Uint8Array ? value : new TextEncoder().encode(String(value));
+      r2Storage.set(key, { data, customMetadata: options.customMetadata || {}, uploaded: new Date().toISOString(), size: data.byteLength });
+      return { key, size: data.byteLength };
+    },
+    async get(key) {
+      const item = r2Storage.get(key);
+      if (!item) return null;
+      return {
+        key,
+        size: item.size,
+        uploaded: item.uploaded,
+        customMetadata: item.customMetadata,
+        async arrayBuffer() { return item.data.buffer.slice(item.data.byteOffset, item.data.byteOffset + item.data.byteLength); },
+        body: item.data
+      };
+    },
+    async list({ prefix = "" } = {}) {
+      const objects = [];
+      for (const [k, v] of r2Storage.entries()) {
+        if (k.startsWith(prefix)) objects.push({ key: k, size: v.size, uploaded: v.uploaded, customMetadata: v.customMetadata });
+      }
+      return { objects };
+    },
+    async delete(key) {
+      r2Storage.delete(key);
+      return true;
+    }
+  };
+
   const DB = { prepare(sql) {
     let params = [];
     return {
@@ -889,6 +1009,15 @@ function authEnvironment(overrides = {}) {
         if (sql.includes("FROM chats WHERE id=? AND user_email=?")) {
           return chats.find(c => c.id === params[0] && c.user_email === params[1]) || null;
         }
+        if (sql.includes("FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?")) {
+          return chatMessages.find(m => m.id === params[0] && m.chat_id === params[1] && m.user_email === params[2]) || null;
+        }
+        if (sql.includes("COUNT(*) AS c FROM facts")) return { c: facts.length };
+        if (sql.includes("COUNT(*) AS c FROM projects")) return { c: projects.length };
+        if (sql.includes("COUNT(*) AS c FROM users")) return { c: users.length };
+        if (sql.includes("COUNT(*) AS c FROM chats")) return { c: chats.length };
+        if (sql.includes("COUNT(*) AS c FROM chat_messages")) return { c: chatMessages.length };
+        if (sql.includes("FROM backup_logs")) return backupLogs[0] || null;
         if (sql.includes("abuse_windows")) {
           // Accurate SQL UPSERT simulation with RETURNING count
           const [key, kind, nowIso, seconds] = params;
@@ -946,9 +1075,59 @@ function authEnvironment(overrides = {}) {
         if (sql.includes("FROM chat_messages WHERE chat_id=? AND user_email=?")) {
           return { results: chatMessages.filter(m => m.chat_id === params[0] && m.user_email === params[1]) };
         }
+        if (sql.includes("FROM backup_logs")) return { results: backupLogs };
+        if (sql.includes("FROM facts")) return { results: facts };
+        if (sql.includes("FROM projects")) return { results: projects };
+        if (sql.includes("FROM users")) return { results: users };
+        if (sql.includes("FROM chats")) return { results: chats };
+        if (sql.includes("FROM chat_messages")) return { results: chatMessages };
         return { results: [] };
       },
       async run() {
+        if (sql.includes("INSERT INTO backup_logs")) {
+          backupLogs.unshift({ id: params[0], backup_key: params[1], status: params[2], size_bytes: params[3], sha256_plain: params[4], sha256_cipher: params[5], tables_summary: params[6], error_message: params[7], created_at: new Date().toISOString() });
+          return { meta: { changes: 1 } };
+        }
+        if (sql.includes("DELETE FROM facts")) { facts.length = 0; return { meta: { changes: 1 } }; }
+        if (sql.includes("DELETE FROM projects")) { projects.length = 0; return { meta: { changes: 1 } }; }
+        if (sql.includes("DELETE FROM users")) { users.length = 0; return { meta: { changes: 1 } }; }
+        if (sql.includes("DELETE FROM chats WHERE user_email=?")) {
+          const email = params[0];
+          let c = 0;
+          for (let i = chats.length - 1; i >= 0; i--) {
+            if (chats[i].user_email === email) { chats.splice(i, 1); c++; }
+          }
+          return { meta: { changes: c } };
+        }
+        if (sql.includes("DELETE FROM chats WHERE id=? AND user_email=?")) {
+          const [id, email] = params;
+          const idx = chats.findIndex(ch => ch.id === id && ch.user_email === email);
+          if (idx !== -1) { chats.splice(idx, 1); return { meta: { changes: 1 } }; }
+          return { meta: { changes: 0 } };
+        }
+        if (sql.includes("DELETE FROM chat_messages WHERE user_email=?")) {
+          const email = params[0];
+          let c = 0;
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].user_email === email) { chatMessages.splice(i, 1); c++; }
+          }
+          return { meta: { changes: c } };
+        }
+        if (sql.includes("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?")) {
+          const [chatId, email] = params;
+          let c = 0;
+          for (let i = chatMessages.length - 1; i >= 0; i--) {
+            if (chatMessages[i].chat_id === chatId && chatMessages[i].user_email === email) { chatMessages.splice(i, 1); c++; }
+          }
+          return { meta: { changes: c } };
+        }
+        if (sql.includes("DELETE FROM chats")) { chats.length = 0; return { meta: { changes: 1 } }; }
+        if (sql.includes("DELETE FROM chat_messages")) { chatMessages.length = 0; return { meta: { changes: 1 } }; }
+        if (sql.includes("INSERT OR REPLACE INTO facts")) { facts.push({ id: params[0], category: params[1], text_fr: params[2], text_en: params[3], text_ar: params[4], aliases_json: params[5], source_file: params[6], source_selector: params[7], public_url: params[8], approved: params[9] }); return { meta: { changes: 1 } }; }
+        if (sql.includes("INSERT OR REPLACE INTO projects")) { projects.push({ id: params[0], title: params[1], type: params[2], description_fr: params[3], description_en: params[4], url: params[5], sort_order: params[6], visible: params[7] }); return { meta: { changes: 1 } }; }
+        if (sql.includes("INSERT OR REPLACE INTO users")) { users.push({ id: params[0], email: params[1], display_name: params[2], created_at: params[3], last_login_at: params[4], password_hash: params[5], google_sub: params[6] }); return { meta: { changes: 1 } }; }
+        if (sql.includes("INSERT OR REPLACE INTO chats")) { chats.push({ id: params[0], user_email: params[1], title: params[2], created_at: params[3], updated_at: params[4] }); return { meta: { changes: 1 } }; }
+        if (sql.includes("INSERT OR REPLACE INTO chat_messages")) { chatMessages.push({ id: params[0], chat_id: params[1], user_email: params[2], role: params[3], content: params[4], created_at: params[5] }); return { meta: { changes: 1 } }; }
         if (sql.includes("INSERT INTO chats")) {
           chats.push({ id: params[0], user_email: params[1], title: params[2], created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
           return { meta: { changes: 1 } };
@@ -1029,11 +1208,29 @@ function authEnvironment(overrides = {}) {
     };
   },
   async batch(statements) {
+    const snapshot = {
+      facts: JSON.parse(JSON.stringify(facts)),
+      projects: JSON.parse(JSON.stringify(projects)),
+      users: JSON.parse(JSON.stringify(users)),
+      chats: JSON.parse(JSON.stringify(chats)),
+      chatMessages: JSON.parse(JSON.stringify(chatMessages)),
+      backupLogs: JSON.parse(JSON.stringify(backupLogs))
+    };
     const results = [];
-    for (const s of statements) results.push(await s.run());
-    return results;
+    try {
+      for (const s of statements) results.push(await s.run());
+      return results;
+    } catch(err) {
+      facts.length = 0; facts.push(...snapshot.facts);
+      projects.length = 0; projects.push(...snapshot.projects);
+      users.length = 0; users.push(...snapshot.users);
+      chats.length = 0; chats.push(...snapshot.chats);
+      chatMessages.length = 0; chatMessages.push(...snapshot.chatMessages);
+      backupLogs.length = 0; backupLogs.push(...snapshot.backupLogs);
+      throw err;
+    }
   }};
-  return { DB, ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows };
+  return { DB, BACKUP_BUCKET, BACKUP_ENCRYPTION_KEY: "test-backup-encryption-key-32-chars-long!", ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows, __backupLogs: backupLogs, __facts: facts, __projects: projects, __chats: chats, __chatMessages: chatMessages, __r2Storage: r2Storage };
 }
 
 const authRequest = (path, body) => new Request("https://api.test" + path, {
@@ -1812,4 +2009,596 @@ test("auth lifecycle worker integration test (in-memory API): register, refresh,
   assert.equal(meAfterOtp.status, 200);
   const otpMeData = await meAfterOtp.json();
   assert.equal(otpMeData.user.email, email);
+});
+
+// =============================================================================
+// CHAT SECURITY, IDEMPOTENCY & ISOLATION TESTS
+// =============================================================================
+
+test("chat message deduplication & idempotency with client_message_id", async () => {
+  const env = authEnvironment();
+  const email = "idem.user@example.test";
+  const userId = randomUUID();
+  const token = "b".repeat(64);
+  env.__users.push({ id: userId, email, display_name: "Idempotent User" });
+  env.__sessions.push({ id: randomUUID(), user_id: userId, token_hash: sha256(token + ":"), expires_at: new Date(Date.now() + 86400000).toISOString() });
+  const cookie = "__Host-portfolio_session=" + token;
+
+  // 1. Create chat
+  const createRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ title: "Idempotency Test Chat" })
+  }), env);
+  assert.equal(createRes.status, 201);
+  const { chat } = await createRes.json();
+
+  // 2. Post message with client_message_id
+  const clientMsgId = "client-msg-" + randomUUID();
+  const post1 = await worker.fetch(new Request(`https://api.test/api/user/chats/${chat.id}`, {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ role: "user", content: "Repeatable prompt", client_message_id: clientMsgId })
+  }), env);
+  assert.equal(post1.status, 201);
+  const data1 = await post1.json();
+  assert.equal(data1.id, clientMsgId);
+
+  // 3. Re-post identical message with same client_message_id -> must be deduplicated
+  const post2 = await worker.fetch(new Request(`https://api.test/api/user/chats/${chat.id}`, {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ role: "user", content: "Repeatable prompt", client_message_id: clientMsgId })
+  }), env);
+  assert.equal(post2.status, 200);
+  const data2 = await post2.json();
+  assert.equal(data2.deduplicated, true);
+  assert.equal(data2.id, clientMsgId);
+
+  // 4. Verify message list in database contains exactly ONE message
+  const listRes = await worker.fetch(new Request(`https://api.test/api/user/chats/${chat.id}`, {
+    headers: { origin: "https://portfolio.test", Cookie: cookie }
+  }), env);
+  const listData = await listRes.json();
+  assert.equal(listData.messages.length, 1);
+});
+
+// =============================================================================
+// BACKUP & DISASTER RECOVERY TESTS (AES-256-GCM + R2 + INTEGRITY AUDIT)
+// =============================================================================
+
+test("automated backup creation via admin API logs to D1 and stores bundle in R2", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    assert.equal(data.success, true);
+    assert.equal(data.backup.status, "stored");
+    assert.ok(data.backup.key.startsWith("backup-"));
+    assert.ok(data.backup.size_bytes > 0);
+    assert.ok(data.backup.sha256_plain);
+    assert.ok(data.backup.sha256_cipher);
+    assert.equal(data.backup.stored_to_r2, true);
+
+    // Verify bundle exists in R2 mock storage
+    const r2Item = env.__r2Storage.get(data.backup.key);
+    assert.ok(r2Item);
+    assert.equal(r2Item.data[0], 0x01); // Version byte 1
+
+    // Verify D1 backup_logs contains entry with 'stored' status
+    assert.equal(env.__backupLogs.length, 1);
+    assert.equal(env.__backupLogs[0].backup_key, data.backup.key);
+    assert.equal(env.__backupLogs[0].status, "stored");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup list and status endpoint reports latest backup metadata", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // 1. Initially create a backup
+    await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+
+    // 2. Query backup list
+    const listReq = new Request("https://api.test/api/admin/backups", {
+      method: "GET",
+      headers: {
+        origin: "https://portfolio.test",
+        "CF-Access-Jwt-Assertion": env.__token
+      }
+    });
+    const res = await worker.fetch(listReq, env);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.backups.length >= 1);
+    assert.equal(data.latest.status, "stored");
+    assert.equal(data.r2_bound, true);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup verify endpoint validates backup bundle integrity without modifying DB", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const createRes = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    const { backup } = await createRes.json();
+
+    const verifyRes = await worker.fetch(adminRequest(env, "/api/admin/backups/verify", { key: backup.key }), env);
+    assert.equal(verifyRes.status, 200);
+    const verifyData = await verifyRes.json();
+    assert.equal(verifyData.verified, true);
+    assert.equal(verifyData.sha256_plain, backup.sha256_plain);
+    assert.ok(verifyData.row_counts);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup restore dry-run simulates restoration and reports counts without writing to DB", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const createRes = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    const { backup } = await createRes.json();
+
+    // Dry Run (default dry_run: true)
+    const dryRunRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", { key: backup.key, dry_run: true }), env);
+    assert.equal(dryRunRes.status, 200);
+    const dryRunData = await dryRunRes.json();
+    assert.equal(dryRunData.dry_run, true);
+    assert.equal(dryRunData.valid, true);
+    assert.ok(dryRunData.row_counts);
+    assert.match(dryRunData.message, /No database tables were modified/i);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup live restore strictly requires exact confirmation string", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const createRes = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    const { backup } = await createRes.json();
+
+    // Attempt live restore with wrong confirmation
+    const badRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", {
+      key: backup.key,
+      dry_run: false,
+      confirmation: "yes please"
+    }), env);
+    assert.equal(badRes.status, 400);
+    const badData = await badRes.json();
+    assert.equal(badData.code, "CONFIRMATION_REQUIRED");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup live restore with confirmation restores tables atomically", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // 1. Create a backup of initial state (has project-001, facts, etc.)
+    const createRes = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    const { backup } = await createRes.json();
+
+    // 2. Perform live restore with exact confirmation string
+    const restoreRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", {
+      key: backup.key,
+      dry_run: false,
+      confirmation: "CONFIRM_RESTORE_OVERWRITE_PRODUCTION"
+    }), env);
+    assert.equal(restoreRes.status, 200);
+    const restoreData = await restoreRes.json();
+    assert.equal(restoreData.restored, true);
+    assert.ok(restoreData.post_restore_counts);
+    assert.ok(restoreData.post_restore_counts.facts >= 1);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("corrupted backup ciphertext detection and rejection (auth tag mismatch)", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const createRes = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    const { backup } = await createRes.json();
+
+    // Corrupt the ciphertext bytes in R2
+    const item = env.__r2Storage.get(backup.key);
+    item.data[item.data.length - 2] ^= 0xff; // flip bits in ciphertext/tag
+
+    const verifyRes = await worker.fetch(adminRequest(env, "/api/admin/backups/verify", { key: backup.key }), env);
+    assert.equal(verifyRes.status, 400);
+    const verifyData = await verifyRes.json();
+    assert.match(verifyData.error, /decryption failed|mismatch|corrupted/i);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("worker scheduled cron trigger runs automated backup", async () => {
+  const env = await adminEnvironment();
+  let scheduledFinished = false;
+  const ctx = {
+    waitUntil(promise) {
+      promise.then(() => { scheduledFinished = true; });
+    }
+  };
+
+  await worker.scheduled({ cron: "0 3 * * *", scheduledTime: Date.now() }, env, ctx);
+  assert.equal(scheduledFinished, true);
+  assert.equal(env.__backupLogs.length, 1);
+  assert.equal(env.__backupLogs[0].status, "stored");
+});
+
+test("backup creation gracefully succeeds and logs when R2 is unbound", async () => {
+  const env = await adminEnvironment({ BACKUP_BUCKET: null });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 200); // 200 when not_stored, 201 when stored
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.backup.stored_to_r2, false);
+    assert.equal(data.backup.status, "not_stored");
+    assert.equal(env.__backupLogs.length, 1);
+    assert.equal(env.__backupLogs[0].status, "not_stored");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("missing or empty BACKUP_ENCRYPTION_KEY fails closed with 503 error", async () => {
+  const envMissing = await adminEnvironment({ BACKUP_ENCRYPTION_KEY: "" });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(envMissing.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const res = await worker.fetch(adminRequest(envMissing, "/api/admin/backups/create", {}), envMissing);
+    assert.equal(res.status, 503);
+    const data = await res.json();
+    assert.equal(data.code, "BACKUP_KEY_NOT_CONFIGURED");
+
+    // Empty whitespace key must also be rejected
+    const envWhitespace = await adminEnvironment({ BACKUP_ENCRYPTION_KEY: "   " });
+    const res2 = await worker.fetch(adminRequest(envWhitespace, "/api/admin/backups/create", {}), envWhitespace);
+    assert.equal(res2.status, 503);
+    const data2 = await res2.json();
+    assert.equal(data2.code, "BACKUP_KEY_NOT_CONFIGURED");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("R2 put failure logs failed status and returns 502 error", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // Force R2 put to throw
+    env.BACKUP_BUCKET.put = async () => { throw new Error("R2 quota exceeded"); };
+
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 502);
+    const data = await res.json();
+    assert.equal(data.code, "R2_STORAGE_FAILED");
+
+    // Must record failed in backup_logs
+    assert.equal(env.__backupLogs.length, 1);
+    assert.equal(env.__backupLogs[0].status, "failed");
+    assert.match(env.__backupLogs[0].error_message, /R2 storage failed/i);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("R2 backup-latest.json write failure logs failed status and returns 502 error", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const origPut = env.BACKUP_BUCKET.put;
+    env.BACKUP_BUCKET.put = async (key, val, opts) => {
+      if (key === "backup-latest.json") throw new Error("Manifest write failed");
+      return origPut(key, val, opts);
+    };
+
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 502);
+    const data = await res.json();
+    assert.equal(data.code, "R2_STORAGE_FAILED");
+    assert.equal(env.__backupLogs.length, 1);
+    assert.equal(env.__backupLogs[0].status, "failed");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup restore with an empty table [] in backup clears that table in DB", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // 1. Initial state has facts
+    assert.ok(env.__facts.length >= 1);
+
+    // 2. Create encrypted bundle where facts is explicitly []
+    const emptyFactsDump = {
+      meta: { version: 1, exported_at: new Date().toISOString() },
+      tables: {
+        facts: [],
+        projects: [{ id: "p1", title: "P1", type: "web", description_fr: "F", description_en: "E", url: "https://p1.test", sort_order: 1, visible: 1 }],
+        users: [],
+        chats: [],
+        chat_messages: []
+      }
+    };
+
+    // Encrypt with AES-GCM
+    const enc = new TextEncoder();
+    const plainJson = JSON.stringify(emptyFactsDump);
+    const rawKey = await crypto.subtle.digest("SHA-256", enc.encode(env.BACKUP_ENCRYPTION_KEY));
+    const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainJson)));
+    const bundle = new Uint8Array(1 + 12 + ct.length);
+    bundle[0] = 0x01;
+    bundle.set(iv, 1);
+    bundle.set(ct, 13);
+    const bundleBase64 = Buffer.from(bundle).toString("base64url");
+
+    // 3. Restore with confirmation
+    const restoreRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", {
+      bundle_base64: bundleBase64,
+      dry_run: false,
+      confirmation: "CONFIRM_RESTORE_OVERWRITE_PRODUCTION"
+    }), env);
+
+    assert.equal(restoreRes.status, 200);
+    const restoreData = await restoreRes.json();
+    assert.equal(restoreData.restored, true);
+    assert.equal(restoreData.post_restore_counts.facts, 0);
+    assert.equal(env.__facts.length, 0); // Facts was cleared!
+    assert.equal(env.__projects.length, 1); // Projects was restored
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup restore with missing table in manifest leaves table untouched", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // 1. Initial state has projects
+    assert.ok(env.__projects.length >= 1);
+    const initialProjectsCount = env.__projects.length;
+
+    // 2. Create bundle without 'projects' key in tables
+    const partialDump = {
+      meta: { version: 1, exported_at: new Date().toISOString() },
+      tables: {
+        facts: [{ id: "f-new", category: "skills", text_fr: "Fr", text_en: "En", text_ar: "Ar", aliases_json: "[]", source_file: "f", source_selector: "s", public_url: null, approved: 1 }]
+        // 'projects' is completely omitted
+      }
+    };
+
+    const enc = new TextEncoder();
+    const plainJson = JSON.stringify(partialDump);
+    const rawKey = await crypto.subtle.digest("SHA-256", enc.encode(env.BACKUP_ENCRYPTION_KEY));
+    const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainJson)));
+    const bundle = new Uint8Array(1 + 12 + ct.length);
+    bundle[0] = 0x01;
+    bundle.set(iv, 1);
+    bundle.set(ct, 13);
+    const bundleBase64 = Buffer.from(bundle).toString("base64url");
+
+    // 3. Restore
+    const restoreRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", {
+      bundle_base64: bundleBase64,
+      dry_run: false,
+      confirmation: "CONFIRM_RESTORE_OVERWRITE_PRODUCTION"
+    }), env);
+
+    assert.equal(restoreRes.status, 200);
+    // Projects table was untouched because it was absent from manifest
+    assert.equal(env.__projects.length, initialProjectsCount);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("admin backup live restore atomic batch rollback on midway failure", async () => {
+  const env = await adminEnvironment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const initialFactsCount = env.__facts.length;
+    const initialProjectsCount = env.__projects.length;
+
+    // Create a backup with facts and projects
+    const dump = {
+      meta: { version: 1, exported_at: new Date().toISOString() },
+      tables: {
+        facts: [{ id: "f-atomic", category: "skills", text_fr: "Fr", text_en: "En", text_ar: "Ar", aliases_json: "[]", source_file: "f", source_selector: "s", public_url: null, approved: 1 }],
+        projects: [{ id: "p-atomic", title: "P", type: "w", description_fr: "F", description_en: "E", url: "https://p.test", sort_order: 1, visible: 1 }],
+        users: [{ id: "u-fail", email: "fail@test.io", display_name: "F", created_at: "2026-11-20", last_login_at: "2026-11-21", password_salt: null, password_hash: null, google_subject: null }]
+      }
+    };
+
+    const enc = new TextEncoder();
+    const plainJson = JSON.stringify(dump);
+    const rawKey = await crypto.subtle.digest("SHA-256", enc.encode(env.BACKUP_ENCRYPTION_KEY));
+    const key = await crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plainJson)));
+    const bundle = new Uint8Array(1 + 12 + ct.length);
+    bundle[0] = 0x01;
+    bundle.set(iv, 1);
+    bundle.set(ct, 13);
+    const bundleBase64 = Buffer.from(bundle).toString("base64url");
+
+    // Force failure midway when inserting into users table
+    const origPrepare = env.DB.prepare;
+    env.DB.prepare = sql => {
+      const p = origPrepare(sql);
+      if (sql.includes("INSERT OR REPLACE INTO users")) {
+        return {
+          bind: (...args) => ({
+            run: async () => { throw new Error("D1 simulated constraint failure in users table"); }
+          })
+        };
+      }
+      return p;
+    };
+
+    const restoreRes = await worker.fetch(adminRequest(env, "/api/admin/backups/restore", {
+      bundle_base64: bundleBase64,
+      dry_run: false,
+      confirmation: "CONFIRM_RESTORE_OVERWRITE_PRODUCTION"
+    }), env);
+
+    assert.equal(restoreRes.status, 500);
+
+    // Verify atomic rollback: facts and projects must NOT have been modified!
+    assert.equal(env.__facts.length, initialFactsCount);
+    assert.equal(env.__projects.length, initialProjectsCount);
+    assert.ok(env.__facts.some(f => f.id === "skills-001"));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("pruneOldBackups retention policy: retains all backups when count <= 30", async () => {
+  const env = await adminEnvironment();
+  // Populate R2 mock storage with 25 backups older than 40 days
+  const oldDate = new Date(Date.now() - 40 * 86400000).toISOString();
+  for (let i = 0; i < 25; i++) {
+    await env.BACKUP_BUCKET.put(`backup-2026-09-${String(i).padStart(2, "0")}.enc`, new Uint8Array([0x01]), {
+      customMetadata: { created_at: oldDate }
+    });
+    // Set uploaded property on mock item
+    const item = env.__r2Storage.get(`backup-2026-09-${String(i).padStart(2, "0")}.enc`);
+    if (item) item.uploaded = oldDate;
+  }
+
+  // Run a backup creation which triggers pruneOldBackups(env, 30)
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 201);
+    // Total count was 25 + 1 = 26 <= 30 -> 0 backups pruned!
+    assert.equal(env.__r2Storage.size, 26 + 1); // 26 backups + 1 backup-latest.json
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("pruneOldBackups prunes only backups older than 30 days and preserves most recent", async () => {
+  const env = await adminEnvironment();
+  // Populate 32 old backups (> 40 days old)
+  const oldDate = new Date(Date.now() - 40 * 86400000).toISOString();
+  for (let i = 0; i < 32; i++) {
+    const key = `backup-old-${String(i).padStart(2, "0")}.enc`;
+    await env.BACKUP_BUCKET.put(key, new Uint8Array([0x01]));
+    const item = env.__r2Storage.get(key);
+    if (item) item.uploaded = oldDate;
+  }
+
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+
+  try {
+    // Total backups before new one = 32.
+    // Creating a 33rd backup triggers prune: count > 30, so old ones older than cutoff can be pruned.
+    const res = await worker.fetch(adminRequest(env, "/api/admin/backups/create", {}), env);
+    assert.equal(res.status, 201);
+    const data = await res.json();
+    // The newly created backup must still exist!
+    assert.ok(env.__r2Storage.has(data.backup.key));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("non-admin requests to backup endpoints are strictly rejected with 401", async () => {
+  const env = authEnvironment();
+  // Request without CF-Access-Jwt-Assertion
+  const unauthRes = await worker.fetch(new Request("https://api.test/api/admin/backups", {
+    headers: { origin: "https://portfolio.test" }
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  const unauthPost = await worker.fetch(new Request("https://api.test/api/admin/backups/create", {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json" },
+    body: "{}"
+  }), env);
+  assert.equal(unauthPost.status, 401);
 });

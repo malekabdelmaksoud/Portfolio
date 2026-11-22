@@ -439,7 +439,10 @@ function b64url(value) {
 }
 
 async function sha256Hex(value) {
-  const digest = await crypto.subtle.digest("SHA-256", enc.encode(value));
+  const bytes = (value instanceof Uint8Array || value instanceof ArrayBuffer)
+    ? value
+    : enc.encode(String(value ?? ""));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -1099,7 +1102,14 @@ async function userChatRoute(request, env, path, method, identity) {
     if (!["user","assistant"].includes(role) || !content || content.length > 6000) return json({ error: "Message role or content is invalid." }, 400);
     const exists = await env.DB.prepare("SELECT id FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1], identity.email).first();
     if (!exists) return json({ error: "Chat not found." }, 404);
-    const id = crypto.randomUUID();
+
+    const clientMsgId = typeof body.client_message_id === "string" ? body.client_message_id.trim().slice(0, 80) : "";
+    if (clientMsgId) {
+      const existing = await env.DB.prepare("SELECT id FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(clientMsgId, chatMatch[1], identity.email).first();
+      if (existing) return json({ saved: true, id: existing.id, deduplicated: true }, 200);
+    }
+
+    const id = clientMsgId || crypto.randomUUID();
     await env.DB.batch([
       env.DB.prepare("INSERT INTO chat_messages(id,chat_id,user_email,role,content) VALUES(?,?,?,?,?)").bind(id, chatMatch[1], identity.email, role, content),
       env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(chatMatch[1], identity.email)
@@ -1123,6 +1133,371 @@ async function userChatRoute(request, env, path, method, identity) {
     return json({ deleted: true });
   }
   return json({ error: "Not found." }, 404);
+}
+
+// =============================================================================
+// AUTOMATED BACKUP & DISASTER RECOVERY SUBSYSTEM (AES-256-GCM + R2 + CLUSTER AUDIT)
+// =============================================================================
+
+const BACKUP_TABLES = Object.freeze(["facts", "projects", "users", "chats", "chat_messages"]);
+const AUDIT_TABLES = Object.freeze(["backup_logs"]);
+
+async function getBackupEncryptionKey(env) {
+  const secret = String(env.BACKUP_ENCRYPTION_KEY || "").trim();
+  if (!secret) {
+    throw apiError(
+      "Backup encryption key is not configured. BACKUP_ENCRYPTION_KEY environment secret is required.",
+      "BACKUP_KEY_NOT_CONFIGURED",
+      503
+    );
+  }
+  const rawKey = await crypto.subtle.digest("SHA-256", enc.encode(secret));
+  return crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+async function encryptBackupPayload(plainDataObj, env) {
+  const plainJson = JSON.stringify(plainDataObj);
+  const plainHash = await sha256Hex(plainJson);
+  const key = await getBackupEncryptionKey(env);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = enc.encode(plainJson);
+  const ciphertextBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  const ciphertext = new Uint8Array(ciphertextBuffer);
+
+  // Format: Version (1 byte: 0x01) + IV (12 bytes) + Ciphertext
+  const bundle = new Uint8Array(1 + 12 + ciphertext.length);
+  bundle[0] = 0x01;
+  bundle.set(iv, 1);
+  bundle.set(ciphertext, 13);
+
+  const cipherHash = await sha256Hex(bundle);
+  return {
+    bundle,
+    plainHash,
+    cipherHash,
+    sizeBytes: bundle.byteLength,
+    tables: Object.keys(plainDataObj.tables || {}),
+    rowCounts: plainDataObj.meta?.row_counts || {}
+  };
+}
+
+async function decryptBackupBundle(bundleBytes, env) {
+  const bundle = bundleBytes instanceof Uint8Array ? bundleBytes : new Uint8Array(bundleBytes);
+  if (!bundle || bundle.length < 14) throw apiError("Invalid or truncated backup bundle.", "INVALID_BACKUP_BUNDLE", 400);
+  if (bundle[0] !== 0x01) throw apiError("Unsupported backup format version.", "UNSUPPORTED_BACKUP_VERSION", 400);
+
+  const iv = bundle.slice(1, 13);
+  const ciphertext = bundle.slice(13);
+  const key = await getBackupEncryptionKey(env);
+  let decryptedBuffer;
+  try {
+    decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+  } catch (_) {
+    throw apiError("Backup decryption failed: AES-GCM integrity check failed or corrupted ciphertext.", "BACKUP_INTEGRITY_FAILED", 400);
+  }
+
+  const decryptedText = new TextDecoder().decode(decryptedBuffer);
+  const plainHash = await sha256Hex(decryptedText);
+  let parsed;
+  try {
+    parsed = JSON.parse(decryptedText);
+  } catch (_) {
+    throw apiError("Backup content is not valid JSON.", "INVALID_BACKUP_JSON", 400);
+  }
+
+  if (!parsed || typeof parsed !== "object" || !parsed.tables) {
+    throw apiError("Backup manifest is missing expected table structure.", "INVALID_BACKUP_STRUCTURE", 400);
+  }
+
+  return {
+    data: parsed,
+    plainHash
+  };
+}
+
+async function exportD1Database(env) {
+  const exported = {
+    meta: {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      generator: "melek-portfolio-worker-backup-engine",
+      row_counts: {}
+    },
+    tables: {}
+  };
+
+  for (const table of BACKUP_TABLES) {
+    try {
+      const { results = [] } = await env.DB.prepare(`SELECT * FROM ${table}`).all();
+      exported.tables[table] = results;
+      exported.meta.row_counts[table] = results.length;
+    } catch (_) {
+      exported.tables[table] = [];
+      exported.meta.row_counts[table] = 0;
+    }
+  }
+
+  try {
+    const { results = [] } = await env.DB.prepare("SELECT * FROM backup_logs ORDER BY created_at DESC LIMIT 50").all();
+    exported.tables.backup_logs = results;
+    exported.meta.row_counts.backup_logs = results.length;
+  } catch (_) {
+    // backup_logs may not exist yet
+  }
+
+  return exported;
+}
+
+async function recordBackupLog(env, log) {
+  try {
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      "INSERT INTO backup_logs(id, backup_key, status, size_bytes, sha256_plain, sha256_cipher, tables_summary, error_message) VALUES(?,?,?,?,?,?,?,?)"
+    ).bind(
+      id,
+      log.key,
+      log.status,
+      log.sizeBytes || 0,
+      log.plainHash || null,
+      log.cipherHash || null,
+      JSON.stringify(log.rowCounts || {}),
+      log.error || null
+    ).run();
+  } catch (_) {
+    // Non-fatal if backup_logs table does not exist
+  }
+}
+
+async function pruneOldBackups(env, retentionDays = 30) {
+  if (!env.BACKUP_BUCKET || typeof env.BACKUP_BUCKET.list !== "function") return { pruned: 0 };
+  try {
+    const list = await env.BACKUP_BUCKET.list({ prefix: "backup-" });
+    const objects = list.objects || [];
+    if (objects.length <= retentionDays) return { pruned: 0 };
+
+    const sorted = [...objects].sort((a, b) => {
+      const timeA = a.uploaded ? new Date(a.uploaded).getTime() : 0;
+      const timeB = b.uploaded ? new Date(b.uploaded).getTime() : 0;
+      return timeA - timeB;
+    });
+
+    const candidates = sorted.slice(0, sorted.length - 1);
+    const cutoff = Date.now() - (retentionDays * 86400000);
+    let pruned = 0;
+
+    for (const obj of candidates) {
+      if (obj.uploaded && new Date(obj.uploaded).getTime() < cutoff && (sorted.length - pruned) > retentionDays) {
+        try {
+          await env.BACKUP_BUCKET.delete(obj.key);
+          pruned++;
+        } catch (_) {
+          // Continue on individual delete failure
+        }
+      }
+    }
+    return { pruned };
+  } catch (_) {
+    return { pruned: 0 };
+  }
+}
+
+async function createAutomatedBackup(env) {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, "-");
+  const backupKey = `backup-${timestamp}.enc`;
+
+  let dump;
+  let encrypted;
+  try {
+    dump = await exportD1Database(env);
+    encrypted = await encryptBackupPayload(dump, env);
+
+    // Self-test decryption integrity check (Fail-Closed)
+    const selfTest = await decryptBackupBundle(encrypted.bundle, env);
+    if (selfTest.plainHash !== encrypted.plainHash) {
+      throw new Error("Immediate backup self-test integrity check failed.");
+    }
+  } catch (error) {
+    await recordBackupLog(env, {
+      key: backupKey,
+      status: "failed",
+      error: error.message
+    });
+    throw error;
+  }
+
+  let status = "not_stored";
+  let storedToR2 = false;
+
+  if (env.BACKUP_BUCKET && typeof env.BACKUP_BUCKET.put === "function") {
+    try {
+      await env.BACKUP_BUCKET.put(backupKey, encrypted.bundle, {
+        customMetadata: {
+          sha256_plain: encrypted.plainHash,
+          sha256_cipher: encrypted.cipherHash,
+          created_at: now.toISOString(),
+          tables: encrypted.tables.join(",")
+        }
+      });
+      const latestManifest = JSON.stringify({
+        key: backupKey,
+        created_at: now.toISOString(),
+        size_bytes: encrypted.sizeBytes,
+        sha256_plain: encrypted.plainHash,
+        sha256_cipher: encrypted.cipherHash,
+        row_counts: encrypted.rowCounts
+      });
+      await env.BACKUP_BUCKET.put("backup-latest.json", latestManifest);
+      storedToR2 = true;
+      status = "stored";
+      await pruneOldBackups(env, 30);
+    } catch (r2Err) {
+      await recordBackupLog(env, {
+        key: backupKey,
+        status: "failed",
+        sizeBytes: encrypted.sizeBytes,
+        plainHash: encrypted.plainHash,
+        cipherHash: encrypted.cipherHash,
+        rowCounts: encrypted.rowCounts,
+        error: `R2 storage failed: ${r2Err.message}`
+      });
+      throw apiError(`Failed to persist backup to R2 storage: ${r2Err.message}`, "R2_STORAGE_FAILED", 502);
+    }
+  }
+
+  await recordBackupLog(env, {
+    key: backupKey,
+    status,
+    sizeBytes: encrypted.sizeBytes,
+    plainHash: encrypted.plainHash,
+    cipherHash: encrypted.cipherHash,
+    rowCounts: encrypted.rowCounts
+  });
+
+  return {
+    success: storedToR2,
+    status,
+    key: backupKey,
+    size_bytes: encrypted.sizeBytes,
+    sha256_plain: encrypted.plainHash,
+    sha256_cipher: encrypted.cipherHash,
+    tables: encrypted.tables,
+    row_counts: encrypted.rowCounts,
+    stored_to_r2: storedToR2,
+    created_at: now.toISOString(),
+    bundle: encrypted.bundle
+  };
+}
+
+async function restoreD1Database(env, bundleBytes, { dry_run = true, confirmation = "" } = {}) {
+  const { data, plainHash } = await decryptBackupBundle(bundleBytes, env);
+  const tables = data.tables || {};
+  const meta = data.meta || {};
+
+  if (dry_run) {
+    return {
+      dry_run: true,
+      valid: true,
+      backup_date: meta.exported_at || "unknown",
+      sha256_plain: plainHash,
+      row_counts: {
+        facts: Array.isArray(tables.facts) ? tables.facts.length : 0,
+        projects: Array.isArray(tables.projects) ? tables.projects.length : 0,
+        users: Array.isArray(tables.users) ? tables.users.length : 0,
+        chats: Array.isArray(tables.chats) ? tables.chats.length : 0,
+        chat_messages: Array.isArray(tables.chat_messages) ? tables.chat_messages.length : 0
+      },
+      message: "Dry run successful. No database tables were modified."
+    };
+  }
+
+  if (confirmation !== "CONFIRM_RESTORE_OVERWRITE_PRODUCTION") {
+    throw apiError(
+      "Live restore requires exact confirmation string: 'CONFIRM_RESTORE_OVERWRITE_PRODUCTION'.",
+      "CONFIRMATION_REQUIRED",
+      400
+    );
+  }
+
+  // Build a single atomic batch in strict foreign key order
+  const batchStmts = [];
+
+  // 1. Delete child tables first (foreign keys safety)
+  if (Array.isArray(tables.chat_messages)) batchStmts.push(env.DB.prepare("DELETE FROM chat_messages"));
+  if (Array.isArray(tables.chats)) batchStmts.push(env.DB.prepare("DELETE FROM chats"));
+  if (Array.isArray(tables.users)) batchStmts.push(env.DB.prepare("DELETE FROM users"));
+  if (Array.isArray(tables.projects)) batchStmts.push(env.DB.prepare("DELETE FROM projects"));
+  if (Array.isArray(tables.facts)) batchStmts.push(env.DB.prepare("DELETE FROM facts"));
+
+  // 2. Insert parent tables first
+  if (Array.isArray(tables.facts)) {
+    for (const f of tables.facts) {
+      batchStmts.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO facts(id, category, text_fr, text_en, text_ar, aliases_json, source_file, source_selector, public_url, approved) VALUES(?,?,?,?,?,?,?,?,?,?)"
+        ).bind(f.id, f.category, f.text_fr, f.text_en, f.text_ar || null, f.aliases_json, f.source_file, f.source_selector, f.public_url || null, f.approved ? 1 : 0)
+      );
+    }
+  }
+
+  if (Array.isArray(tables.projects)) {
+    for (const p of tables.projects) {
+      batchStmts.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO projects(id, title, type, description_fr, description_en, url, sort_order, visible) VALUES(?,?,?,?,?,?,?,?)"
+        ).bind(p.id, p.title, p.type, p.description_fr, p.description_en, p.url, p.sort_order, p.visible ? 1 : 0)
+      );
+    }
+  }
+
+  if (Array.isArray(tables.users)) {
+    for (const u of tables.users) {
+      batchStmts.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO users(id, email, display_name, created_at, last_login_at, password_salt, password_hash, google_subject) VALUES(?,?,?,?,?,?,?,?)"
+        ).bind(u.id, u.email, u.display_name, u.created_at, u.last_login_at, u.password_salt || null, u.password_hash || null, u.google_subject || null)
+      );
+    }
+  }
+
+  if (Array.isArray(tables.chats)) {
+    for (const c of tables.chats) {
+      batchStmts.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO chats(id, user_email, title, created_at, updated_at) VALUES(?,?,?,?,?)"
+        ).bind(c.id, c.user_email, c.title, c.created_at, c.updated_at)
+      );
+    }
+  }
+
+  if (Array.isArray(tables.chat_messages)) {
+    for (const m of tables.chat_messages) {
+      batchStmts.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO chat_messages(id, chat_id, user_email, role, content, created_at) VALUES(?,?,?,?,?,?)"
+        ).bind(m.id, m.chat_id, m.user_email, m.role, m.content, m.created_at)
+      );
+    }
+  }
+
+  // Execute all statements in a single atomic transaction
+  if (batchStmts.length > 0) {
+    await env.DB.batch(batchStmts);
+  }
+
+  const postCounts = {
+    facts: (await env.DB.prepare("SELECT COUNT(*) AS c FROM facts").first())?.c || 0,
+    projects: (await env.DB.prepare("SELECT COUNT(*) AS c FROM projects").first())?.c || 0,
+    users: (await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first())?.c || 0,
+    chats: (await env.DB.prepare("SELECT COUNT(*) AS c FROM chats").first())?.c || 0,
+    chat_messages: (await env.DB.prepare("SELECT COUNT(*) AS c FROM chat_messages").first())?.c || 0
+  };
+
+  return {
+    restored: true,
+    post_restore_counts: postCounts,
+    source_date: meta.exported_at || "unknown"
+  };
 }
 
 async function adminRoute(request, env, path, method) {
@@ -1228,6 +1603,124 @@ async function adminRoute(request, env, path, method) {
     const result = await env.DB.prepare("DELETE FROM projects WHERE id=?").bind(projectMatch[1]).run();
     return result.meta?.changes ? json({ deleted: true }) : json({ error: "Project not found." }, 404);
   }
+
+  if (path === "/api/admin/backups" && method === "GET") {
+    let r2Backups = [];
+    if (env.BACKUP_BUCKET && typeof env.BACKUP_BUCKET.list === "function") {
+      try {
+        const list = await env.BACKUP_BUCKET.list({ prefix: "backup-" });
+        r2Backups = (list.objects || []).map(o => ({
+          key: o.key,
+          size_bytes: o.size,
+          uploaded: o.uploaded,
+          sha256: o.customMetadata?.sha256_plain || null
+        }));
+      } catch (_) {}
+    }
+
+    let logs = [];
+    try {
+      const { results = [] } = await env.DB.prepare(
+        "SELECT id, backup_key, status, size_bytes, sha256_plain, sha256_cipher, tables_summary, error_message, created_at FROM backup_logs ORDER BY created_at DESC LIMIT 30"
+      ).all();
+      logs = results;
+    } catch (_) {}
+
+    const latest = logs[0] || (r2Backups[0] ? { backup_key: r2Backups[0].key, status: "stored", created_at: r2Backups[0].uploaded } : null);
+
+    return json({
+      backups: r2Backups.length > 0 ? r2Backups : logs.map(l => ({
+        key: l.backup_key,
+        size_bytes: l.size_bytes,
+        created_at: l.created_at,
+        sha256: l.sha256_plain,
+        status: l.status,
+        row_counts: parseJson(l.tables_summary, {})
+      })),
+      logs,
+      latest,
+      total_count: r2Backups.length || logs.length,
+      r2_bound: Boolean(env.BACKUP_BUCKET)
+    });
+  }
+
+  if (path === "/api/admin/backups/create" && method === "POST") {
+    const result = await createAutomatedBackup(env);
+    return json({ success: result.success, backup: result }, result.status === "stored" ? 201 : 200);
+  }
+
+  if (path === "/api/admin/backups/verify" && method === "POST") {
+    const body = await readBody(request, 8000);
+    const key = String(body.key || "").trim();
+
+    let bundle;
+    if (body.bundle_base64) {
+      bundle = base64urlToBytes(body.bundle_base64);
+    } else if (key && env.BACKUP_BUCKET && typeof env.BACKUP_BUCKET.get === "function") {
+      const obj = await env.BACKUP_BUCKET.get(key);
+      if (!obj) return json({ error: "Backup object not found in R2." }, 404);
+      bundle = new Uint8Array(await obj.arrayBuffer());
+    } else {
+      return json({ error: "Either a valid backup key in R2 or bundle_base64 is required." }, 400);
+    }
+
+    const verification = await decryptBackupBundle(bundle, env);
+    return json({
+      verified: true,
+      key: key || "payload",
+      sha256_plain: verification.plainHash,
+      row_counts: verification.data.meta?.row_counts || {},
+      created_at: verification.data.meta?.exported_at
+    });
+  }
+
+  if (path === "/api/admin/backups/restore" && method === "POST") {
+    const body = await readBody(request, 16000);
+    const dryRun = body.dry_run !== false;
+    const confirmation = String(body.confirmation || "").trim();
+    const key = String(body.key || "").trim();
+
+    let bundle;
+    if (body.bundle_base64) {
+      bundle = base64urlToBytes(body.bundle_base64);
+    } else if (key && env.BACKUP_BUCKET && typeof env.BACKUP_BUCKET.get === "function") {
+      const obj = await env.BACKUP_BUCKET.get(key);
+      if (!obj) return json({ error: "Backup object not found in storage." }, 404);
+      bundle = new Uint8Array(await obj.arrayBuffer());
+    } else {
+      return json({ error: "Either a valid backup key in R2 or bundle_base64 is required." }, 400);
+    }
+
+    const restoreResult = await restoreD1Database(env, bundle, { dry_run: dryRun, confirmation });
+    return json(restoreResult);
+  }
+
+  if (path === "/api/admin/backups/download" && method === "GET") {
+    const url = new URL(request.url);
+    const key = url.searchParams.get("key");
+
+    if (key && env.BACKUP_BUCKET && typeof env.BACKUP_BUCKET.get === "function") {
+      const obj = await env.BACKUP_BUCKET.get(key);
+      if (!obj) return json({ error: "Backup object not found in R2." }, 404);
+      return new Response(obj.body, {
+        headers: {
+          "content-type": "application/octet-stream",
+          "content-disposition": `attachment; filename="${key}"`,
+          "cache-control": "no-store"
+        }
+      });
+    }
+
+    const backup = await createAutomatedBackup(env);
+    return new Response(backup.bundle, {
+      headers: {
+        "content-type": "application/octet-stream",
+        "content-disposition": `attachment; filename="${backup.key}"`,
+        "cache-control": "no-store"
+      }
+    });
+  }
+
   return json({ error: "Not found." }, 404);
 }
 
@@ -1277,5 +1770,12 @@ export default {
       const status = /sign-in|authentication|access token|token|signing keys|not allowed to administer/i.test(message) ? 401 : 500;
       return withCors(json({ error: status === 401 ? message : "The server could not complete this request." }, status), cors);
     }
+  },
+  async scheduled(event, env, ctx) {
+    const task = createAutomatedBackup(env);
+    if (ctx && typeof ctx.waitUntil === "function") {
+      ctx.waitUntil(task);
+    }
+    await task;
   }
 };

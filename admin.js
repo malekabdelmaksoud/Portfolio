@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
-const state={facts:[],projects:[],editingFact:null,editingProject:null};
+const state={facts:[],projects:[],backups:[],editingFact:null,editingProject:null};
 const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};
 async function api(path,options={}) {
@@ -35,10 +35,42 @@ function renderProjects(){
   card.append(top,desc,url,actions);root.append(card);
  }
 }
+function renderBackups(backupData) {
+ const root=$("#backupsList");root.replaceChildren();const backups=backupData?.backups||state.backups||[];
+ $("#backupCount").textContent=String(backups.length);
+ $("#backupLatestDate").textContent=backupData?.latest?.created_at?new Date(backupData.latest.created_at).toLocaleString():"Aucune sauvegarde";
+ const latestStatus=backupData?.latest?.status;
+ $("#backupLatestStatus").textContent=latestStatus==="stored"?"Stocké dans R2 (Opérationnel)":latestStatus==="not_stored"?"Non Stocké (R2 Déconnecté)":latestStatus==="failed"?"Échoué":(latestStatus||"En attente");
+ $("#backupR2Status").textContent=backupData?.r2_bound?"R2 Actif & Connecté":"Non lié (Stockage en mémoire uniquement)";
+ if(!backups.length){root.append(node("p","muted","Aucune sauvegarde enregistrée pour le moment."));return;}
+ for(const b of backups){
+  const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",b.key);
+  const sizeKb=b.size_bytes?(b.size_bytes/1024).toFixed(1)+" Ko":"—";
+  const meta=node("div","meta","Taille: "+sizeKb+" · Date: "+(b.created_at?new Date(b.created_at).toLocaleString():"Inconnue"));
+  left.append(title,meta);
+  const bStatus=b.status==="stored"?"STOCKÉ (R2)":b.status==="not_stored"?"NON STOCKÉ (MÉMOIRE)":"ÉCHOUÉ";
+  const statusClass=b.status==="stored"?"status on":"status off";
+  const status=node("span",statusClass,bStatus);top.append(left,status);
+  const hashP=node("p","",b.sha256?"SHA-256 (plaintext): "+b.sha256:"");
+  const actions=node("div","record-actions");
+  actions.append(
+   button("Télécharger",()=>downloadBackup(b.key),"ghost"),
+   button("Vérifier l'intégrité",()=>verifyBackup(b.key),"ghost"),
+   button("Sélectionner pour restauration",()=>selectForRestore(b.key),"")
+  );
+  card.append(top,hashP,actions);root.append(card);
+ }
+}
 async function load(){
  try{
-  const [session,facts,projects]=await Promise.all([api("/api/admin/session"),api("/api/admin/facts"),api("/api/admin/projects")]);
-  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;renderFacts();renderProjects();
+  const [session,facts,projects,backups]=await Promise.all([
+   api("/api/admin/session"),
+   api("/api/admin/facts"),
+   api("/api/admin/projects"),
+   api("/api/admin/backups").catch(()=>({backups:[],latest:null,r2_bound:false}))
+  ]);
+  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;state.backups=backups.backups||[];
+  renderFacts();renderProjects();renderBackups(backups);
  }catch(e){$("#identity").textContent="Accès non vérifié";notice(e.message+" Vérifiez que Cloudflare Access protège /admin.html et que l'API est configurée.",true);}
 }
 function formData(form){return Object.fromEntries(new FormData(form).entries());}
@@ -66,9 +98,83 @@ async function toggleFact(f){try{const payload={id:f.id,category:f.category,text
 async function toggleProject(p){try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"PUT",body:JSON.stringify({...p,visible:!p.visible})});notice("Visibilité du projet mise à jour.");await load();}catch(e){notice(e.message,true);}}
 async function deleteFact(f){if(!confirm("Supprimer définitivement "+f.id+" ?"))return;try{await api("/api/admin/facts/"+encodeURIComponent(f.id),{method:"DELETE"});notice("Information supprimée.");await load();}catch(e){notice(e.message,true);}}
 async function deleteProject(p){if(!confirm("Supprimer définitivement "+p.title+" ?"))return;try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"DELETE"});notice("Projet supprimé.");await load();}catch(e){notice(e.message,true);}}
-document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";}));
+
+async function triggerManualBackup(){
+ try{
+  notice("Création de la sauvegarde en cours…");
+  const res=await api("/api/admin/backups/create",{method:"POST",body:"{}"});
+  if(res.backup?.stored_to_r2){
+    notice("Sauvegarde chiffrée créée et stockée dans R2 avec succès ("+res.backup.key+").");
+  } else {
+    notice("Sauvegarde chiffrée créée en mémoire ("+res.backup.key+") mais NON stockée dans R2 (R2 non connecté).", true);
+  }
+  await load();
+ }catch(e){notice(e.message,true);}
+}
+function downloadBackup(key){
+ window.open(API_BASE+"/api/admin/backups/download?key="+encodeURIComponent(key),"_blank");
+}
+async function verifyBackup(key){
+ try{
+  notice("Vérification cryptographique de l'intégrité…");
+  const res=await api("/api/admin/backups/verify",{method:"POST",body:JSON.stringify({key})});
+  notice("Sauvegarde "+res.key+" intègre et valide (SHA-256: "+res.sha256_plain.slice(0,16)+"…).");
+ }catch(e){notice("Échec de vérification: "+e.message,true);}
+}
+function selectForRestore(key){
+ $("#restoreKey").value=key;
+ $("#restoreKey").scrollIntoView({behavior:"smooth",block:"center"});
+}
+async function dryRunRestore(){
+ const key=$("#restoreKey").value.trim();
+ if(!key){notice("Veuillez spécifier la clé de sauvegarde à tester.",true);return;}
+ try{
+  notice("Simulation de restauration (Dry Run) en cours…");
+  const res=await api("/api/admin/backups/restore",{method:"POST",body:JSON.stringify({key,dry_run:true})});
+  $("#restoreOutput").hidden=false;
+  $("#restoreOutput").textContent="=== RÉSULTAT DU DRY RUN (AUCUNE MODIFICATION) ===\n" +
+   "Valide: "+res.valid+"\nDate de source: "+res.backup_date+"\nLignes détectées:\n" +
+   JSON.stringify(res.row_counts,null,2);
+  notice("Dry run réussi. Les données sont intègres.");
+ }catch(e){
+  $("#restoreOutput").hidden=false;
+  $("#restoreOutput").textContent="ERREUR DRY RUN:\n"+e.message;
+  notice(e.message,true);
+ }
+}
+async function liveRestore(){
+ const key=$("#restoreKey").value.trim();
+ const confirmation=$("#restoreConfirmation").value.trim();
+ if(!key){notice("Spécifiez la clé de sauvegarde.",true);return;}
+ if(!confirm("ATTENTION: Cette action va écraser les données de production. Êtes-vous absolument sûr ?")) return;
+ try{
+  notice("Restauration réelle en cours…");
+  const res=await api("/api/admin/backups/restore",{method:"POST",body:JSON.stringify({key,dry_run:false,confirmation})});
+  $("#restoreOutput").hidden=false;
+  $("#restoreOutput").textContent="=== RESTAURATION RÉELLE TERMINÉE ===\n"+JSON.stringify(res,null,2);
+  notice("Restauration terminée avec succès.");
+  await load();
+ }catch(e){
+  $("#restoreOutput").hidden=false;
+  $("#restoreOutput").textContent="ERREUR DE RESTAURATION:\n"+e.message;
+  notice(e.message,true);
+ }
+}
+
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{
+ document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));
+ $("#factsPanel").hidden=tab.dataset.tab!=="facts";
+ $("#projectsPanel").hidden=tab.dataset.tab!=="projects";
+ $("#backupsPanel").hidden=tab.dataset.tab!=="backups";
+}));
 $("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));
 $("#factForm").addEventListener("submit",saveFact);$("#projectForm").addEventListener("submit",saveProject);
 document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.cancel+"Form").hidden=true));
+$("#triggerBackup").addEventListener("click",triggerManualBackup);
+$("#btnRestoreDryRun").addEventListener("click",dryRunRestore);
+$("#btnRestoreLive").addEventListener("click",liveRestore);
+$("#restoreConfirmation").addEventListener("input",e=>{
+ $("#btnRestoreLive").disabled=e.target.value.trim()!=="CONFIRM_RESTORE_OVERWRITE_PRODUCTION";
+});
 load();
 })();

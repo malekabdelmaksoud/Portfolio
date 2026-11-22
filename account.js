@@ -207,6 +207,7 @@
     if (window.innerWidth <= 760) $("sidebar").classList.remove("mobile-open");
     const data = await api("/api/user/chats/" + encodeURIComponent(id));
     active = id;
+    try { localStorage.setItem("melek_active_chat_id", id); } catch (_) {}
     $("welcome").hidden = true;
     $("conversation").hidden = false;
     $("conversation-head").textContent = data.chat.title || "Conversation";
@@ -219,6 +220,7 @@
   async function createChat(title = "New chat") {
     const data = await api("/api/user/chats", { method: "POST", body: JSON.stringify({ title }) });
     active = data.chat.id;
+    try { localStorage.setItem("melek_active_chat_id", data.chat.id); } catch (_) {}
     $("welcome").hidden = true;
     $("conversation").hidden = false;
     $("conversation-head").textContent = data.chat.title;
@@ -232,6 +234,7 @@
     await api("/api/user/chats/" + encodeURIComponent(id), { method: "DELETE" });
     if (active === id) {
       active = null;
+      try { localStorage.removeItem("melek_active_chat_id"); } catch (_) {}
       $("conversation").hidden = true;
       $("welcome").hidden = false;
       $("messages").replaceChildren();
@@ -259,11 +262,12 @@
     input.value = "";
     input.style.height = "auto";
     abortController = new AbortController();
+    let pending = null;
     try {
       if (!active) await createChat(question.slice(0, 64));
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
       addMessage("user", question);
-      const pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
+      pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
       const context = [...$("messages").querySelectorAll(".message")].slice(-8, -1).map(node => node.querySelector(".message-text")?.textContent || "");
       const response = await fetch(base + "/api/assistant", {
         method: "POST",
@@ -275,12 +279,16 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
       const answer = typeof data.answer === "string" ? data.answer : "No response available.";
-      pending.remove();
+      if (pending) { pending.remove(); pending = null; }
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
       addMessage("assistant", answer);
       if (autoSpeak) speakText(answer);
       await refreshChats();
     } catch (error) {
+      if (pending) pending.remove();
+      if (![...$("messages").querySelectorAll(".message")].some(m => m.textContent?.includes(question))) {
+        input.value = question;
+      }
       if (error.name !== "AbortError") toast(error.message);
       else toast("Generation stopped.");
     } finally {
@@ -447,7 +455,10 @@
       $("status").textContent = "Verified · private history";
       await loadModels();
       await refreshChats();
-      if (chats.length) await openChat(chats[0].id);
+      let lastActiveId = null;
+      try { lastActiveId = localStorage.getItem("melek_active_chat_id"); } catch (_) {}
+      const targetChat = (lastActiveId && chats.find(c => c.id === lastActiveId)) || chats[0];
+      if (targetChat) await openChat(targetChat.id);
     } catch (error) {
       showAuth();
       $("auth-error").textContent = error.auth ? "Enter your email to receive a sign-in code." : error.message;

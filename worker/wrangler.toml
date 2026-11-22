@@ -16,6 +16,16 @@ ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
 # MELEK_AI_SERVICE_TOKEN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY, RESEND_API_KEY, EMAIL_FROM, SESSION_PEPPER,
 # OTP_PEPPER, ACCESS_ISSUER, ACCESS_AUD, and ADMIN_EMAIL are runtime secrets.
 
+[triggers]
+crons = ["0 3 * * *"]
+
+# Cloudflare R2 bucket binding for encrypted automated backups:
+# Once created in the Cloudflare dashboard (R2 -> Create Bucket -> melek-portfolio-backups),
+# uncomment the block below to bind it to the Worker:
+# [[r2_buckets]]
+# binding = "BACKUP_BUCKET"
+# bucket_name = "melek-portfolio-backups"
+
 [assets]
 directory = "./admin-assets"
 binding = "ASSETS"

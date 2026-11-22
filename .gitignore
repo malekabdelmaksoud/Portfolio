@@ -29,3 +29,9 @@ melek-ai-model/checkpoints/*.json
 
 # Local Cloudflare Worker secrets
 .dev.vars
+
+# Backups and database exports (strictly never committed)
+backups/
+*.enc
+*.dump
+*.sql.gz
