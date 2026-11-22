@@ -272,6 +272,18 @@ test("assistant uses the full owner profile when asked about Melek",async()=>{
  assert.equal(data.grounded_by_portfolio,true);
 });
 
+test("assistant grounds portfolio project questions in the published website",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><h2>Selected projects</h2><p>Symfony application and TypeScript dashboard.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"The portfolio lists its published projects."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Quels sont les projets présentés dans ce portfolio ?"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/Published portfolio page content/);
+ assert.match(prompt,/Symfony application and TypeScript dashboard/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
 test("assistant understands Tunisian follow-ups using recent context",async()=>{
  const env=environment();let prompt="";
  env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is a deeper explanation of those projects."};}};
