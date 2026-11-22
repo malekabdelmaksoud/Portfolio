@@ -1087,6 +1087,51 @@ async function rankedFacts(env, question, context = "") {
   return { searchTerms, selected, personalPortfolioQuestion: false };
 }
 
+const PUBLIC_PORTFOLIO_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev";
+
+async function fetchPublishedPortfolioContext() {
+  const fetchText = async path => {
+    try {
+      const response = await fetch(PUBLIC_PORTFOLIO_ORIGIN + path, {
+        headers: { accept: path.endsWith(".js") ? "text/javascript" : "text/html" },
+        signal: AbortSignal.timeout(2500)
+      });
+      if (!response.ok) return "";
+      const length = Number(response.headers.get("content-length") || 0);
+      if (length > 100000) return "";
+      const content = await response.text();
+      return content.length <= 100000 ? content : "";
+    } catch (_) {
+      return "";
+    }
+  };
+  const [html, cvSource] = await Promise.all([fetchText("/"), fetchText("/cv-manager.js")]);
+  const cvStart = cvSource.indexOf("getDefaultData() {");
+  const cvEnd = cvSource.indexOf("\n  getData()", cvStart);
+  const cvData = cvStart >= 0 && cvEnd > cvStart ? cvSource.slice(cvStart, cvEnd) : "";
+  const pageText = html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+  const translatedAttributes = [...html.matchAll(/\bdata-(?:fr|en)="([^"]+)"/g)]
+    .map(match => match[1])
+    .join(" ");
+  const clean = value => String(value || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
+  const sections = [];
+  if (cvData) sections.push("Published CV default data (from cv-manager.js):\n" + clean(cvData).slice(0, 10500));
+  if (pageText || translatedAttributes) sections.push("Published portfolio page content:\n" + clean(pageText + " " + translatedAttributes).slice(0, 6500));
+  return sections.join("\n\n").slice(0, 16000);
+}
+
+
 class MelekInferenceAdapter {
   constructor(env) { this.env = env; }
 
@@ -1188,9 +1233,11 @@ async function assistant(request, env) {
   // Portfolio lookup is optional grounding. A miss must never prevent a
   // general-knowledge answer or a useful analysis.
   let selected = [];
+  let publishedPortfolioContext = "";
   try {
     const ranked = await rankedFacts(env, question, conversationContext);
     selected = ranked.selected || [];
+    if (ranked.personalPortfolioQuestion) publishedPortfolioContext = await fetchPublishedPortfolioContext();
   } catch (_) {
     selected = [];
   }
@@ -1242,7 +1289,10 @@ RECENT CONVERSATION CONTEXT
 ${conversationContext || "No earlier conversation context was provided."}
 
 VERIFIED PORTFOLIO CONTEXT
-${factsText || "No matching verified portfolio facts were found. This does not limit answers to general questions."}`;
+${factsText || "No matching verified portfolio facts were found."}
+
+PUBLISHED PORTFOLIO WEBSITE CONTEXT
+${publishedPortfolioContext || "The live public portfolio site could not be retrieved for this request. Use verified portfolio facts only."}`;
 
   if (!env.AI || typeof env.AI.run !== "function") {
     if (selected.length) {
