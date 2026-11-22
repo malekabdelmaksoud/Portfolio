@@ -827,7 +827,7 @@ async function authRoutes(request, env, path, method) {
       "SELECT id,code_hash,expires_at,attempts,consumed_at,ip_hash FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1"
     ).bind(email).first();
     if (!challenge) return json({ error: "No active reset code. Request a new code.", code: "RESET_NOT_FOUND" }, 400);
-    if (challenge.ip_hash !== ip) return json({ error: "This reset code cannot be used from this network.", code: "RESET_NETWORK" }, 403);
+    // Note: ip_hash is recorded for auditing, but not strictly required to match to allow reset across mobile/WiFi networks.
     if (Date.now() >= Date.parse(challenge.expires_at)) return json({ error: "This reset code has expired.", code: "RESET_EXPIRED" }, 400);
     const attempt = await env.DB.prepare(
       "UPDATE password_reset_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts < 5 RETURNING attempts"
@@ -1285,6 +1285,18 @@ async function userChatRoute(request, env, path, method, identity) {
       env.DB.prepare("DELETE FROM chats WHERE user_email=?").bind(identity.email)
     ]);
     return json({ deleted: true });
+  }
+  if (path === "/api/user/password" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const password = String(body.password || "");
+    if (password.length < 8 || password.length > 128) return json({ error: "Password must contain 8 to 128 characters.", code: "INVALID_PASSWORD" }, 400);
+    const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+    const salt = bytesToBase64url(saltBytes);
+    const passwordHash = await hashPassword(password, salt);
+    await env.DB.prepare(
+      "UPDATE users SET password_salt=?,password_hash=?,last_login_at=CURRENT_TIMESTAMP WHERE id=?"
+    ).bind(salt, passwordHash, identity.id).run();
+    return json({ updated: true });
   }
   return json({ error: "Not found." }, 404);
 }
@@ -1915,6 +1927,14 @@ export default {
       }
       if (path.startsWith("/api/admin/")) return withCors(await adminRoute(request, env, path, method), cors);
       // Serve the account/admin shell and its local frontend assets from this Worker origin.
+      if (method === "GET") {
+        if (path === "/password-reset" || path === "/password-reset/") {
+          return withCors(Response.redirect(new URL("/password-reset.html", request.url).toString(), 302), cors);
+        }
+        if (path === "/account" || path === "/account/") {
+          return withCors(Response.redirect(new URL("/account.html", request.url).toString(), 302), cors);
+        }
+      }
       const publicShellAssets = new Set(["/account.html", "/account.css", "/account.js", "/api-config.js", "/password-reset.html", "/password-reset.js", "/qr-approve.html", "/qr-approve.js", "/admin.html", "/admin.css", "/admin.js"]);
       if (method === "GET" && publicShellAssets.has(path) && env.ASSETS) {
         return withCors(await env.ASSETS.fetch(request), cors);

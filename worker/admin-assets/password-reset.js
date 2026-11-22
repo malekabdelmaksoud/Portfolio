@@ -57,7 +57,7 @@
       await api("/api/auth/password/reset/request", { method: "POST", body: body({ email: $("reset-email").value.trim(), turnstileToken: resetTurnstileToken }) });
       $("reset-request-form").hidden = true; $("reset-verify-form").hidden = false; $("reset-code").focus();
       error("If this account has a password, a reset code has been sent. Check your inbox.");
-    } catch (e) { error(e.code === "EMAIL_NOT_CONFIGURED" ? "Email delivery is not configured yet. The site owner must connect the email provider." : e.message); }
+    } catch (e) { error(e.code === "EMAIL_NOT_CONFIGURED" ? "Email delivery is not configured yet. If your account is with Google (@gmail.com), use 'Continuer avec Google' above." : e.message); }
   });
   $("reset-verify-form").addEventListener("submit", async event => {
     event.preventDefault(); error("");
@@ -66,6 +66,25 @@
       location.href = "/account.html?passwordReset=1";
     } catch (e) { error(e.message); }
   });
+  async function loadGoogleSignIn() {
+    const config = await api("/api/auth/config").catch(() => ({}));
+    if (!config.googleClientId) return;
+    const fallbackBtn = $("google-fallback-btn");
+    if (fallbackBtn) {
+      fallbackBtn.onclick = () => {
+        const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + new URLSearchParams({
+          client_id: config.googleClientId,
+          redirect_uri: window.location.origin + "/account.html",
+          response_type: "id_token",
+          scope: "openid email profile",
+          nonce: Math.random().toString(36).slice(2)
+        });
+        const popup = window.open(authUrl, "google-auth", "width=500,height=600");
+        if (!popup || popup.closed) window.location.href = authUrl;
+      };
+    }
+  }
+  loadGoogleSignIn().catch(() => {});
   $("create-qr").addEventListener("click", async () => {
     error(""); $("qr-wrap").hidden = true;
     if (qrTimer) clearInterval(qrTimer);

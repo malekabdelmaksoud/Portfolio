@@ -498,7 +498,7 @@ test("allowedOrigin in production rejects localhost, 127.0.0.1, and empty ALLOWE
   assert.equal(getRes.status, 200, "Case F: Public GET without Origin must work in production");
 });
 
-test("CSRF protection is universally enforced across all 15 mutating routes (POST, PUT, DELETE)", async () => {
+test("CSRF protection is universally enforced across all 16 mutating routes (POST, PUT, DELETE)", async () => {
   const env = authEnvironment();
   const dummyChatId = "11111111-2222-3333-4444-555555555555";
   const mutatingRoutes = [
@@ -516,6 +516,7 @@ test("CSRF protection is universally enforced across all 15 mutating routes (POS
     { method: "POST", path: `/api/user/chats/${dummyChatId}` },
     { method: "DELETE", path: `/api/user/chats/${dummyChatId}` },
     { method: "DELETE", path: "/api/user/chats" },
+    { method: "POST", path: "/api/user/password" },
     { method: "POST", path: "/api/admin/projects/import" }
   ];
 
@@ -638,6 +639,30 @@ test("password reset verifies a private code and replaces the password",async()=
  assert.equal(data.reset,true);
  const login=await worker.fetch(authRequest("/api/auth/login",{email:"reset@example.test",password:"NewPassword123"}),env);
  assert.equal(login.status,200);
+});
+
+test("authenticated user can update password via /api/user/password", async () => {
+  const env = authEnvironment({ SESSION_PEPPER: "test-pepper", OTP_PEPPER: "reset-pepper" });
+  const reg = await worker.fetch(authRequest("/api/auth/register", { name: "Pass User", email: "pass@example.test", password: "Password123" }), env);
+  assert.equal(reg.status, 200);
+  const cookie = (reg.headers.get("set-cookie") || "").split(";")[0];
+  const updateRes = await worker.fetch(new Request("https://api.test/api/user/password", {
+    method: "POST",
+    headers: { "content-type": "application/json", Origin: "https://portfolio.test", Cookie: cookie },
+    body: JSON.stringify({ password: "UpdatedPassword456" })
+  }), env);
+  assert.equal(updateRes.status, 200);
+  const updateData = await updateRes.json();
+  assert.equal(updateData.updated, true);
+  const reLogin = await worker.fetch(authRequest("/api/auth/login", { email: "pass@example.test", password: "UpdatedPassword456" }), env);
+  assert.equal(reLogin.status, 200);
+});
+
+test("password-reset convenience paths redirect to /password-reset.html", async () => {
+  const env = authEnvironment();
+  const res = await worker.fetch(new Request("https://api.test/password-reset", { headers: { Origin: "https://portfolio.test" } }), env);
+  assert.equal(res.status, 302);
+  assert.match(res.headers.get("location") || "", /\/password-reset\.html/);
 });
 
 test("Melek AI status reports development truthfully",async()=>{

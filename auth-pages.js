@@ -131,7 +131,14 @@
         $("reset-request-form").hidden = true;
         $("reset-verify-form").hidden = false;
         $("reset-code").focus();
-      } catch (error) { $("reset-error").textContent = error.message; }
+        $("reset-error").textContent = "";
+      } catch (error) {
+        if (error.code === "EMAIL_NOT_CONFIGURED") {
+          $("reset-error").textContent = "L'envoi d'e-mail n'est pas encore configuré sur le serveur. Si vous possédez un compte Google (@gmail.com), connectez-vous directement via le bouton 'Continuer avec Google'.";
+        } else {
+          $("reset-error").textContent = error.message;
+        }
+      }
     });
     $("reset-verify-form").addEventListener("submit", async event => {
       event.preventDefault();
