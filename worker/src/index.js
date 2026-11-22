@@ -1128,7 +1128,7 @@ let publishedPortfolioContextCache = { value: "", expiresAt: 0 };
 
 async function fetchPublishedPortfolioContext(env = {}) {
   const hasInlineContext = typeof env.PORTFOLIO_CONTEXT_HTML === "string" || typeof env.PORTFOLIO_CONTEXT_CV === "string";
-  if (!hasInlineContext && publishedPortfolioContextCache.value && publishedPortfolioContextCache.expiresAt > Date.now()) {
+  if (env.ENVIRONMENT === "production" && !hasInlineContext && publishedPortfolioContextCache.value && publishedPortfolioContextCache.expiresAt > Date.now()) {
     return publishedPortfolioContextCache.value;
   }
   const fetchText = async path => {
@@ -1174,7 +1174,7 @@ async function fetchPublishedPortfolioContext(env = {}) {
   if (pageText || translatedAttributes) sections.push("Published portfolio page content:\n" + clean(pageText + " " + translatedAttributes).slice(0, 6500));
   if (!cvData) sections.unshift("Published CV fallback from the portfolio repository source:\n" + DEFAULT_PUBLISHED_CV_FALLBACK);
   const context = sections.join("\n\n").slice(0, 18000);
-  if (!hasInlineContext && context) publishedPortfolioContextCache = { value: context, expiresAt: Date.now() + 60_000 };
+  if (env.ENVIRONMENT === "production" && !hasInlineContext && context) publishedPortfolioContextCache = { value: context, expiresAt: Date.now() + 60_000 };
   return context;
 }
 
