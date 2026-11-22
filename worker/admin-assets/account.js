@@ -797,6 +797,29 @@
       $("chat-input").focus();
     } catch (error) { toast(error.message); }
   });
+  $("share-conversation").addEventListener("click", async () => {
+    if (!active) return toast("Open a conversation before sharing it.");
+    const button = $("share-conversation");
+    button.disabled = true;
+    try {
+      const data = await api("/api/user/chats/" + encodeURIComponent(active) + "/share", { method: "POST", body: "{}" });
+      try {
+        await navigator.clipboard.writeText(data.url);
+        toast("Share link copied. The original prompt is included.");
+      } catch (_) {
+        window.prompt("Copy this share link:", data.url);
+      }
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  });
+  $("revoke-share").addEventListener("click", async () => {
+    if (!active) return;
+    if (!confirm("Revoke all public links for this conversation?")) return;
+    try {
+      const data = await api("/api/user/chats/" + encodeURIComponent(active) + "/share", { method: "DELETE" });
+      toast(data.count ? "Shared links revoked." : "There were no active shared links.");
+    } catch (error) { toast(error.message); }
+  });
   $("chat-form").addEventListener("submit", sendMessage);
   $("chat-input").addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
