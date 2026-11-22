@@ -15,6 +15,7 @@ function environment() {
   const users=[{id:"u-001",email:"visitor@example.test",display_name:"Visitor"}];
   const chats=[{id:"c-001",user_email:"visitor@example.test",title:"Chat 1",created_at:"2026-11-20",updated_at:"2026-11-20"}];
   const chatMessages=[{id:"m-001",chat_id:"c-001",user_email:"visitor@example.test",role:"user",content:"Hello",created_at:"2026-11-20"}];
+  const sharedConversations=[];
   const backupLogs=[];
   const r2Storage=new Map();
   const BACKUP_BUCKET={
@@ -56,6 +57,7 @@ function environment() {
       if(sql.includes("COUNT(*) AS c FROM users")) return {c:users.length};
       if(sql.includes("COUNT(*) AS c FROM chats")) return {c:chats.length};
       if(sql.includes("COUNT(*) AS c FROM chat_messages")) return {c:chatMessages.length};
+      if(sql.includes("FROM shared_conversations")) return sharedConversations.find(item=>item.token===params[0]&&!item.revoked_at)||null;
       if(sql.includes("SELECT 1")) return {ok:1};
       if(sql.includes("SELECT COALESCE(MAX")) return {max_order:projects.reduce((max,p)=>Math.max(max,p.sort_order||0),0)};
       if(sql.includes("SELECT id,url,title FROM projects")) {
@@ -76,6 +78,8 @@ function environment() {
       if(sql.includes("FROM chat_messages")) return {results:chatMessages};
       return {results:[]};
     },async run(){
+      if(sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({token:params[0],chat_id:params[1],user_email:params[2],title:params[3],prompt:params[4],messages_json:params[5],created_at:new Date().toISOString(),revoked_at:null}); return {meta:{changes:1}}; }
+      if(sql.includes("UPDATE shared_conversations SET revoked_at")) { let count=0; for(const item of sharedConversations) if(item.chat_id===params[0]&&item.user_email===params[1]&&!item.revoked_at){item.revoked_at=new Date().toISOString();count++;} return {meta:{changes:count}}; }
       if(sql.includes("INSERT INTO backup_logs")) {
         backupLogs.unshift({id:params[0],backup_key:params[1],status:params[2],size_bytes:params[3],sha256_plain:params[4],sha256_cipher:params[5],tables_summary:params[6],error_message:params[7],created_at:new Date().toISOString()});
         return {meta:{changes:1}};
@@ -111,6 +115,7 @@ async batch(statements){
     users: JSON.parse(JSON.stringify(users)),
     chats: JSON.parse(JSON.stringify(chats)),
     chatMessages: JSON.parse(JSON.stringify(chatMessages)),
+    sharedConversations: JSON.parse(JSON.stringify(sharedConversations)),
     backupLogs: JSON.parse(JSON.stringify(backupLogs))
   };
   const results=[];
@@ -123,11 +128,12 @@ async batch(statements){
     users.length = 0; users.push(...snapshot.users);
     chats.length = 0; chats.push(...snapshot.chats);
     chatMessages.length = 0; chatMessages.push(...snapshot.chatMessages);
+    sharedConversations.length = 0; sharedConversations.push(...snapshot.sharedConversations);
     backupLogs.length = 0; backupLogs.push(...snapshot.backupLogs);
     throw err;
   }
 }};
-  return {DB,BACKUP_BUCKET,AI:{async run(model,options){return {response:"Mock AI answer: "+options.messages.at(-1).content};}},BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
+  return {DB,BACKUP_BUCKET,AI:{async run(model,options){return {response:"Mock AI answer: "+options.messages.at(-1).content};}},BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__sharedConversations:sharedConversations,__backupLogs:backupLogs,__r2Storage:r2Storage};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
@@ -1968,6 +1974,39 @@ test("Cloudflare Access user identity matches native session data contract and o
     assert.equal(chatData.chat.title, "Access User Chat");
     assert.equal(chatData.messages.length, 1);
     assert.equal(chatData.messages[0].content, "Hello from Access session");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("shared conversations include the original prompt and can be revoked by their owner", async () => {
+  const { env, token } = await createAccessJwtToken();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  const authHeaders = { "origin": "https://portfolio.test", "content-type": "application/json", "CF-Access-Jwt-Assertion": token };
+  try {
+    const created = await worker.fetch(new Request("https://api.test/api/user/chats", { method: "POST", headers: authHeaders, body: JSON.stringify({ title: "Share test" }) }), env);
+    const { chat } = await created.json();
+    await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, { method: "POST", headers: authHeaders, body: JSON.stringify({ role: "user", content: "Original prompt for this shared chat" }) }), env);
+    await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, { method: "POST", headers: authHeaders, body: JSON.stringify({ role: "assistant", content: "A public read-only answer" }) }), env);
+
+    const shareRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id + "/share", { method: "POST", headers: authHeaders, body: "{}" }), env);
+    assert.equal(shareRes.status, 201);
+    const share = await shareRes.json();
+    assert.match(share.url, /\/share\.html\?token=/);
+
+    const publicRes = await worker.fetch(new Request("https://api.test/api/share/" + share.token, { headers: { "origin": "https://portfolio.test" } }), env);
+    assert.equal(publicRes.status, 200);
+    const publicData = await publicRes.json();
+    assert.equal(publicData.prompt, "Original prompt for this shared chat");
+    assert.equal(publicData.messages.length, 2);
+    assert.equal(publicData.messages[1].content, "A public read-only answer");
+
+    const revokeRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id + "/share", { method: "DELETE", headers: authHeaders }), env);
+    assert.equal(revokeRes.status, 200);
+    assert.equal((await revokeRes.json()).revoked, true);
+    const revokedRes = await worker.fetch(new Request("https://api.test/api/share/" + share.token, { headers: { "origin": "https://portfolio.test" } }), env);
+    assert.equal(revokedRes.status, 404);
   } finally { globalThis.fetch = oldFetch; }
 });
 
