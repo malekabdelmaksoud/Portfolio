@@ -407,12 +407,12 @@
           history.unshift({ role: previous.classList.contains("user") ? "user" : "assistant", content: previous.querySelector(".message-text")?.textContent || "" });
           previous = previous.previousElementSibling;
         }
-        await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(node.dataset.messageId), { method: "PATCH", body: JSON.stringify({ content }) });
-        editor.remove(); actions.remove();
         const response = await fetch(base + "/api/assistant", { method: "POST", credentials: "include", headers: { "content-type": "application/json", "accept": "application/json" }, body: JSON.stringify({ question: content, mode, history: history.slice(-12), model_id: selectedModel }) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
         const answer = typeof data.answer === "string" ? data.answer : "No response available.";
+        await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(node.dataset.messageId), { method: "PATCH", body: JSON.stringify({ content }) });
+        editor.remove(); actions.remove();
         await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
         await openChat(active);
         await refreshChats();
