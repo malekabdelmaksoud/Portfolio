@@ -1046,7 +1046,7 @@ async function rankedFacts(env, question, context = "") {
   const q = terms(question);
   const followUp = /\b(more|details|explain|elaborate|encore|explique|plus)\b|زيد|زيدني|فسرلي|فصلي/i.test(normalize(question));
   const searchTerms = followUp && context ? terms(context + " " + question) : q;
-  const personalPortfolioQuestion = isPersonalPortfolioQuestion(question, context);
+  const personalPortfolioQuestion = isPersonalPortfolioQuestion(question) || (followUp && isPersonalPortfolioQuestion(context.slice(-1500)));
   if (!searchTerms.size && !personalPortfolioQuestion) return { searchTerms, selected: [] };
   const { results = [] } = await env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
   const { results: projectRows = [] } = await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
@@ -1065,7 +1065,8 @@ async function rankedFacts(env, question, context = "") {
       const ai = categoryOrder.indexOf(a.category), bi = categoryOrder.indexOf(b.category);
       return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
     });
-    return { searchTerms, selected: allFacts.slice(0, 18), personalPortfolioQuestion: true };
+    const uniqueFacts = [...new Map(allFacts.map(f => [f.id, f])).values()];
+    return { searchTerms, selected: uniqueFacts.slice(0, 18), personalPortfolioQuestion: true };
   }
   const ranked = allFacts.map(f => {
     const hay = terms([f.text_fr, f.text_en, f.text_ar, ...parseJson(f.aliases_json, [])].join(" "));
