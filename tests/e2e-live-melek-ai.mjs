@@ -611,8 +611,8 @@ async function run() {
     });
     assert.equal(badRes.status, 400);
 
-    // Live perimeter check: unauthenticated direct access to /api/user/* is redirected by Cloudflare Access
-    const accessCheck = await fetch(API_BASE + "/api/user/chats", { redirect: "manual" });
+    // Live perimeter check: unauthenticated direct access to admin is redirected by Cloudflare Access
+    const accessCheck = await fetch(API_BASE + "/admin.html", { redirect: "manual" });
     assert.equal(accessCheck.status, 302, "Cloudflare Access should redirect unauthenticated browser requests");
     const loc = accessCheck.headers.get("location") || "";
     assert.ok(loc.includes("cloudflareaccess.com"), "Redirected to Cloudflare Access perimeter");

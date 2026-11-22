@@ -12,9 +12,15 @@
   const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let autoSpeak = false;
+  let usedVoice = false;
   let selectedModel = "melek-ai-v1";
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
   if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
+
+  function showStopVocal(show) {
+    const btn = $("stop-vocal");
+    if (btn) btn.hidden = !show;
+  }
 
   function applyTheme(theme) {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -282,7 +288,10 @@
       if (pending) { pending.remove(); pending = null; }
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
       addMessage("assistant", answer);
-      if (autoSpeak) speakText(answer);
+      if (autoSpeak || usedVoice) {
+        speakText(answer);
+        usedVoice = false;
+      }
       await refreshChats();
     } catch (error) {
       if (pending) pending.remove();
@@ -306,10 +315,24 @@
       return;
     }
     speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = /[\u0600-\u06ff]/.test(text) ? "ar-TN" : /\b(the|and|with|for|project)\b/i.test(text) ? "en-US" : "fr-FR";
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+    const cleanText = text
+      .replace(/[*_#`~[\]()]/g, "")
+      .replace(/https?:\/\/\S+/g, "")
+      .replace(/[•–—]/g, ", ");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const isArabic = /[\u0600-\u06ff]/.test(text);
+    const isEnglish = /\b(the|and|with|for|project|skills|experience)\b/i.test(text);
+    utterance.lang = isArabic ? "ar-TN" : isEnglish ? "en-US" : "fr-FR";
+    try {
+      const voices = speechSynthesis.getVoices();
+      const matchVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)));
+      if (matchVoice) utterance.voice = matchVoice;
+    } catch (_) {}
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onstart = () => showStopVocal(true);
+    utterance.onend = () => showStopVocal(false);
+    utterance.onerror = () => showStopVocal(false);
     speechSynthesis.speak(utterance);
   }
 
@@ -673,9 +696,20 @@
       recognition = null;
       $("mic-button").classList.remove("recording");
       $("chat-input").focus();
-      if ($("chat-input").value.trim()) $("chat-form").requestSubmit();
+      if ($("chat-input").value.trim()) {
+        usedVoice = true;
+        $("chat-form").requestSubmit();
+      }
     };
     recognition.start();
+  });
+
+  $("stop-vocal")?.addEventListener("click", () => {
+    if ("speechSynthesis" in window) {
+      speechSynthesis.cancel();
+    }
+    showStopVocal(false);
+    toast("Voix arrêtée.");
   });
 
   document.addEventListener("keydown", event => {

@@ -26,6 +26,9 @@
 .email-divider::before,.email-divider::after{content:"";height:1px;background:#303844;flex:1}
 #turnstile-wrap{min-height:1px;margin-top:12px}
 .composer-controls{display:flex;align-items:center;gap:7px}
+.stop-vocal-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;background:#3d1a1a;border:1px solid #7c2d2d;color:#ffb8b8;font-size:12px;font-weight:600;cursor:pointer;animation:pulse-vocal 1.4s infinite}
+.stop-vocal-btn:hover{background:#582222;border-color:#b53d3d;color:#fff}
+@keyframes pulse-vocal{0%,100%{box-shadow:0 0 0 0 rgba(220,70,70,.4)}50%{box-shadow:0 0 0 6px rgba(220,70,70,0)}}
 .mode-btn[aria-pressed="true"]{background:#263246;border-color:#3d5275;color:#d3e2ff}
 .mic-button.recording{color:#ec8d8d;border-color:#8f4e4e;animation:pulse 1.2s ease-in-out infinite}
 .voice-disclosure{color:#9aa4b2;font-size:10px;text-align:center;margin:7px 0 0}
