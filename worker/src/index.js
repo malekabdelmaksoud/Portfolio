@@ -1089,7 +1089,7 @@ async function rankedFacts(env, question, context = "") {
 
 const PUBLIC_PORTFOLIO_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev";
 
-async function fetchPublishedPortfolioContext() {
+async function fetchPublishedPortfolioContext(env = {}) {
   const fetchText = async path => {
     try {
       const response = await fetch(PUBLIC_PORTFOLIO_ORIGIN + path, {
@@ -1105,7 +1105,10 @@ async function fetchPublishedPortfolioContext() {
       return "";
     }
   };
-  const [html, cvSource] = await Promise.all([fetchText("/"), fetchText("/cv-manager.js")]);
+  const [html, cvSource] = await Promise.all([
+    typeof env.PORTFOLIO_CONTEXT_HTML === "string" ? env.PORTFOLIO_CONTEXT_HTML : fetchText("/"),
+    typeof env.PORTFOLIO_CONTEXT_CV === "string" ? env.PORTFOLIO_CONTEXT_CV : fetchText("/cv-manager.js")
+  ]);
   const cvStart = cvSource.indexOf("getDefaultData() {");
   const cvEnd = cvSource.indexOf("\n  getData()", cvStart);
   const cvData = cvStart >= 0 && cvEnd > cvStart ? cvSource.slice(cvStart, cvEnd) : "";
@@ -1237,7 +1240,7 @@ async function assistant(request, env) {
   try {
     const ranked = await rankedFacts(env, question, conversationContext);
     selected = ranked.selected || [];
-    if (ranked.personalPortfolioQuestion) publishedPortfolioContext = await fetchPublishedPortfolioContext();
+    if (ranked.personalPortfolioQuestion) publishedPortfolioContext = await fetchPublishedPortfolioContext(env);
   } catch (_) {
     selected = [];
   }
