@@ -1039,7 +1039,7 @@ function abstentionFor(question) {
 
 function isPersonalPortfolioQuestion(question, context = "") {
   const text = normalize(question + " " + context);
-  return /\b(melek|abdelmaksoud|cv|resume|curriculum|biography|bio|profile|personal|about me|about the owner|his background|her background)\b|مالك|ملاك|السيره الذاتيه|سيره ذاتيه|السيرة الذاتية|نبذه عن|نبذة عن|معلومات عن|شنو تعرف على|احكيلي على/i.test(text);
+  return /\b(melek|abdelmaksoud|cv|resume|curriculum|biography|bio|profile|personal|about me|about the owner|his background|her background)\b|مالك|ملاك|السيره الذاتيه|سيره ذاتيه|السيرة الذاتية|نبذه عن|نبذة عن|معلومات عن|شنو تعرف|احكيلي|اسأل عن/i.test(text);
 }
 
 async function rankedFacts(env, question, context = "") {
