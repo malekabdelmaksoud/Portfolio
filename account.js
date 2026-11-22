@@ -693,19 +693,6 @@
       $("conversation").hidden = true;
     } catch (error) { toast(error.message); }
   });
-
-  $("change-password")?.addEventListener("click", async () => {
-    const newPass = prompt("Entrez votre nouveau mot de passe (8 à 128 caractères) :");
-    if (!newPass) return;
-    if (newPass.length < 8) {
-      toast("Le mot de passe doit contenir au moins 8 caractères.");
-      return;
-    }
-    try {
-      await api("/api/user/password", {
-        method: "POST",
-        body: JSON.stringify({ password: newPass })
-      });
       toast("Mot de passe mis à jour avec succès !");
     } catch (err) {
       toast(err.message || "Erreur lors de la mise à jour du mot de passe.");
