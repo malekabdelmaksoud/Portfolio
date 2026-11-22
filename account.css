@@ -97,3 +97,47 @@ kbd{color:#7b8492;border-color:#dce2eb}
 :root[data-theme="light"] .chat-rename-input{background:#fff;border-color:#aabbd8;color:#202632}
 :root[data-theme="light"] .chat-action-btn:hover{background:#e3e8f0;color:#202632}
 :root[data-theme="light"] .chat-action-btn.delete-btn:hover{background:#fce8e8;color:#d32f2f}
+
+/* Responsive fit: keep the complete workspace inside the PC viewport. */
+html,body{width:100%;min-width:0;min-height:100%;overflow:hidden}
+.app-shell{height:100dvh;height:100svh;min-height:0;width:100%;max-width:100vw;overflow:hidden}
+.sidebar{min-height:0;max-height:100%;overflow:hidden}
+.main-panel{height:100dvh;height:100svh;min-height:0;min-width:0;overflow:hidden}
+.workspace-header{flex:0 0 50px;min-height:50px}
+.workspace{flex:1 1 auto;min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain}
+.composer-wrap{flex:0 0 auto;min-width:0;max-width:min(850px,calc(100% - 44px))}
+.mode-row{flex-wrap:wrap;row-gap:5px}
+.mode-hint{white-space:nowrap}
+.model-select-wrap{min-width:0;max-width:100%}
+.model-select{max-width:min(260px,35vw)}
+.conversation,.messages,.message,.message-body{min-width:0}
+.message-text{overflow-wrap:anywhere;word-break:normal}
+.auth-screen{min-height:100dvh;min-height:100svh;overflow-y:auto;overscroll-behavior:contain;padding:clamp(10px,2vh,22px);align-items:start}
+.auth-card{margin:auto;max-height:calc(100svh - 20px);overflow-y:auto;overscroll-behavior:contain;width:min(440px,100%);padding:clamp(18px,2.4vw,30px)}
+.google-signin{min-height:42px;align-items:center}
+@media(min-width:761px) and (max-width:1100px){
+.sidebar{width:238px;flex-basis:238px;padding:12px 9px 10px}
+.welcome{padding:30px 0 22px}.suggestions{gap:8px;margin-top:24px}
+.suggestion{padding:12px;min-height:88px}.mode-row{column-gap:3px}
+.mode-btn{padding:6px 7px}.model-select{max-width:210px}
+}
+@media(max-height:760px) and (min-width:761px){
+.workspace-header{height:44px;min-height:44px;flex-basis:44px}
+.welcome{padding:14px 0 12px}.assistant-mark{width:42px;height:42px;margin-bottom:10px;border-radius:14px}
+.welcome h1{font-size:clamp(30px,4vw,42px);margin:8px 0}
+.welcome-copy{font-size:12px;line-height:1.45}.suggestions{margin-top:16px;gap:8px}
+.suggestion{min-height:72px;padding:10px}.suggestion>span{margin-bottom:6px}
+.composer-wrap{padding:7px 0 9px}.composer-card{padding:7px 10px}
+.mode-row{padding-bottom:4px}.composer-card textarea{min-height:34px;max-height:100px}
+.disclaimer{margin-top:5px}
+}
+@media(max-width:760px){
+html,body{overflow:hidden}.app-shell,.main-panel{height:100dvh;height:100svh;min-height:0}
+.auth-screen{padding:10px}.auth-card{max-height:calc(100svh - 20px);padding:20px}
+.mode-row{column-gap:3px}.model-select{max-width:42vw}
+}
+@media(max-height:620px){
+.auth-card{padding:14px 18px}.auth-card h1{font-size:23px;margin:6px 0}
+.auth-copy{font-size:12px;margin-bottom:12px}.auth-tabs{margin:8px 0}
+.auth-card input{height:40px}.otp-details,.password-reset{margin-top:8px;padding-top:7px}
+}
