@@ -372,7 +372,7 @@
         credentials: "include",
         signal: abortController.signal,
         headers: { "content-type": "application/json", "accept": "application/json" },
-        body: JSON.stringify({ question, mode, context, history, model_id: selectedModel })
+        body: JSON.stringify({ question, mode, history, model_id: selectedModel })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
