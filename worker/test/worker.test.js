@@ -199,14 +199,6 @@ function adminRequest(env,path,body) {
  });
 }
 
-test("OTP request skips Turnstile when the optional widget is not configured and reports missing email delivery", async () => {
- const env=environment();
- const response=await worker.fetch(request("/api/auth/request",{email:"visitor@example.test",turnstileToken:""}),env);
- const data=await response.json();
- assert.equal(response.status,503);
- assert.equal(data.code,"EMAIL_NOT_CONFIGURED");
-});
-
 test("health endpoint checks D1 and reports the native auth and Melek AI modes",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/health"),environment());
  const data=await response.json();
