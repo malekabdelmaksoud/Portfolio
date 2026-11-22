@@ -237,6 +237,8 @@ test("assistant sends verified portfolio facts as optional grounding",async()=>{
 
 test("assistant builds owner CV from all approved portfolio facts and visible projects",async()=>{
  const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Public portfolio page context fixture.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { title: 'Étudiante en dernière année' } }; }";
  env.__facts.push(
   {id:"profile-002",category:"profile",text_fr:"Profil développeur web.",text_en:"Web developer profile.",text_ar:"ملف مطور ويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#about",public_url:null,approved:1},
   {id:"education-002",category:"education",text_fr:"Formation en informatique.",text_en:"Computer science education.",text_ar:"تكوين في الإعلامية.",aliases_json:"[]",source_file:"index.html",source_selector:"#education",public_url:null,approved:1},
@@ -250,12 +252,18 @@ test("assistant builds owner CV from all approved portfolio facts and visible pr
  assert.match(prompt,/خبرة في تطوير الويب/);
  assert.match(prompt,/C و Java و Python و PHP/);
  assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
+ assert.match(prompt,/Published profile context from the public site/);
  assert.match(prompt,/synthesize a useful structured CV/);
+ assert.match(prompt,/Published CV default data/);
+ assert.match(prompt,/Étudiante en dernière année/);
+ assert.match(prompt,/Public portfolio page context fixture/);
  assert.equal(data.grounded_by_portfolio,true);
 });
 
 test("assistant uses the full owner profile when asked about Melek",async()=>{
  const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Published profile context from the public site.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { name: 'Melek Abdelmaksoud' } }; }";
  env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is the verified profile."};}};
  const response=await worker.fetch(request("/api/assistant",{question:"شنو تعرف على ملاك؟"}),env);
  const data=await response.json();assert.equal(response.status,200);
