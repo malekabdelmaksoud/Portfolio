@@ -428,6 +428,7 @@
   function showAuth() {
     $("auth-screen").hidden = false;
     $("app-shell").hidden = true;
+    loadGoogleSignIn().catch(() => {});
   }
 
   function showApp() {
@@ -456,13 +457,16 @@
   }
 
   async function loadGoogleSignIn() {
+    const btn = $("google-signin");
+    if (!btn) return;
     try {
       const config = await api("/api/auth/config");
       if (!config.googleClientId) {
-        $("google-signin").hidden = true;
+        btn.hidden = true;
         $("email-divider").hidden = false;
         return;
       }
+      btn.hidden = false;
       await new Promise((resolve, reject) => {
         if (window.google?.accounts?.id) return resolve();
         const script = document.createElement("script");
@@ -483,7 +487,8 @@
           } catch (error) { $("auth-error").textContent = error.message; }
         }
       });
-      window.google.accounts.id.renderButton($("google-signin"), {
+      btn.replaceChildren();
+      window.google.accounts.id.renderButton(btn, {
         theme: "outline",
         size: "large",
         shape: "pill",
@@ -492,8 +497,8 @@
       });
       $("email-divider").hidden = false;
     } catch (error) {
-      $("google-signin").hidden = true;
-      $("auth-error").textContent = error.message;
+      console.warn("Google sign-in init issue:", error);
+      $("email-divider").hidden = false;
     }
   }
 
