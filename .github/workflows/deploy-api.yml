@@ -25,6 +25,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: Run Worker regression tests
+        working-directory: worker
+        run: npm test
+
       - name: Install Wrangler
         working-directory: worker
         run: npm install --no-save wrangler@4
