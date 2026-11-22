@@ -1980,8 +1980,9 @@ export default {
         const models = getAiModels(env);
         const defaultModel = models.find(m => m.id === env.AI_DEFAULT_MODEL && m.available)?.id
           || models.find(m => m.available)?.id
-          || "melek-ai-v1";
-        return withCors(json({ models, defaultModel, available: true }), cors);
+          || models[0]?.id
+          || "@cf/zai-org/glm-4.7-flash";
+        return withCors(json({ models, defaultModel, available: models.some(model => model.available) }), cors);
       }
       if (path.startsWith("/api/auth/")) {
         const result = await authRoutes(request, env, path, method);
