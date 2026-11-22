@@ -76,12 +76,17 @@ function allowedOrigin(request, env) {
 
   const isDevelopment = String(env.ENVIRONMENT || "").trim().toLowerCase() === "development";
   const isProduction = !isDevelopment;
+  const requestOrigin = new URL(request.url).origin;
+
+  // Same-origin requests to the Worker itself do not need to be in the
+  // cross-origin allowlist. This is essential when /account is served by the
+  // API Worker domain; keep the explicit allowlist for portfolio-site CORS.
+  if (origin === requestOrigin) return true;
 
   const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   if (isProduction && isLocalhost) return false;
 
   const rawAllowed = typeof env.ALLOWED_ORIGIN === "string" ? env.ALLOWED_ORIGIN.trim() : "";
-  const requestOrigin = new URL(request.url).origin;
 
   if (isProduction) {
     if (!rawAllowed) return false;
