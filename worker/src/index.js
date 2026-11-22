@@ -1180,12 +1180,14 @@ async function assistant(request, env) {
     selected = [];
   }
 
-  const arabic = /[\u0600-\u06ff]/.test(question);
-  const languageInstruction = arabic
-    ? "Reply in the user's Arabic variety. If the user writes Tunisian Derja, answer naturally in Tunisian Derja."
-    : /\b(hello|hi|what|how|why|explain|analyze|write|translate)\b/i.test(question)
-      ? "Reply in the same language as the user's message."
-      : "Reply in the same language as the user's message.";
+  const arabicScript = /[\u0600-\u06ff]/.test(question);
+  const tunisianLatin = !arabicScript && /\b(ch(now|nou|nawa)|chnoua|kifech|kifach|labes|lebes|bahi|behi|tawa|taw|nheb|n7eb|3lech|alech|3andi|andi|chbik|chnowa|aaychek|yesser|barsha|barcha|mrigel|mrigla|wa9tech|wa9t)\b/i.test(question);
+  const arabic = arabicScript || tunisianLatin;
+  const languageInstruction = arabicScript
+    ? "The user wrote Arabic using Arabic script. Reply in Arabic script, not Latin transliteration. If the wording is Tunisian, use natural Tunisian Derja (for example: لاباس، شنوّة، توّة، نجم), not Moroccan or Algerian dialect."
+    : tunisianLatin
+      ? "The user wrote Tunisian Derja using Latin transliteration. Reply in the same Tunisian Latin transliteration style (for example: Labes, chnowa, tawa, najem). Do not switch to Moroccan/Algerian phrasing, Modern Standard Arabic, or English."
+      : "Reply in the same language AND writing script used by the user's latest message. Keep the user's level of formality and conversational tone. Do not change languages unnecessarily.";
 
   const factsText = selected.map((fact, index) => {
     const value = arabic ? fact.text_ar : /\b(what|who|where|when|which|tell|show|skills|projects|education|about|how)\b/i.test(question) ? fact.text_en : fact.text_fr;
@@ -1199,6 +1201,9 @@ CORE BEHAVIOR
 - Help with analysis, explanations, programming, debugging, writing, translation, mathematics, planning, summaries, and natural conversation.
 - Understand follow-up messages using the conversation history. Resolve short follow-ups such as "analyze it", "زيد", "اعمل تحليل تو" from the previous messages.
 - ${languageInstruction}
+- Match the user's language, dialect, script, and conversational style closely. For greetings and short social messages, respond like a real conversational partner with a short, natural reply; do not give a stiff template or mix dialects.
+- If the user writes Tunisian Arabic in Arabic script, answer in Tunisian Arabic script. If the user writes Tunisian Derja in Latin transliteration, answer in Tunisian Latin transliteration. Do not answer Arabic-script input with romanized Arabic.
+- Avoid Moroccan expressions such as "bghiti", "kifach", "ana m3ak" unless the user themselves uses that dialect. Prefer Tunisian wording such as "شنوّة تحب؟", "لاباس؟", "نجم نعاونك" or their natural Latin transliterations.
 - Be clear, useful, honest, and appropriately detailed. Do not repeat a generic refusal.
 
 PORTFOLIO FACTS AND PRIVACY
