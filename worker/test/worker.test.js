@@ -242,6 +242,9 @@ test("assistant understands Tunisian follow-ups using recent context",async()=>{
  const data=await response.json();assert.equal(response.status,200);
  assert.match(data.answer,/deeper explanation/i);
  assert.match(prompt,/شنو المشاريع متاع ملاك/);
+ assert.match(prompt,/Tunisian Latin transliteration/);
+ assert.match(prompt,/Arabic script, not Latin transliteration/);
+ assert.match(prompt,/Avoid Moroccan expressions/);
 });
 
 test("assistant never exposes unapproved portfolio facts to the model",async()=>{
