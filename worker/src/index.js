@@ -1078,14 +1078,16 @@ class MelekInferenceAdapter {
   async status() {
     const base = String(this.env.MELEK_AI_SERVICE_URL || "").replace(/\/$/, "");
     const result = {
-      experimental: true,
-      model_id: this.env.MELEK_AI_MODEL_VERSION || "melek-ai-v1",
-      training_status: this.env.MELEK_AI_TRAINING_STATUS || "untrained",
+      experimental: false,
+      model_id: this.env.AI_DEFAULT_MODEL || "@cf/zai-org/glm-4.7-flash",
+      training_status: this.env.AI ? "Cloudflare Workers AI (hosted model)" : "unavailable",
       trained_from_scratch: false,
-      inference_available: false,
+      inference_available: Boolean(this.env.AI),
+      provider: this.env.AI ? "Cloudflare Workers AI" : null,
+      assistant_mode: "generative",
       third_party_fallback_disabled: true
     };
-    if (!base || result.training_status !== "trained") return result;
+    if (!this.env.AI && (!base || this.env.MELEK_AI_TRAINING_STATUS !== "trained")) return result;
     try {
       const headers = {};
       if (this.env.MELEK_AI_SERVICE_TOKEN) headers.authorization = "Bearer " + this.env.MELEK_AI_SERVICE_TOKEN;
@@ -1970,7 +1972,7 @@ export default {
     try {
       if (path === "/api/health" && method === "GET") {
         await env.DB.prepare("SELECT 1").first();
-        return withCors(json({ ok: true, service: "portfolio-api", assistant: "melek-ai-experimental", auth: "native-email-otp", admin: "cloudflare-access" }), cors);
+        return withCors(json({ ok: true, service: "portfolio-api", assistant: "generative-workers-ai", auth: "native-email-otp", admin: "cloudflare-access" }), cors);
       }
       if (path === "/api/melek-ai/status" && method === "GET") return withCors(json(await new MelekInferenceAdapter(env).status()), cors);
       if (path === "/api/models" && method === "GET") {
