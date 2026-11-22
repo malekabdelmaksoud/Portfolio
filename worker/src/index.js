@@ -83,6 +83,10 @@ function allowedOrigin(request, env) {
   const rawAllowed = typeof env.ALLOWED_ORIGIN === "string" ? env.ALLOWED_ORIGIN.trim() : "";
   const requestOrigin = new URL(request.url).origin;
 
+  // Requests originating from this Worker’s own account page are same-origin,
+  // so they do not need to appear in the cross-origin portfolio allowlist.
+  if (origin === requestOrigin) return true;
+
   if (isProduction) {
     if (!rawAllowed) return false;
     const configured = rawAllowed
