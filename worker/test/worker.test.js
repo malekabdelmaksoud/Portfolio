@@ -238,7 +238,7 @@ test("assistant sends verified portfolio facts as optional grounding",async()=>{
 test("assistant builds owner CV from all approved portfolio facts and visible projects",async()=>{
  const env=environment();let prompt="";
  env.PORTFOLIO_CONTEXT_HTML="<main><p>Public portfolio page context fixture.</p></main>";
- env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { title: 'Étudiante en dernière année' } }; }";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { title: 'Étudiante en dernière année' } }; }\n  getData() {}";
  env.__facts.push(
   {id:"profile-002",category:"profile",text_fr:"Profil développeur web.",text_en:"Web developer profile.",text_ar:"ملف مطور ويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#about",public_url:null,approved:1},
   {id:"education-002",category:"education",text_fr:"Formation en informatique.",text_en:"Computer science education.",text_ar:"تكوين في الإعلامية.",aliases_json:"[]",source_file:"index.html",source_selector:"#education",public_url:null,approved:1},
