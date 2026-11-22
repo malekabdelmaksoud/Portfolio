@@ -1965,6 +1965,7 @@ test("invalid Access JWT cannot be bypassed using an expired session cookie", as
 
 test("/api/models requires authentication and returns models list with defaultModel", async () => {
   const env = authEnvironment();
+  env.AI = { async run() { return { response: "mock" }; } };
   const userId = randomUUID();
   const token = "c".repeat(64);
   const tokenHash = sha256(token + ":" + (env.SESSION_PEPPER || ""));
@@ -1988,10 +1989,10 @@ test("/api/models requires authentication and returns models list with defaultMo
   assert.ok(data.defaultModel);
   assert.equal(data.available, true);
 
-  // Without env.AI, Workers AI models must be available: false
+  // Workers AI models are available when the binding exists
   const workersAiModel = data.models.find(m => m.id.startsWith("@cf/"));
   if (workersAiModel) {
-    assert.equal(workersAiModel.available, false);
+    assert.equal(workersAiModel.available, true);
   }
   // Without MELEK_AI_SERVICE_URL and training status, experimental must be false
   const experimental = data.models.find(m => m.id === "melek-ai-experimental");
