@@ -2179,7 +2179,7 @@ export default {
           return withCors(Response.redirect(new URL("/account.html", request.url).toString(), 302), cors);
         }
       }
-      const publicShellAssets = new Set(["/share.html", "/account.html", "/account.css", "/account.js", "/api-config.js", "/password-reset.html", "/password-reset.js", "/qr-approve.html", "/qr-approve.js", "/admin.html", "/admin.css", "/admin.js"]);
+      const publicShellAssets = new Set(["/share.html", "/share.css", "/share.js", "/account.html", "/account.css", "/account.js", "/api-config.js", "/password-reset.html", "/password-reset.js", "/qr-approve.html", "/qr-approve.js", "/admin.html", "/admin.css", "/admin.js"]);
       if (method === "GET" && publicShellAssets.has(path) && env.ASSETS) {
         return withCors(await env.ASSETS.fetch(request), cors);
       }
