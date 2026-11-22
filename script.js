@@ -122,10 +122,9 @@ const aiWorkspaceUrl = portfolioApiBase + "/account.html";
 if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
   aiWorkspaceNewTab.href = aiWorkspaceUrl;
 
-  // Always start at the login endpoint in the current tab. This avoids
-  // opening a stale account page in a second tab and guarantees the user
-  // sees the sign-in screen immediately before entering the AI workspace.
-  const aiLoginUrl = portfolioApiBase + "/login?next=%2Faccount";
+  // Open the protected account page directly. Cloudflare Access intercepts
+  // this path and presents its configured sign-in flow before serving the app.
+  const aiLoginUrl = aiWorkspaceUrl;
   aiWorkspaceNewTab.href = aiLoginUrl;
   function openMelekAI() {
     window.location.assign(aiLoginUrl);
