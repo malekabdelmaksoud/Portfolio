@@ -252,7 +252,6 @@ test("assistant builds owner CV from all approved portfolio facts and visible pr
  assert.match(prompt,/خبرة في تطوير الويب/);
  assert.match(prompt,/C و Java و Python و PHP/);
  assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
- assert.match(prompt,/Published profile context from the public site/);
  assert.match(prompt,/synthesize a useful structured CV/);
  assert.match(prompt,/Published CV default data/);
  assert.match(prompt,/Étudiante en dernière année/);
@@ -269,6 +268,7 @@ test("assistant uses the full owner profile when asked about Melek",async()=>{
  const data=await response.json();assert.equal(response.status,200);
  assert.match(prompt,/لغات البرمجة المذكورة تشمل C و Java و Python و PHP/);
  assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
+ assert.match(prompt,/Published profile context from the public site/);
  assert.equal(data.grounded_by_portfolio,true);
 });
 
