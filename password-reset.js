@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const base = String(window.PORTFOLIO_API_BASE || "").replace(/\\/$/, "");
+  const base = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
   let turnstileToken = "";
   const api = async (path, options = {}) => {
     const response = await fetch(base + path, { ...options, credentials: "include", headers: { "content-type": "application/json", "accept": "application/json", ...(options.headers || {}) } });
