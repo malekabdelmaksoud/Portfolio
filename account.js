@@ -693,11 +693,6 @@
       $("conversation").hidden = true;
     } catch (error) { toast(error.message); }
   });
-      toast("Mot de passe mis à jour avec succès !");
-    } catch (err) {
-      toast(err.message || "Erreur lors de la mise à jour du mot de passe.");
-    }
-  });
 
   $("new-chat").addEventListener("click", async () => {
     try {

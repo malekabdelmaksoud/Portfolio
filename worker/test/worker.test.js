@@ -641,6 +641,117 @@ test("password reset verifies a private code and replaces the password",async()=
  assert.equal(login.status,200);
 });
 
+test("password reset flow: link generation, validation, invalidation, and session revocation", async () => {
+  const env = authEnvironment({
+    SESSION_PEPPER: "test-pepper",
+    OTP_PEPPER: "reset-pepper",
+    RESEND_API_KEY: "test-resend-key",
+    EMAIL_FROM: "no-reply@portfolio.test"
+  });
+
+  // 1. Register user and log in to obtain an active session
+  const reg = await worker.fetch(authRequest("/api/auth/register", { name: "Link User", email: "linkuser@example.test", password: "InitialPass123" }), env);
+  assert.equal(reg.status, 200);
+  const user = env.__users.find(u => u.email === "linkuser@example.test");
+  assert.ok(user);
+  assert.ok(env.__sessions.length > 0, "Registration created active session");
+
+  // 2. Request reset link (mock Resend fetch to capture link)
+  let sentEmail = null;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    if (String(url).includes("resend")) {
+      sentEmail = JSON.parse(opts.body);
+      return new Response(JSON.stringify({ id: "resend-msg-123" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("{}", { status: 404 });
+  };
+
+  try {
+    const reqRes = await worker.fetch(authRequest("/api/auth/password/reset/request", { email: "linkuser@example.test" }), env);
+    assert.equal(reqRes.status, 200);
+    const reqData = await reqRes.json();
+    assert.equal(reqData.sent, true);
+    assert.equal(reqData.expiresInSeconds, 600);
+    assert.ok(sentEmail);
+    assert.equal(sentEmail.to[0], "linkuser@example.test");
+
+    // Extract reset link from email HTML
+    const linkMatch = sentEmail.html.match(/href="([^"]+password-reset\.html[^"]+)"/);
+    assert.ok(linkMatch, "Email should contain reset link");
+    const resetUrl = new URL(linkMatch[1]);
+    const token = resetUrl.searchParams.get("token");
+    const emailParam = resetUrl.searchParams.get("email");
+    assert.ok(token);
+    assert.equal(emailParam, "linkuser@example.test");
+    assert.equal(env.__resetChallenges.length, 1);
+    const firstChallenge = env.__resetChallenges[0];
+
+    // 3. Requesting a second time should invalidate the first challenge
+    const reqRes2 = await worker.fetch(authRequest("/api/auth/password/reset/request", { email: "linkuser@example.test" }), env);
+    assert.equal(reqRes2.status, 200);
+    assert.ok(firstChallenge.consumed_at, "First challenge must be invalidated");
+    assert.equal(env.__resetChallenges.length, 2);
+    const secondChallenge = env.__resetChallenges[1];
+
+    // Extract new token
+    const linkMatch2 = sentEmail.html.match(/href="([^"]+password-reset\.html[^"]+)"/);
+    const resetUrl2 = new URL(linkMatch2[1]);
+    const token2 = resetUrl2.searchParams.get("token");
+
+    // 4. Validate endpoint tests
+    // A) Valid token
+    const valRes = await worker.fetch(authRequest("/api/auth/password/reset/validate", { email: "linkuser@example.test", token: token2 }), env);
+    assert.equal(valRes.status, 200);
+    const valData = await valRes.json();
+    assert.equal(valData.valid, true);
+
+    // B) Old invalidated token
+    const valOldRes = await worker.fetch(authRequest("/api/auth/password/reset/validate", { email: "linkuser@example.test", token: token }), env);
+    assert.equal(valOldRes.status, 400);
+
+    // C) Expired token
+    secondChallenge.expires_at = new Date(Date.now() - 5000).toISOString();
+    const valExpRes = await worker.fetch(authRequest("/api/auth/password/reset/validate", { email: "linkuser@example.test", token: token2 }), env);
+    assert.equal(valExpRes.status, 400);
+    secondChallenge.expires_at = new Date(Date.now() + 600000).toISOString();
+
+    // 5. Verify endpoint: reset password with token & confirmPassword
+    const verifyRes = await worker.fetch(authRequest("/api/auth/password/reset/verify", {
+      email: "linkuser@example.test",
+      token: token2,
+      password: "BrandNewPassword123",
+      confirmPassword: "BrandNewPassword123"
+    }), env);
+    assert.equal(verifyRes.status, 200);
+    const verifyData = await verifyRes.json();
+    assert.equal(verifyData.reset, true);
+
+    // 6. Token is single-use: replay must fail
+    const replayRes = await worker.fetch(authRequest("/api/auth/password/reset/verify", {
+      email: "linkuser@example.test",
+      token: token2,
+      password: "AnotherPassword123"
+    }), env);
+    assert.equal(replayRes.status, 400);
+
+    // 7. All existing sessions must have been revoked
+    assert.equal(env.__sessions.length, 0);
+
+    // 8. User can log in with new password
+    const loginRes = await worker.fetch(authRequest("/api/auth/login", { email: "linkuser@example.test", password: "BrandNewPassword123" }), env);
+    assert.equal(loginRes.status, 200);
+
+    // 9. Reset request for non-existent user returns sent: true without error or user enumeration
+    const fakeRes = await worker.fetch(authRequest("/api/auth/password/reset/request", { email: "nonexistent@example.test" }), env);
+    assert.equal(fakeRes.status, 200);
+    const fakeData = await fakeRes.json();
+    assert.equal(fakeData.sent, true);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
 test("authenticated user can update password via /api/user/password", async () => {
   const env = authEnvironment({ SESSION_PEPPER: "test-pepper", OTP_PEPPER: "reset-pepper" });
   const reg = await worker.fetch(authRequest("/api/auth/register", { name: "Pass User", email: "pass@example.test", password: "Password123" }), env);
@@ -1244,6 +1355,16 @@ function authEnvironment(overrides = {}) {
         } else if (sql.includes("INSERT INTO password_reset_challenges")) {
           passwordResetChallenges.push({ id: params[0], email: params[1], code_hash: params[2], expires_at: params[3], attempts: 0, consumed_at: null, ip_hash: params[4] });
         } else if (sql.includes("UPDATE password_reset_challenges SET consumed_at")) {
+          if (sql.includes("WHERE email")) {
+            let count = 0;
+            passwordResetChallenges.forEach(c => {
+              if (c.email === params[0] && !c.consumed_at) {
+                c.consumed_at = new Date().toISOString();
+                count++;
+              }
+            });
+            return { meta: { changes: count } };
+          }
           const challenge = passwordResetChallenges.find(c => c.id === params[0] && !c.consumed_at);
           if (!challenge) return { meta: { changes: 0 } };
           challenge.consumed_at = "2026-01-01 00:00:00";
@@ -1269,6 +1390,12 @@ function authEnvironment(overrides = {}) {
           }
         } else if (sql.includes("INSERT INTO auth_sessions")) {
           sessions.push({ id: params[0], user_id: params[1], token_hash: params[2], expires_at: params[3] });
+        } else if (sql.includes("DELETE FROM auth_sessions WHERE user_id")) {
+          const initial = sessions.length;
+          for (let i = sessions.length - 1; i >= 0; i--) {
+            if (sessions[i].user_id === params[0]) sessions.splice(i, 1);
+          }
+          return { meta: { changes: initial - sessions.length } };
         } else if (sql.includes("DELETE FROM auth_sessions WHERE token_hash=?")) {
           const idx = sessions.findIndex(s => s.token_hash === params[0]);
           if (idx !== -1) {

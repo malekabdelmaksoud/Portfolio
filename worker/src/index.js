@@ -569,18 +569,52 @@ async function sendOtpEmail(env, email, code) {
   if (!response.ok) throw apiError("The email provider could not deliver the sign-in code.", "EMAIL_DELIVERY_FAILED", 502);
 }
 
-async function sendPasswordResetEmail(env, email, code) {
+async function sendPasswordResetEmail(env, email, resetLink) {
   if (!env.RESEND_API_KEY) throw apiError("Email delivery is not configured.", "EMAIL_NOT_CONFIGURED", 503);
   if (!env.EMAIL_FROM) throw apiError("The OTP sender is not configured.", "EMAIL_NOT_CONFIGURED", 503);
+  const sender = env.EMAIL_FROM.includes("<") ? env.EMAIL_FROM : `Melek AI <${env.EMAIL_FROM}>`;
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
     body: JSON.stringify({
-      from: env.EMAIL_FROM,
+      from: sender,
       to: [email],
-      subject: "Reset your Melek Portfolio password",
-      text: `Your password reset code is ${code}. It expires in 15 minutes and can only be used once. If you did not request it, ignore this email.`,
-      html: `<p>Your password reset code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 15 minutes and can only be used once.</p><p>If you did not request it, ignore this email.</p>`
+      subject: "Réinitialisation de votre mot de passe — Melek AI",
+      text: `Bonjour,\n\nVous avez demandé la réinitialisation de votre mot de passe pour Melek AI.\n\nCliquez sur ce lien pour choisir un nouveau mot de passe (valable 10 minutes, usage unique) :\n${resetLink}\n\nSi vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail. Votre compte reste sécurisé.\n\n— L'équipe Melek AI`,
+      html: `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:24px;background-color:#090a0c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#f0f3f6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;margin:0 auto;background:#14171c;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:36px;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+    <tr>
+      <td>
+        <div style="display:inline-block;width:38px;height:38px;line-height:38px;background:linear-gradient(135deg,#6366f1,#3b82f6);color:#fff;font-weight:800;font-size:20px;text-align:center;border-radius:10px;margin-bottom:20px;">M</div>
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:1.5px;color:#818cf8;text-transform:uppercase;">Melek AI Workspace</p>
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#ffffff;">Réinitialisation de mot de passe</h1>
+        <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#94a3b8;">
+          Vous avez demandé à réinitialiser le mot de passe de votre compte Melek AI. Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe :
+        </p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${resetLink}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:10px;box-shadow:0 4px 16px rgba(99,102,241,0.35);">
+            Réinitialiser mon mot de passe
+          </a>
+        </div>
+        <p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#94a3b8;">
+          Ce lien est à <strong>usage unique</strong> et expirera dans <strong>10 minutes</strong>.
+        </p>
+        <p style="margin:0 0 28px;font-size:12px;line-height:1.5;color:#64748b;">
+          Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br>
+          <a href="${resetLink}" style="color:#818cf8;word-break:break-all;">${resetLink}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.06);margin:24px 0;">
+        <p style="margin:0;font-size:12px;color:#64748b;">
+          Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail en toute sécurité.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
     })
   });
   if (!response.ok) throw apiError("The email provider could not deliver the reset code.", "EMAIL_DELIVERY_FAILED", 502);
@@ -783,56 +817,81 @@ async function authRoutes(request, env, path, method) {
     await verifyTurnstile(request, env, body);
     const ip = await sha256Hex(ipFrom(request));
     if (!await abuseCheck(env, "reset-email:" + await sha256Hex(email), "reset-email", 5, 3600)) {
-      return json({ sent: true, expiresInSeconds: 900 });
+      return json({ sent: true, expiresInSeconds: 600 });
     }
     if (!await abuseCheck(env, "reset-ip:" + ip, "reset-ip", 10, 600)) {
-      return json({ sent: true, expiresInSeconds: 900 });
+      return json({ sent: true, expiresInSeconds: 600 });
     }
     const user = await env.DB.prepare("SELECT id,email,password_hash FROM users WHERE email=?").bind(email).first();
     if (user?.password_hash) {
-      let randomValue;
-      do { randomValue = crypto.getRandomValues(new Uint32Array(1))[0]; } while (randomValue >= 4294000000);
-      const code = String(randomValue % 1000000).padStart(6, "0");
-      const codeHash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
+      const token = await randomToken(32);
+      const tokenHash = await sha256Hex(token + ":" + email + ":" + (env.OTP_PEPPER || ""));
+      // Invalidate previous unconsumed reset tokens
       await env.DB.prepare(
         "UPDATE password_reset_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE email=? AND consumed_at IS NULL"
       ).bind(email).run();
+      // Insert challenge with strict 10-minute validity
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await env.DB.prepare(
         "INSERT INTO password_reset_challenges(id,email,code_hash,expires_at,ip_hash) VALUES(?,?,?,?,?)"
-      ).bind(crypto.randomUUID(), email, codeHash, new Date(Date.now() + 15 * 60 * 1000).toISOString(), ip).run();
+      ).bind(crypto.randomUUID(), email, tokenHash, expiresAt, ip).run();
+
+      const reqUrl = new URL(request.url);
+      const resetLink = `${reqUrl.origin}/password-reset.html?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
       try {
-        await sendPasswordResetEmail(env, email, code);
+        await sendPasswordResetEmail(env, email, resetLink);
       } catch (error) {
         await env.DB.prepare("DELETE FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL").bind(email).run();
         throw error;
       }
     }
-    return json({ sent: true, expiresInSeconds: 900 });
+    return json({ sent: true, expiresInSeconds: 600 });
+  }
+  if (path === "/api/auth/password/reset/validate" && (method === "POST" || method === "GET")) {
+    let email = "", token = "";
+    if (method === "GET") {
+      const u = new URL(request.url);
+      email = String(u.searchParams.get("email") || "").trim().toLowerCase();
+      token = String(u.searchParams.get("token") || "").trim();
+    } else {
+      const body = await readBody(request, 4000);
+      email = String(body.email || "").trim().toLowerCase();
+      token = String(body.token || body.code || "").trim();
+    }
+    if (!EMAIL_RE.test(email) || !token) return json({ valid: false, error: "Email and reset token are required.", code: "INVALID_REQUEST" }, 400);
+    const challenge = await env.DB.prepare(
+      "SELECT id,code_hash,expires_at,consumed_at FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1"
+    ).bind(email).first();
+    if (!challenge) return json({ valid: false, error: "This password reset link is invalid or has already been used.", code: "RESET_NOT_FOUND" }, 400);
+    if (Date.now() >= Date.parse(challenge.expires_at)) return json({ valid: false, error: "This password reset link has expired. Request a new link.", code: "RESET_EXPIRED" }, 400);
+    const hash = await sha256Hex(token + ":" + email + ":" + (env.OTP_PEPPER || ""));
+    if (!timingSafeEqual(hash, challenge.code_hash)) return json({ valid: false, error: "This password reset link is invalid.", code: "INVALID_RESET" }, 400);
+    return json({ valid: true, email });
   }
   if (path === "/api/auth/password/reset/verify" && method === "POST") {
     const body = await readBody(request, 4000);
     const email = String(body.email || "").trim().toLowerCase();
-    const code = String(body.code || "").replace(/\D/g, "").slice(0, 6);
+    const rawToken = String(body.token || body.code || "").trim();
     const password = String(body.password || "");
-    if (!EMAIL_RE.test(email) || !/^\d{6}$/.test(code)) return json({ error: "Email and six-digit code are required.", code: "INVALID_RESET" }, 400);
+    const confirmPassword = body.confirmPassword !== undefined ? String(body.confirmPassword) : null;
+    if (!EMAIL_RE.test(email) || !rawToken) return json({ error: "Email and reset token or code are required.", code: "INVALID_RESET" }, 400);
     if (password.length < 8 || password.length > 128) return json({ error: "Password must contain 8 to 128 characters.", code: "INVALID_PASSWORD" }, 400);
-    const ip = await sha256Hex(ipFrom(request));
+    if (confirmPassword !== null && password !== confirmPassword) return json({ error: "Passwords do not match.", code: "PASSWORD_MISMATCH" }, 400);
     const challenge = await env.DB.prepare(
       "SELECT id,code_hash,expires_at,attempts,consumed_at,ip_hash FROM password_reset_challenges WHERE email=? AND consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1"
     ).bind(email).first();
-    if (!challenge) return json({ error: "No active reset code. Request a new code.", code: "RESET_NOT_FOUND" }, 400);
-    // Note: ip_hash is recorded for auditing, but not strictly required to match to allow reset across mobile/WiFi networks.
-    if (Date.now() >= Date.parse(challenge.expires_at)) return json({ error: "This reset code has expired.", code: "RESET_EXPIRED" }, 400);
+    if (!challenge) return json({ error: "No active reset link or code. Request a new link.", code: "RESET_NOT_FOUND" }, 400);
+    if (Date.now() >= Date.parse(challenge.expires_at)) return json({ error: "This reset link has expired. Request a new link.", code: "RESET_EXPIRED" }, 400);
     const attempt = await env.DB.prepare(
       "UPDATE password_reset_challenges SET attempts=attempts+1 WHERE id=? AND consumed_at IS NULL AND attempts < 5 RETURNING attempts"
     ).bind(challenge.id).first();
-    if (!attempt) return json({ error: "Too many reset attempts. Request a new code.", code: "RESET_LIMIT" }, 429);
-    const hash = await sha256Hex(code + ":" + email + ":" + (env.OTP_PEPPER || ""));
-    if (!timingSafeEqual(hash, challenge.code_hash)) return json({ error: "The reset code is incorrect.", code: "INVALID_RESET" }, 400);
+    if (!attempt) return json({ error: "Too many reset attempts. Request a new link.", code: "RESET_LIMIT" }, 429);
+    const hash = await sha256Hex(rawToken + ":" + email + ":" + (env.OTP_PEPPER || ""));
+    if (!timingSafeEqual(hash, challenge.code_hash)) return json({ error: "The reset link or code is invalid.", code: "INVALID_RESET" }, 400);
     const consume = await env.DB.prepare(
       "UPDATE password_reset_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND consumed_at IS NULL"
     ).bind(challenge.id).run();
-    if (consume.meta?.changes === 0) return json({ error: "This reset code has already been used.", code: "RESET_USED" }, 400);
+    if (consume.meta?.changes === 0) return json({ error: "This reset link has already been used.", code: "RESET_USED" }, 400);
     const user = await env.DB.prepare("SELECT id FROM users WHERE email=?").bind(email).first();
     if (!user) return json({ error: "The account could not be found.", code: "RESET_ACCOUNT_NOT_FOUND" }, 400);
     const salt = bytesToBase64url(crypto.getRandomValues(new Uint8Array(16)));
@@ -840,6 +899,8 @@ async function authRoutes(request, env, path, method) {
     await env.DB.prepare(
       "UPDATE users SET password_salt=?,password_hash=?,last_login_at=CURRENT_TIMESTAMP WHERE id=?"
     ).bind(salt, passwordHash, user.id).run();
+    // Security requirement: Invalidate all active user sessions upon password reset
+    await env.DB.prepare("DELETE FROM auth_sessions WHERE user_id=?").bind(user.id).run();
     return json({ reset: true });
   }
   if (path === "/api/auth/request" && method === "POST") {
