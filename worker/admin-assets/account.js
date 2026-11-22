@@ -616,7 +616,7 @@
         const status = await statusResponse.json();
         $("model-version").textContent = "Model version: " + (status.model_id || "melek-ai-v1");
         $("training-status").textContent = "Training status: " + (status.training_status || "untrained");
-        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "approved-facts-only");
+        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available (Workers AI)" : "unavailable");
       }
     } catch (_) {}
     try {
