@@ -1048,7 +1048,10 @@ async function rankedFacts(env, question, context = "") {
   const searchTerms = followUp && context ? terms(context + " " + question) : q;
   const sensitivePersonalDetail = /passport|رقم جواز|جواز سفر|national id|identity card|رقم بطاقة|رقم الهوية|bank account|حساب بنكي|password|كلمة السر|كلمة المرور|private key|secret credential/i.test(normalize(question));
   if (sensitivePersonalDetail) return { searchTerms, selected: [], personalPortfolioQuestion: false };
-  const personalPortfolioQuestion = isPersonalPortfolioQuestion(question) || (followUp && isPersonalPortfolioQuestion(context.slice(-1500)));
+  const contextualOwnerFollowUp = question.length <= 180 && !isGreeting(question) &&
+    isPersonalPortfolioQuestion(context.slice(-1500)) &&
+    /\b(her|his|their|she|he|son|sa|ses|elle|il|lui|et|also|and|what about)\b|متاعها|متاعو|متاعه|عندها|عندو|خبرتها|دراستها|مهاراتها|مشاريعها|عليها|عنه/i.test(normalize(question));
+  const personalPortfolioQuestion = isPersonalPortfolioQuestion(question) || contextualOwnerFollowUp;
   if (!searchTerms.size && !personalPortfolioQuestion) return { searchTerms, selected: [] };
   const { results = [] } = await env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
   const { results: projectRows = [] } = await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
@@ -1088,6 +1091,7 @@ async function rankedFacts(env, question, context = "") {
 }
 
 function isPublishedPortfolioQuestion(question, context = "") {
+  if (isGreeting(question)) return false;
   const text = normalize(question + " " + context.slice(-1500));
   return /\b(portfolio|website|site web|site officiel|in this portfolio|dans ce portfolio)\b|البورتفوليو|بورتفوليو|الموقع/i.test(text);
 }
