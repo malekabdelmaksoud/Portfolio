@@ -424,6 +424,13 @@ export default {
       }
       if(path.startsWith("/api/user/")) { const identity=await verifyAccessIdentity(request,env); return withCors(await userChatRoute(request,env,path,method,identity),cors); }
       if(path.startsWith("/api/admin/")) return withCors(await adminRoute(request,env,path,method),cors);
+      // Serve the account/admin HTML and its local frontend assets from the
+      // same Worker origin. These files are synced into worker/admin-assets
+      // by scripts/sync-admin-assets.mjs before deployment.
+      const publicShellAssets = new Set(["/admin.html","/admin.css","/admin.js","/account.html","/account.css","/account.js","/api-config.js"]);
+      if (method === "GET" && publicShellAssets.has(path) && env.ASSETS) {
+        return withCors(await env.ASSETS.fetch(request), cors);
+      }
       return withCors(json({error:"Not found."},404),cors);
     } catch(error) {
       const status=/Access authentication|email sign-in|not allowed to administer|token|signing keys|authentication is not configured/i.test(error.message)?401:500;
