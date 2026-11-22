@@ -118,9 +118,8 @@
       } catch (error) { $("auth-error").textContent = error.message; }
     });
     $("forgot-password").addEventListener("click", () => {
-      $("reset-panel").hidden = false;
-      $("reset-email").value = $("login-email").value.trim();
-      loadTurnstile("reset-turnstile").catch(error => { $("reset-error").textContent = error.message; });
+      const email = encodeURIComponent($("login-email").value.trim());
+      location.href = "password-reset.html" + (email ? "?email=" + email : "");
     });
     $("reset-request-form").addEventListener("submit", async event => {
       event.preventDefault();
