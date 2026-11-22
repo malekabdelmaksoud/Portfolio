@@ -79,6 +79,8 @@ function environment() {
       if(sql.includes("FROM chat_messages")) return {results:sql.includes("WHERE chat_id=? AND user_email=?")?chatMessages.filter(message=>message.chat_id===params[0]&&message.user_email===params[1]):chatMessages};
       return {results:[]};
     },async run(){
+      if(sql.includes("INSERT INTO chats")) { chats.push({id:params[0],user_email:params[1],title:params[2],created_at:new Date().toISOString(),updated_at:new Date().toISOString()}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT INTO chat_messages")) { chatMessages.push({id:params[0],chat_id:params[1],user_email:params[2],role:params[3],content:params[4],created_at:new Date().toISOString()}); return {meta:{changes:1}}; }
       if(sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({token:params[0],chat_id:params[1],user_email:params[2],title:params[3],prompt:params[4],messages_json:params[5],created_at:new Date().toISOString(),revoked_at:null}); return {meta:{changes:1}}; }
       if(sql.includes("UPDATE shared_conversations SET revoked_at")) { let count=0; for(const item of sharedConversations) if(item.chat_id===params[0]&&item.user_email===params[1]&&!item.revoked_at){item.revoked_at=new Date().toISOString();count++;} return {meta:{changes:count}}; }
       if(sql.includes("INSERT INTO backup_logs")) {
