@@ -286,6 +286,19 @@ test("assistant uses the full owner profile when asked about Melek",async()=>{
  assert.equal(data.grounded_by_portfolio,true);
 });
 
+test("assistant retrieves owner facts for contextual French follow-ups",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Owner experience and education published on the site.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { experiences: ['Web internship'] }; }\n  getData() {}";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Voici les expériences publiées."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Et ses expériences ?",context:["Tell me about Melek"]}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/VERIFIED PORTFOLIO CONTEXT/);
+ assert.match(prompt,/Published portfolio page content/);
+ assert.match(prompt,/Owner experience and education published on the site/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
 test("assistant grounds portfolio project questions in the published website",async()=>{
  const env=environment();let prompt="";
  env.PORTFOLIO_CONTEXT_HTML="<main><h2>Selected projects</h2><p>Symfony application and TypeScript dashboard.</p></main>";
