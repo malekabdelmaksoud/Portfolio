@@ -10,6 +10,8 @@
     return data;
   };
   const body = value => JSON.stringify(value);
+  const emailFromLogin = new URLSearchParams(location.search).get("email");
+  if (emailFromLogin && $("code-email")) $("code-email").value = emailFromLogin.slice(0, 254);
   const error = message => { $("reset-error").textContent = message || ""; };
   function setMethod(method) {
     document.querySelectorAll("[data-method]").forEach(button => button.classList.toggle("active", button.dataset.method === method));
