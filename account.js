@@ -366,7 +366,6 @@
         role: node.classList.contains("user") ? "user" : "assistant",
         content: node.querySelector(".message-text")?.textContent || ""
       })).filter(item => item.content.trim());
-      const context = history.map(item => item.role + ": " + item.content);
       const response = await fetch(base + "/api/assistant", {
         method: "POST",
         credentials: "include",
