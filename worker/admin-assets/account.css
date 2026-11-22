@@ -70,3 +70,9 @@ kbd{color:#7b8492;border-color:#dce2eb}
 #toast{background:#202b3b;color:#fff}
 .sidebar.collapsed .new-chat{background:#f7f9fc}
 }
+
+/* Hands-free voice conversation controls */
+.voice-session-btn{height:34px;padding:0 12px;border-radius:9px;font-size:11px;white-space:nowrap}
+.voice-session-btn.selected{background:#263246;border-color:#6d8fc7;color:#e0ebff;box-shadow:0 0 0 2px #6d8fc733}
+.voice-session-btn:focus-visible,.mic-button:focus-visible{outline:2px solid #8fb3ff;outline-offset:2px}
+@media(max-width:520px){.voice-session-btn{padding:0 8px;font-size:10px}.composer-controls{gap:5px}}
