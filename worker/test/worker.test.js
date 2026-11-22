@@ -1546,7 +1546,7 @@ function authEnvironment(overrides = {}) {
       throw err;
     }
   }};
-  return { DB, BACKUP_BUCKET, BACKUP_ENCRYPTION_KEY: "test-backup-encryption-key-32-chars-long!", ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows, __backupLogs: backupLogs, __facts: facts, __projects: projects, __chats: chats, __chatMessages: chatMessages, __r2Storage: r2Storage };
+  return { DB, BACKUP_BUCKET, BACKUP_ENCRYPTION_KEY: "test-backup-encryption-key-32-chars-long!", ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows, __backupLogs: backupLogs, __facts: facts, __projects: projects, __chats: chats, __chatMessages: chatMessages, __sharedConversations: sharedConversations, __r2Storage: r2Storage };
 }
 
 const authRequest = (path, body) => new Request("https://api.test" + path, {
