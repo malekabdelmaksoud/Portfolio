@@ -613,7 +613,7 @@
       await load();
     } catch (error) {
       $("auth-error").textContent = error.code === "INVALID_CREDENTIALS"
-        ? "Email or password is incorrect. If this account was created with an email code, use Create account to set a password."
+        ? "Email or password is incorrect. If you first signed in with Google and never created a password, choose “Create account / Set password” and use this same email address."
         : error.message;
     }
   });
