@@ -1415,7 +1415,7 @@ async function userChatRoute(request, env, path, method, identity) {
     ]);
     if (!chat || !message) return json({ error: "Message not found." }, 404);
     if (message.role !== "user") return json({ error: "Only your own messages can be edited." }, 403);
-    const ordered = await env.DB.prepare("SELECT id FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY created_at,id").bind(messageMatch[1], identity.email).all();
+    const ordered = await env.DB.prepare("SELECT id FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY rowid").bind(messageMatch[1], identity.email).all();
     const index = (ordered.results || []).findIndex(item => item.id === messageMatch[2]);
     const laterIds = (ordered.results || []).slice(index + 1).map(item => item.id);
     const statements = [
@@ -1465,7 +1465,7 @@ async function userChatRoute(request, env, path, method, identity) {
     const offset = Math.min(10000, Math.max(0, Number(url.searchParams.get("offset") || 0)));
     const chat = await env.DB.prepare("SELECT id,title,created_at,updated_at FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1], identity.email).first();
     if (!chat) return json({ error: "Chat not found." }, 404);
-    const { results = [] } = await env.DB.prepare("SELECT id,role,content,created_at FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY created_at,id LIMIT ? OFFSET ?").bind(chat.id, identity.email, limit, offset).all();
+    const { results = [] } = await env.DB.prepare("SELECT id,role,content,created_at FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY rowid LIMIT ? OFFSET ?").bind(chat.id, identity.email, limit, offset).all();
     return json({ chat, messages: results, pagination: { limit, offset } });
   }
   if (chatMatch && method === "POST") {
