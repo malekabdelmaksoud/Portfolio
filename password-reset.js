@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const base = String(window.PORTFOLIO_API_BASE || "").replace(/\/$/, "");
-  let turnstileToken = "", qrTimer = null, qrChallenge = null;
+  let codeTurnstileToken = "", resetTurnstileToken = "", turnstileLoadPromise = null, qrTimer = null;
   const api = async (path, options = {}) => {
     const response = await fetch(base + path, { ...options, credentials: "include", headers: { "content-type": "application/json", "accept": "application/json", ...(options.headers || {}) } });
     const data = await response.json().catch(() => ({}));
@@ -18,23 +18,26 @@
     if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
   }
   document.querySelectorAll("[data-method]").forEach(button => button.addEventListener("click", () => setMethod(button.dataset.method)));
-  async function loadTurnstile(containerId) {
+  async function loadTurnstile(containerId, setToken) {
     const config = await api("/api/auth/config");
     if (!config.turnstileSiteKey) return;
-    await new Promise((resolve, reject) => {
-      if (window.turnstile) return resolve();
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js"; script.async = true; script.defer = true;
-      script.onload = resolve; script.onerror = () => reject(new Error("Security verification could not load."));
-      document.head.append(script);
-    });
-    window.turnstile.render(containerId, { sitekey: config.turnstileSiteKey, callback: token => { turnstileToken = token; }, "expired-callback": () => { turnstileToken = ""; } });
+    if (!turnstileLoadPromise) {
+      turnstileLoadPromise = new Promise((resolve, reject) => {
+        if (window.turnstile) return resolve();
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js"; script.async = true; script.defer = true;
+        script.onload = resolve; script.onerror = () => reject(new Error("Security verification could not load."));
+        document.head.append(script);
+      });
+    }
+    await turnstileLoadPromise;
+    window.turnstile.render(containerId, { sitekey: config.turnstileSiteKey, callback: token => setToken(token), "expired-callback": () => setToken("") });
   }
   $("email-code-request").addEventListener("submit", async event => {
     event.preventDefault(); error("");
     try {
       const email = $("code-email").value.trim();
-      await api("/api/auth/request", { method: "POST", body: body({ email, turnstileToken }) });
+      await api("/api/auth/request", { method: "POST", body: body({ email, turnstileToken: codeTurnstileToken }) });
       $("email-code-request").hidden = true; $("email-code-verify").hidden = false; $("email-code").focus();
       error("If this address can receive mail, a sign-in code has been sent. Check your inbox.");
     } catch (e) { error(e.code === "EMAIL_NOT_CONFIGURED" ? "Email delivery is not configured yet. The site owner must connect the email provider." : e.message); }
@@ -49,7 +52,7 @@
   $("reset-request-form").addEventListener("submit", async event => {
     event.preventDefault(); error("");
     try {
-      await api("/api/auth/password/reset/request", { method: "POST", body: body({ email: $("reset-email").value.trim(), turnstileToken }) });
+      await api("/api/auth/password/reset/request", { method: "POST", body: body({ email: $("reset-email").value.trim(), turnstileToken: resetTurnstileToken }) });
       $("reset-request-form").hidden = true; $("reset-verify-form").hidden = false; $("reset-code").focus();
       error("If this account has a password, a reset code has been sent. Check your inbox.");
     } catch (e) { error(e.code === "EMAIL_NOT_CONFIGURED" ? "Email delivery is not configured yet. The site owner must connect the email provider." : e.message); }
@@ -89,6 +92,6 @@
       }, 1800);
     } catch (e) { error(e.message); }
   });
-  loadTurnstile("code-turnstile").catch(e => error(e.message));
-  loadTurnstile("reset-turnstile").catch(e => error(e.message));
+  loadTurnstile("code-turnstile", token => { codeTurnstileToken = token; }).catch(e => error(e.message));
+  loadTurnstile("reset-turnstile", token => { resetTurnstileToken = token; }).catch(e => error(e.message));
 })();
