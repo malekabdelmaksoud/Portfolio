@@ -9,6 +9,9 @@ body{margin:0;min-height:100dvh;background:radial-gradient(circle at 50% 20%,#1a
 h1{margin:0;text-align:center;font-size:30px}
 .auth-copy{text-align:center;color:var(--muted);margin:10px 0 20px}
 .google-signin{display:flex;justify-content:center;min-height:44px}
+.google-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:320px;height:42px;border-radius:21px;border:1px solid var(--line);background:#181d24;color:#edf1f7;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s;text-decoration:none}
+.google-btn:hover{background:#222832;border-color:#5a687d}
+.google-btn svg{flex-shrink:0}
 .divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:#858e9c;font-size:11px}
 .divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}
 label{display:block;margin:12px 0 7px;color:#bbc4d2;font-size:12px}
