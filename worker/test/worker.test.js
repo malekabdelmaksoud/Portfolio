@@ -269,7 +269,7 @@ test("assistant still builds CV when the live portfolio website cannot be fetche
  assert.match(prompt,/Published CV fallback from the portfolio repository source/);
  assert.match(prompt,/Hôpital Hédi Chaker/);
  assert.match(prompt,/Lycée Tayeb Mhiri/);
- assert.match(prompt,/English \\(intermediate B1\\)/);
+ assert.match(prompt,/English \(intermediate B1\)/);
  assert.equal(data.grounded_by_portfolio,true);
 });
 
