@@ -946,6 +946,7 @@ test("public GitHub repository is imported once with metadata evidence",async()=
 
 test("imported GitHub project appears in public projects and assistant retrieval",async()=>{
  const env=await adminEnvironment();
+ env.AI={async run(){return {response:"The demo project is a public JavaScript application."};}};
  const oldFetch=globalThis.fetch;
  globalThis.fetch=async url=>{
   if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
