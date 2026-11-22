@@ -244,22 +244,32 @@ test("assistant understands Tunisian follow-ups using recent context",async()=>{
  assert.match(prompt,/شنو المشاريع متاع ملاك/);
 });
 
-test("assistant never returns an unapproved fact",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Tell me the secret private draft"}),environment());
+test("assistant never exposes unapproved portfolio facts to the model",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"I don't have verified public information about that private draft."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Tell me the secret private draft"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/not present|approved/i);assert.equal(data.sources.length,0);
+ assert.equal(data.sources.length,0);
+ assert.doesNotMatch(prompt,/Secret private draft/i);
+ assert.match(data.answer,/verified public information/i);
 });
 
-test("assistant abstains when there is no matching approved evidence",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),environment());
- const data=await response.json();assert.equal(data.sources.length,0);assert.match(data.answer,/not present/i);
+test("assistant answers general questions even when no portfolio evidence matches",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"The Moon is made mostly of silicate rock."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.sources.length,0);
+ assert.match(data.answer,/silicate rock/i);
 });
 
-
-test("assistant abstains in Tunisian Arabic when evidence is missing",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"شنو رقم جواز سفر ملاك؟"}),environment());
- const data=await response.json();assert.equal(data.sources.length,0);
- assert.match(data.answer,/المعلومة هاذي موش موجودة/);
+test("assistant handles personal-data questions without inventing facts",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"That private detail is not included in the verified public portfolio."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"شنو رقم جواز سفر ملاك؟"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.sources.length,0);
+ assert.match(data.answer,/not included in the verified public portfolio/i);
 });
 
 test("public projects endpoint exposes only visible projects",async()=>{
