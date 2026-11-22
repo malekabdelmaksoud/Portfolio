@@ -126,7 +126,7 @@
         if (!confirm("Delete this message?")) return;
         try {
           await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(messageId), { method: "DELETE" });
-          node.remove();
+          await openChat(active);
           await refreshChats();
           toast("Message deleted.");
         } catch (error) { toast(error.message); }
