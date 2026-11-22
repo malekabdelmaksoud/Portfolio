@@ -168,38 +168,119 @@
       heading.textContent = group;
       list.append(heading);
       items.forEach(chat => {
-        const button = document.createElement("div");
-        button.setAttribute("role", "button");
-        button.tabIndex = 0;
-        button.className = "chat-item" + (chat.id === active ? " active" : "");
+        const item = document.createElement("div");
+        item.setAttribute("role", "button");
+        item.tabIndex = 0;
+        item.className = "chat-item" + (chat.id === active ? " active" : "");
+
         const title = document.createElement("span");
         title.className = "chat-name";
         title.textContent = chat.title || "New chat";
-        const menu = document.createElement("button");
-        menu.type = "button";
-        menu.className = "chat-menu";
-        menu.textContent = "···";
-        menu.title = "Conversation options";
-        menu.addEventListener("click", async event => {
-          event.stopPropagation();
-          const action = prompt("Type rename or delete:", "rename");
-          if (action === "rename") {
-            const next = prompt("New title:", chat.title);
-            if (next?.trim()) {
+        title.title = "Double-cliquez pour renommer";
+
+        const actions = document.createElement("div");
+        actions.className = "chat-actions";
+
+        const renameBtn = document.createElement("button");
+        renameBtn.type = "button";
+        renameBtn.className = "chat-action-btn rename-btn";
+        renameBtn.innerHTML = "✏️";
+        renameBtn.title = "Renommer";
+        renameBtn.setAttribute("aria-label", "Renommer la conversation");
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "chat-action-btn delete-btn";
+        deleteBtn.innerHTML = "🗑️";
+        deleteBtn.title = "Supprimer";
+        deleteBtn.setAttribute("aria-label", "Supprimer la conversation");
+
+        function startInlineEdit() {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "chat-rename-input";
+          input.value = chat.title || "New chat";
+          input.maxLength = 120;
+
+          title.replaceWith(input);
+          actions.hidden = true;
+          input.focus();
+          input.select();
+
+          let finished = false;
+          async function commitEdit() {
+            if (finished) return;
+            finished = true;
+            const newTitle = input.value.trim();
+            if (newTitle && newTitle !== chat.title) {
               try {
-                await api("/api/user/chats/" + encodeURIComponent(chat.id), { method: "PUT", body: JSON.stringify({ title: next.trim() }) });
-                await refreshChats();
-                if (active === chat.id) $("conversation-head").textContent = next.trim();
-              } catch (error) { toast(error.message); }
+                await api("/api/user/chats/" + encodeURIComponent(chat.id), {
+                  method: "PUT",
+                  body: JSON.stringify({ title: newTitle })
+                });
+                chat.title = newTitle;
+                if (active === chat.id) $("conversation-head").textContent = newTitle;
+                toast("Nom mis à jour.");
+              } catch (error) {
+                toast(error.message || "Erreur de renommage");
+              }
             }
-          } else if (action === "delete") await deleteChat(chat.id);
+            title.textContent = chat.title || "New chat";
+            input.replaceWith(title);
+            actions.hidden = false;
+          }
+
+          function cancelEdit() {
+            if (finished) return;
+            finished = true;
+            title.textContent = chat.title || "New chat";
+            input.replaceWith(title);
+            actions.hidden = false;
+          }
+
+          input.addEventListener("click", e => e.stopPropagation());
+          input.addEventListener("keydown", e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
+              commitEdit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              cancelEdit();
+            }
+          });
+          input.addEventListener("blur", () => commitEdit());
+        }
+
+        renameBtn.addEventListener("click", e => {
+          e.stopPropagation();
+          startInlineEdit();
         });
-        button.append(title, menu);
-        button.addEventListener("click", () => openChat(chat.id));
-        button.addEventListener("keydown", event => {
-          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openChat(chat.id); }
+
+        title.addEventListener("dblclick", e => {
+          e.stopPropagation();
+          startInlineEdit();
         });
-        list.append(button);
+
+        deleteBtn.addEventListener("click", async e => {
+          e.stopPropagation();
+          await deleteChat(chat.id);
+        });
+
+        actions.append(renameBtn, deleteBtn);
+        item.append(title, actions);
+
+        item.addEventListener("click", () => openChat(chat.id));
+        item.addEventListener("keydown", event => {
+          if (event.key === "Enter" || event.key === " ") {
+            if (event.target === item) {
+              event.preventDefault();
+              openChat(chat.id);
+            }
+          }
+        });
+        list.append(item);
       });
     });
   }
@@ -237,17 +318,21 @@
   }
 
   async function deleteChat(id) {
-    if (!confirm("Permanently delete this conversation?")) return;
-    await api("/api/user/chats/" + encodeURIComponent(id), { method: "DELETE" });
-    if (active === id) {
-      active = null;
-      try { localStorage.removeItem("melek_active_chat_id"); } catch (_) {}
-      $("conversation").hidden = true;
-      $("welcome").hidden = false;
-      $("messages").replaceChildren();
+    if (!confirm("Supprimer cette conversation ?")) return;
+    try {
+      await api("/api/user/chats/" + encodeURIComponent(id), { method: "DELETE" });
+      if (active === id) {
+        active = null;
+        try { localStorage.removeItem("melek_active_chat_id"); } catch (_) {}
+        $("conversation").hidden = true;
+        $("welcome").hidden = false;
+        $("messages").replaceChildren();
+      }
+      await refreshChats();
+      toast("Conversation supprimée.");
+    } catch (err) {
+      toast(err.message || "Erreur de suppression.");
     }
-    await refreshChats();
-    toast("Conversation deleted.");
   }
 
   function setMode(next) {
