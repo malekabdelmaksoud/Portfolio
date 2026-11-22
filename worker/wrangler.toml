@@ -1,6 +1,7 @@
 name = "melek-portfolio-api"
 main = "src/index.js"
 compatibility_date = "2026-11-21"
+previews = {}
 workers_dev = true
 
 [triggers]
