@@ -1227,22 +1227,31 @@ async function exportD1Database(env) {
   };
 
   for (const table of BACKUP_TABLES) {
-    try {
-      const { results = [] } = await env.DB.prepare(`SELECT * FROM ${table}`).all();
-      exported.tables[table] = results;
-      exported.meta.row_counts[table] = results.length;
-    } catch (_) {
-      exported.tables[table] = [];
-      exported.meta.row_counts[table] = 0;
+    // A failed export must abort the backup. Never convert a read failure into
+    // an empty array: a later restore could otherwise erase valid production data.
+    const result = await env.DB.prepare(`SELECT * FROM ${table}`).all();
+    if (!result || !Array.isArray(result.results)) {
+      throw new Error(`Backup export returned an invalid result for table: ${table}`);
     }
+    exported.tables[table] = result.results;
+    exported.meta.row_counts[table] = result.results.length;
   }
 
-  try {
-    const { results = [] } = await env.DB.prepare("SELECT * FROM backup_logs ORDER BY created_at DESC LIMIT 50").all();
-    exported.tables.backup_logs = results;
-    exported.meta.row_counts.backup_logs = results.length;
-  } catch (_) {
-    // backup_logs may not exist yet
+  // The audit table is introduced by migration 0010. Check for its existence
+  // explicitly; if it exists but cannot be read, fail the backup instead of
+  // silently omitting audit history.
+  const auditTable = await env.DB.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='backup_logs'"
+  ).first();
+  if (auditTable) {
+    const auditResult = await env.DB.prepare(
+      "SELECT * FROM backup_logs ORDER BY created_at DESC LIMIT 50"
+    ).all();
+    if (!auditResult || !Array.isArray(auditResult.results)) {
+      throw new Error("Backup export returned an invalid result for table: backup_logs");
+    }
+    exported.tables.backup_logs = auditResult.results;
+    exported.meta.row_counts.backup_logs = auditResult.results.length;
   }
 
   return exported;
