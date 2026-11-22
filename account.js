@@ -158,6 +158,21 @@
       stop.textContent = "Stop";
       stop.addEventListener("click", () => speechSynthesis?.cancel());
       actions.append(copy, speak, pause, resume, stop);
+      if (messageId) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", async () => {
+          if (!confirm("Delete this message?")) return;
+          try {
+            await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(messageId), { method: "DELETE" });
+            node.remove();
+            await refreshChats();
+            toast("Message deleted.");
+          } catch (error) { toast(error.message); }
+        });
+        actions.append(remove);
+      }
       body.append(actions);
     }
     node.append(avatar, body);
