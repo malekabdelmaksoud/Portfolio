@@ -214,28 +214,34 @@ test("health endpoint checks D1 and reports the native auth and Melek AI modes",
  assert.equal(data.auth,"native-email-otp");
 });
 
-test("assistant clearly reports that Melek AI is not connected",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),environment());
+test("assistant answers general questions with Workers AI",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"The Moon is made primarily of rock and dust."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
- assert.match(data.answer,/C, Java, Python and PHP/i);
+ assert.match(data.answer,/rock and dust/i);
+ assert.equal(data.grounded_by_portfolio,false);
  assert.equal(response.headers.get("access-control-allow-origin"),"https://portfolio.test");
  assert.equal(response.headers.get("access-control-allow-credentials"),"true");
 });
 
-
-test("assistant recognizes Tunisian Arabic project questions",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"شنو المشاريع متاع ملاك"}),environment());
+test("assistant sends verified portfolio facts as optional grounding",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"The portfolio lists a Laravel project."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What projects are listed in Melek's portfolio?"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
- assert.match(data.answer,/مشروع/i);
+ assert.match(data.answer,/Laravel/i);
+ assert.equal(data.grounded_by_portfolio,true);
+ assert.match(prompt,/Laravel project published in the portfolio/i);
 });
 
-
-test("assistant uses recent topic for a short Arabic follow-up",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
+test("assistant understands Tunisian follow-ups using recent context",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is a deeper explanation of those projects."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
+ assert.match(data.answer,/deeper explanation/i);
+ assert.match(prompt,/شنو المشاريع متاع ملاك/);
 });
 
 test("assistant never returns an unapproved fact",async()=>{
