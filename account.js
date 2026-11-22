@@ -409,14 +409,8 @@
         }
       }
     } catch (_) {
-      select.replaceChildren();
-      const opt = document.createElement("option");
-      opt.value = "melek-ai-v1";
-      opt.textContent = "Melek AI v1 (Approved Facts Retrieval)";
-      opt.selected = true;
-      select.append(opt);
-      selectedModel = "melek-ai-v1";
-      $("model-version").textContent = "Model version: melek-ai-v1";
+      selectedModel = select.value || "melek-ai-v1";
+      $("model-version").textContent = "Model version: " + selectedModel;
     }
   }
 
