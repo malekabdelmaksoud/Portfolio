@@ -1053,8 +1053,12 @@ async function rankedFacts(env, question, context = "") {
     /\b(her|his|their|she|he|son|sa|ses|elle|il|lui|et|also|and|what about)\b|متاعها|متاعو|متاعه|عندها|عندو|خبرتها|دراستها|مهاراتها|مشاريعها|عليها|عنه/i.test(normalize(question));
   const personalPortfolioQuestion = isPersonalPortfolioQuestion(question) || contextualOwnerFollowUp;
   if (!searchTerms.size && !personalPortfolioQuestion) return { searchTerms, selected: [] };
-  const { results = [] } = await env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all();
-  const { results: projectRows = [] } = await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
+  const [factResult, projectResult] = await Promise.all([
+    env.DB.prepare("SELECT id,category,text_fr,text_en,text_ar,aliases_json,source_file,source_selector,public_url FROM facts WHERE approved=1").all(),
+    env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all()
+  ]);
+  const { results = [] } = factResult;
+  const { results: projectRows = [] } = projectResult;
   const projectFacts = projectRows.map(project => ({
     id: project.id, category: "project",
     text_fr: project.description_fr || project.title,
@@ -1120,13 +1124,18 @@ const DEFAULT_PUBLISHED_CV_FALLBACK = [
 ].join("\n");
 
 const PUBLIC_PORTFOLIO_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev";
+let publishedPortfolioContextCache = { value: "", expiresAt: 0 };
 
 async function fetchPublishedPortfolioContext(env = {}) {
+  const hasInlineContext = typeof env.PORTFOLIO_CONTEXT_HTML === "string" || typeof env.PORTFOLIO_CONTEXT_CV === "string";
+  if (!hasInlineContext && publishedPortfolioContextCache.value && publishedPortfolioContextCache.expiresAt > Date.now()) {
+    return publishedPortfolioContextCache.value;
+  }
   const fetchText = async path => {
     try {
       const response = await fetch(PUBLIC_PORTFOLIO_ORIGIN + path, {
         headers: { accept: path.endsWith(".js") ? "text/javascript" : "text/html" },
-        signal: AbortSignal.timeout(2500)
+        signal: AbortSignal.timeout(1500)
       });
       if (!response.ok) return "";
       const length = Number(response.headers.get("content-length") || 0);
@@ -1164,7 +1173,9 @@ async function fetchPublishedPortfolioContext(env = {}) {
   if (cvData) sections.push("Published CV default data (from cv-manager.js):\n" + clean(cvData).slice(0, 10500));
   if (pageText || translatedAttributes) sections.push("Published portfolio page content:\n" + clean(pageText + " " + translatedAttributes).slice(0, 6500));
   if (!cvData) sections.unshift("Published CV fallback from the portfolio repository source:\n" + DEFAULT_PUBLISHED_CV_FALLBACK);
-  return sections.join("\n\n").slice(0, 18000);
+  const context = sections.join("\n\n").slice(0, 18000);
+  if (!hasInlineContext && context) publishedPortfolioContextCache = { value: context, expiresAt: Date.now() + 60_000 };
+  return context;
 }
 
 
