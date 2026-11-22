@@ -10,13 +10,20 @@
   function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>$("toast").classList.remove("show"),3000);}
   function escapeHTML(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function renderText(value){return escapeHTML(value).split("\n").map(line=>"<p>"+line+"</p>").join("");}
-  function addMessage(role,content,withActions=true,sources=[]){
+  function addMessage(role,content,withActions=true,sources=[],createdAt=null){
     const node=document.createElement("article");node.className="message "+(role==="user"?"user":"assistant");
     const avatar=document.createElement("div");avatar.className="message-avatar";avatar.textContent=role==="user"?"M":"AI";
     const body=document.createElement("div");body.className="message-body";
     const label=document.createElement("div");label.className="message-role";label.textContent=role==="user"?"You":"Melek AI";
     const text=document.createElement("div");text.className="message-text";text.innerHTML=renderText(content);
     body.append(label,text);
+    if(createdAt){
+      const time=document.createElement("time");
+      time.className="message-time";
+      time.dateTime=String(createdAt);
+      time.textContent=new Intl.DateTimeFormat("fr-TN",{timeZone:"Africa/Tunis",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(parseChatDate(createdAt));
+      body.append(time);
+    }
     if(role==="assistant"&&Array.isArray(sources)&&sources.length){
       const sourceList=document.createElement("div");sourceList.className="message-sources";
       const heading=document.createElement("strong");heading.textContent="Sources web indexées automatiquement";sourceList.append(heading);
@@ -31,7 +38,22 @@
     if(role==="assistant"&&withActions){const actions=document.createElement("div");actions.className="message-actions";const copy=document.createElement("button");copy.type="button";copy.textContent="Copier";copy.addEventListener("click",()=>navigator.clipboard?.writeText(content).then(()=>toast("Réponse copiée."),()=>toast("Copie indisponible.")));const speak=document.createElement("button");speak.type="button";speak.textContent="Écouter";speak.addEventListener("click",()=>speakText(content));actions.append(copy,speak);body.append(actions);if(role==="assistant")lastAssistantAnswer=content;}
     node.append(avatar,body);$("messages").append(node);$("messages").scrollTop=$("messages").scrollHeight;return node;
   }
-  function groupFor(value){const d=new Date(String(value).endsWith("Z")?value:value+"Z"),n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate()),day=new Date(d.getFullYear(),d.getMonth(),d.getDate()),diff=Math.round((today-day)/86400000);return diff<=0?"Today":diff===1?"Yesterday":diff<7?"Previous 7 days":"Older";}
+  function parseChatDate(value){
+    const raw=String(value||"").trim().replace(" ","T");
+    const date=new Date(/[zZ]|[+-]\\d{2}:?\\d{2}$/.test(raw)?raw:raw+"Z");
+    return Number.isNaN(date.getTime())?new Date(0):date;
+  }
+  function tunisianDayKey(value){
+    const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Tunis",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(parseChatDate(value));
+    const part=type=>parts.find(item=>item.type===type)?.value||"00";
+    return part("year")+"-"+part("month")+"-"+part("day");
+  }
+  function groupFor(value){
+    const today=tunisianDayKey(new Date().toISOString());
+    const day=tunisianDayKey(value);
+    const diff=Math.round((Date.parse(today+"T00:00:00Z")-Date.parse(day+"T00:00:00Z"))/86400000);
+    return diff<=0?"Today":diff===1?"Yesterday":diff<7?"Previous 7 days":"Older";
+  }
   function renderList(){
     const list=$("chat-list");list.replaceChildren();const query=$("history-search").value.trim().toLowerCase(),filtered=chats.filter(c=>(c.title||"").toLowerCase().includes(query));
     if(!filtered.length){const p=document.createElement("p");p.className="list-empty";p.textContent=query?"Aucun résultat.":"Aucune conversation pour le moment.";list.append(p);return;}
@@ -54,7 +76,7 @@
       if(window.innerWidth<=760)$("sidebar").classList.remove("mobile-open");
       const data=await api("/api/user/chats/"+encodeURIComponent(id));
       active=id;$("welcome").hidden=true;$("conversation").hidden=false;$("conversation-head").textContent=data.chat.title||"Conversation";
-      $("messages").replaceChildren();(data.messages||[]).forEach(m=>addMessage(m.role,m.content));
+      $("messages").replaceChildren();(data.messages||[]).forEach(m=>addMessage(m.role,m.content,true,[],m.created_at));
       renderList();$("messages").scrollTop=$("messages").scrollHeight;
     }catch(e){toast(e.message);}
   }
