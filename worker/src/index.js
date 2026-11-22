@@ -1509,6 +1509,7 @@ async function userChatRoute(request, env, path, method, identity) {
     const chat = await env.DB.prepare("SELECT id FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1], identity.email).first();
     if (!chat) return json({ error: "Chat not found." }, 404);
     await env.DB.batch([
+      env.DB.prepare("UPDATE shared_conversations SET revoked_at=CURRENT_TIMESTAMP WHERE chat_id=? AND user_email=? AND revoked_at IS NULL").bind(chatMatch[1], identity.email),
       env.DB.prepare("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?").bind(chatMatch[1], identity.email),
       env.DB.prepare("DELETE FROM chats WHERE id=? AND user_email=?").bind(chatMatch[1], identity.email)
     ]);
@@ -1516,6 +1517,7 @@ async function userChatRoute(request, env, path, method, identity) {
   }
   if (path === "/api/user/chats" && method === "DELETE") {
     await env.DB.batch([
+      env.DB.prepare("UPDATE shared_conversations SET revoked_at=CURRENT_TIMESTAMP WHERE user_email=? AND revoked_at IS NULL").bind(identity.email),
       env.DB.prepare("DELETE FROM chat_messages WHERE user_email=?").bind(identity.email),
       env.DB.prepare("DELETE FROM chats WHERE user_email=?").bind(identity.email)
     ]);
