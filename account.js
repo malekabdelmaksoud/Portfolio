@@ -457,6 +457,7 @@
     } catch (error) { toast(error.message); }
   }
 
+  // Keep one Google Identity Services initialization per page and render its official popup button.
   async function loadGoogleSignIn() {
     const btn = $("google-signin");
     if (!btn) return;
