@@ -235,6 +235,35 @@ test("assistant sends verified portfolio facts as optional grounding",async()=>{
  assert.match(prompt,/Laravel project published in the portfolio/i);
 });
 
+test("assistant builds owner CV from all approved portfolio facts and visible projects",async()=>{
+ const env=environment();let prompt="";
+ env.__facts.push(
+  {id:"profile-002",category:"profile",text_fr:"Profil développeur web.",text_en:"Web developer profile.",text_ar:"ملف مطور ويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#about",public_url:null,approved:1},
+  {id:"education-002",category:"education",text_fr:"Formation en informatique.",text_en:"Computer science education.",text_ar:"تكوين في الإعلامية.",aliases_json:"[]",source_file:"index.html",source_selector:"#education",public_url:null,approved:1},
+  {id:"experience-002",category:"experience",text_fr:"Expérience en développement web.",text_en:"Web development experience.",text_ar:"خبرة في تطوير الويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#experience",public_url:null,approved:1}
+ );
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"CV composed from verified portfolio details."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"اعطني CV مالك"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/Web developer profile/);
+ assert.match(prompt,/Computer science education/);
+ assert.match(prompt,/Web development experience/);
+ assert.match(prompt,/C, Java, Python and PHP/);
+ assert.match(prompt,/Laravel project published in the portfolio/);
+ assert.match(prompt,/synthesize a useful structured CV/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
+test("assistant uses the full owner profile when asked about Melek",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is the verified profile."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"شنو تعرف على ملاك؟"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/لغات البرمجة المذكورة تشمل C و Java و Python و PHP/);
+ assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
 test("assistant understands Tunisian follow-ups using recent context",async()=>{
  const env=environment();let prompt="";
  env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is a deeper explanation of those projects."};}};
