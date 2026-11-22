@@ -122,28 +122,20 @@ const aiWorkspaceUrl = portfolioApiBase + "/account.html";
 if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
   aiWorkspaceNewTab.href = aiWorkspaceUrl;
 
+  // Authentication is hosted on the API Worker origin. Launch it as a
+  // top-level page so Cloudflare Access/session cookies are first-party;
+  // browsers may block those cookies when the Worker is embedded cross-site.
   function openMelekAI() {
-    if (!aiWorkspaceFrame.getAttribute("src")) aiWorkspaceFrame.src = aiWorkspaceUrl;
-    aiWorkspaceOverlay.hidden = false;
-    aiWorkspaceOverlay.setAttribute("aria-hidden", "false");
-    document.body.classList.add("ai-workspace-open");
-    aiWorkspaceEntry.setAttribute("aria-expanded", "true");
-    aiWorkspaceClose.focus();
-  }
-
-  function closeMelekAI() {
-    aiWorkspaceOverlay.hidden = true;
-    aiWorkspaceOverlay.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("ai-workspace-open");
-    aiWorkspaceEntry.setAttribute("aria-expanded", "false");
-    aiWorkspaceEntry.focus();
+    const opened = window.open(aiWorkspaceUrl, "_blank");
+    if (opened) {
+      try { opened.opener = null; } catch (_) {}
+    } else {
+      // Popup blockers: keep the sign-in flow usable in the current tab.
+      window.location.assign(aiWorkspaceUrl);
+    }
   }
 
   aiWorkspaceEntry.addEventListener("click", openMelekAI);
-  aiWorkspaceClose.addEventListener("click", closeMelekAI);
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && !aiWorkspaceOverlay.hidden) closeMelekAI();
-  });
 
   window.addEventListener("portfolio:languagechange", () => {
     const english = document.documentElement.lang === "en";
