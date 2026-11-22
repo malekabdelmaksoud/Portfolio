@@ -320,7 +320,7 @@ async function runAudit() {
     const aiLauncherOk = Boolean(aiEntry && aiOverlay && aiFrame && aiOpenLink &&
       (await aiEntry.getAttribute('type')) === 'button' &&
       (await aiOpenLink.getAttribute('href')).endsWith('/account.html'));
-    recordTest("Phase 3: AI Assistant", "Floating Button Opens Full AI Workspace", aiLauncherOk);
+    recordTest("Phase 3: AI Assistant", "Floating Button Provides Standalone Auth-Safe AI Workspace", aiLauncherOk);
     recordTest("Phase 3: AI Assistant", "Legacy Mini Chat Removed", await page.$('#aiChatPopup') === null);
 
     // ══════════════════════════════════════════════════════════
