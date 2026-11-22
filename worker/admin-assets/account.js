@@ -13,6 +13,7 @@
   let recognition = null;
   let autoSpeak = false;
   let usedVoice = false;
+  let voiceSession = false;
   let selectedModel = "melek-ai-v1";
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
   if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
@@ -331,7 +332,10 @@
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     utterance.onstart = () => showStopVocal(true);
-    utterance.onend = () => showStopVocal(false);
+    utterance.onend = () => {
+      showStopVocal(false);
+      if (voiceSession) setTimeout(startVoiceCapture, 350);
+    };
     utterance.onerror = () => showStopVocal(false);
     speechSynthesis.speak(utterance);
   }
@@ -672,36 +676,100 @@
     $("chat-input").focus();
   }));
 
+  function stopVoiceSession() {
+    voiceSession = false;
+    if (recognition) {
+      try { recognition.onend = null; recognition.stop(); } catch (_) {}
+      recognition = null;
+    }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    $("mic-button").classList.remove("recording");
+    $("voice-session").classList.remove("selected");
+    $("voice-session").setAttribute("aria-pressed", "false");
+    $("voice-session").textContent = "Voice chat";
+    showStopVocal(false);
+  }
+
+  function startVoiceCapture() {
+    if (!speech || !voiceSession || recognition || sending) return;
+    try {
+      recognition = new speech();
+      const text = $("chat-input").value;
+      recognition.lang = /[\\u0600-\\u06ff]/.test(text) || (navigator.language || "").startsWith("ar") ? "ar-TN" : /[a-z]/i.test(text) ? "fr-FR" : "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.onstart = () => {
+        $("mic-button").classList.add("recording");
+        $("voice-session").textContent = "Listening…";
+      };
+      recognition.onresult = event => {
+        let finalText = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
+        }
+        if (finalText) $("chat-input").value = ($("chat-input").value + " " + finalText).trim();
+      };
+      recognition.onerror = event => {
+        toast("Speech recognition error: " + event.error);
+        if (["not-allowed", "service-not-allowed", "audio-capture"].includes(event.error)) stopVoiceSession();
+      };
+      recognition.onend = () => {
+        recognition = null;
+        $("mic-button").classList.remove("recording");
+        if (!voiceSession) return;
+        if ($("chat-input").value.trim()) {
+          usedVoice = true;
+          $("voice-session").textContent = "Thinking…";
+          $("chat-form").requestSubmit();
+        } else {
+          $("voice-session").textContent = "Voice chat on";
+          setTimeout(startVoiceCapture, 500);
+        }
+      };
+      recognition.start();
+    } catch (error) {
+      recognition = null;
+      toast("Could not start the microphone: " + (error.message || "permission unavailable"));
+      stopVoiceSession();
+    }
+  }
+
   $("mic-button").addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
     if (!speech) {
       toast("Speech recognition is unsupported in this browser.");
       return;
     }
-    if (recognition) { recognition.stop(); return; }
-    recognition = new speech();
-    recognition.lang = /[\u0600-\u06ff]/.test($("chat-input").value) ? "ar-TN" : "fr-FR";
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    recognition.onstart = () => { $("mic-button").classList.add("recording"); toast("Recording started."); };
-    recognition.onresult = event => {
-      let finalText = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
-      }
-      if (finalText) $("chat-input").value = ($("chat-input").value + " " + finalText).trim();
-    };
-    recognition.onerror = event => toast("Speech recognition error: " + event.error);
-    recognition.onend = () => {
-      recognition = null;
-      $("mic-button").classList.remove("recording");
-      $("chat-input").focus();
-      if ($("chat-input").value.trim()) {
-        usedVoice = true;
-        $("chat-form").requestSubmit();
-      }
-    };
-    recognition.start();
+    if (recognition) { try { recognition.stop(); } catch (_) {} return; }
+    if (voiceSession) {
+      startVoiceCapture();
+      return;
+    }
+    voiceSession = true;
+    startVoiceCapture();
+  });
+
+  $("voice-session").addEventListener("click", () => {
+    $("voice-disclosure").hidden = false;
+    if (voiceSession) {
+      stopVoiceSession();
+      toast("Voice chat stopped.");
+      return;
+    }
+    if (!speech) {
+      toast("Hands-free voice chat needs a browser with speech recognition support (Chrome or Edge).");
+      return;
+    }
+    if (!("speechSynthesis" in window)) {
+      toast("Voice replies are unavailable in this browser.");
+      return;
+    }
+    voiceSession = true;
+    $("voice-session").classList.add("selected");
+    $("voice-session").setAttribute("aria-pressed", "true");
+    $("voice-session").textContent = "Voice chat on";
+    toast("Voice chat started. Speak naturally; press Voice chat again to stop.");
+    startVoiceCapture();
   });
 
   $("stop-vocal")?.addEventListener("click", () => {
