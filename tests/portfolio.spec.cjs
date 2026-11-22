@@ -134,33 +134,17 @@ test('mobile layout has no horizontal overflow and menu toggles', async () => {
   } finally { await page.close(); }
 });
 
-test('floating AI button opens the full-screen Melek AI workspace', async () => {
+test('floating AI button opens the authenticated workspace as a top-level page', async () => {
   const page = await openPage();
   try {
-    const overlay = page.locator('#aiWorkspaceOverlay');
-    const frame = page.locator('#aiWorkspaceFrame');
     assert.equal(await page.locator('#aiChatToggle').isVisible(), true);
-    assert.equal(await overlay.isVisible(), false);
+    const popupPromise = page.waitForEvent('popup');
     await page.locator('#aiChatToggle').click();
-    assert.equal(await overlay.isVisible(), true);
-    assert.equal(await overlay.getAttribute('aria-hidden'), 'false');
-    assert.match(await frame.getAttribute('title'), /New Chat.*history.*Chat \/ Analyze/i);
-    assert.match(await frame.getAttribute('src'), /account\.html/);
-    assert.equal(await page.locator('#aiWorkspaceClose').isVisible(), true);
-    assert.equal(await page.locator('#aiWorkspaceNewTab').getAttribute('target'), '_blank');
-  } finally { await page.close(); }
-});
-
-test('AI workspace modal closes with its close button and Escape key', async () => {
-  const page = await openPage();
-  try {
-    await page.locator('#aiChatToggle').click();
-    await page.locator('#aiWorkspaceClose').click();
-    assert.equal(await page.locator('#aiWorkspaceOverlay').isVisible(), false);
-    await page.locator('#aiChatToggle').click();
-    await page.keyboard.press('Escape');
-    assert.equal(await page.locator('#aiWorkspaceOverlay').isVisible(), false);
-    assert.equal(await page.locator('body').evaluate(el => el.classList.contains('ai-workspace-open')), false);
+    const popup = await popupPromise;
+    try {
+      await popup.waitForLoadState('domcontentloaded');
+      assert.match(popup.url(), /account\.html$/);
+    } finally { await popup.close(); }
   } finally { await page.close(); }
 });
 
