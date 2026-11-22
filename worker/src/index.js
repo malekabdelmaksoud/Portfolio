@@ -1443,10 +1443,18 @@ async function userChatRoute(request, env, path, method, identity) {
     return json({ saved: true, id: messageMatch[2], removed_following: laterIds.length });
   }
   if (messageMatch && method === "DELETE") {
-    const result = await env.DB.prepare("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(messageMatch[2], messageMatch[1], identity.email).run();
-    if (!result.meta?.changes) return json({ error: "Message not found." }, 404);
-    await env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(messageMatch[1], identity.email).run();
-    return json({ deleted: true });
+    const message = await env.DB.prepare("SELECT id,role FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(messageMatch[2], messageMatch[1], identity.email).first();
+    if (!message) return json({ error: "Message not found." }, 404);
+    const ordered = await env.DB.prepare("SELECT id FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY rowid").bind(messageMatch[1], identity.email).all();
+    const index = (ordered.results || []).findIndex(item => item.id === messageMatch[2]);
+    const idsToDelete = message.role === "user"
+      ? (ordered.results || []).slice(index).map(item => item.id)
+      : [messageMatch[2]];
+    await env.DB.batch([
+      ...idsToDelete.map(id => env.DB.prepare("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(id, messageMatch[1], identity.email)),
+      env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(messageMatch[1], identity.email)
+    ]);
+    return json({ deleted: true, deleted_count: idsToDelete.length });
   }
   if (path === "/api/user/me" && method === "GET") return json({ authenticated: true, user: identity });
   if (path === "/api/user/chats" && method === "GET") {
