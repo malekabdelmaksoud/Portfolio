@@ -1093,6 +1093,28 @@ function isPublishedPortfolioQuestion(question, context = "") {
 }
 
 
+const DEFAULT_PUBLISHED_CV_FALLBACK = [
+  "CV source fallback copied from the public cv-manager.js default data.",
+  "Name: Melek Abdelmaksoud.",
+  "Title: Final-year student in Information Technology — Web Development and intelligent applications.",
+  "Location: Sfax, Tunisia.",
+  "Public contact: melekabdelmaksoud72@gmail.com.",
+  "Public links: LinkedIn https://www.linkedin.com/in/melek-abdelmaksoud-518713436/ ; GitHub https://github.com/malekabdelmaksoud.",
+  "Profile: Final-year Licence student in Information Technology at ISET de Sidi Bouzid, Web Development and Multimedia specialization. Builds web applications and explores practical uses of artificial intelligence. Skills develop through projects, studies, and internships.",
+  "Skills — programming languages: Java, PHP, C, C#, Python, JavaScript.",
+  "Skills — web: HTML, CSS, Angular.",
+  "Skills — frameworks and tools: Laravel, Symfony, Spring Boot, .NET, Android Studio.",
+  "Skills — systems and networks: IT maintenance, network cabling, OCS Inventory.",
+  "Experience — IT and DMI internship, Hôpital Hédi Chaker, Sfax, July–August 2026: configured a care application, explored the Electronic Medical Record (DMI), and used OCS Inventory for IT asset management.",
+  "Experience — Web Development internship, Advanced Computer Solutions (ACS), January 2026: joined a technical team, learned the web development lifecycle, and worked with interface integration.",
+  "Experience — Networks and Telecommunications internship, Netsys Com Support, June–July 2025: introduction to network cabling, rack patching, and infrastructure equipment.",
+  "Experience — IT Maintenance internship, CISEN, January–February 2025: hardware and software diagnostics, preventive and corrective maintenance, and workstation installation and configuration.",
+  "Education — Licence in Information Technology (DSI / Web), ISET de Sidi Bouzid, 2024–present: Web and Multimedia track covering object-oriented programming, web architectures, databases, and software design.",
+  "Education — Baccalaureate in Experimental Sciences, Lycée Tayeb Mhiri, Sfax, 2023–2024.",
+  "Languages: Arabic (native), French (professional), English (intermediate B1), Spanish (basic).",
+  "Professional strengths: teamwork, autonomy, rigor, adaptability, problem solving."
+].join("\n");
+
 const PUBLIC_PORTFOLIO_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev";
 
 async function fetchPublishedPortfolioContext(env = {}) {
@@ -1137,7 +1159,8 @@ async function fetchPublishedPortfolioContext(env = {}) {
   const sections = [];
   if (cvData) sections.push("Published CV default data (from cv-manager.js):\n" + clean(cvData).slice(0, 10500));
   if (pageText || translatedAttributes) sections.push("Published portfolio page content:\n" + clean(pageText + " " + translatedAttributes).slice(0, 6500));
-  return sections.join("\n\n").slice(0, 16000);
+  if (!cvData) sections.unshift("Published CV fallback from the portfolio repository source:\n" + DEFAULT_PUBLISHED_CV_FALLBACK);
+  return sections.join("\n\n").slice(0, 18000);
 }
 
 
