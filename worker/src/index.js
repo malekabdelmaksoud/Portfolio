@@ -1403,7 +1403,35 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
 }
 
 async function userChatRoute(request, env, path, method, identity) {
+  const messageMatch = path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})\/messages\/([0-9a-f-]{36})$/i);
   const chatMatch = path.match(/^\/api\/user\/chats\/([0-9a-f-]{36})$/i);
+  if (messageMatch && method === "PATCH") {
+    const body = await readBody(request, 8000);
+    const content = String(body.content || "").trim();
+    if (!content || content.length > 6000) return json({ error: "Message content must contain 1 to 6000 characters." }, 400);
+    const [chat, message] = await Promise.all([
+      env.DB.prepare("SELECT id FROM chats WHERE id=? AND user_email=?").bind(messageMatch[1], identity.email).first(),
+      env.DB.prepare("SELECT id,role FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(messageMatch[2], messageMatch[1], identity.email).first()
+    ]);
+    if (!chat || !message) return json({ error: "Message not found." }, 404);
+    if (message.role !== "user") return json({ error: "Only your own messages can be edited." }, 403);
+    const ordered = await env.DB.prepare("SELECT id FROM chat_messages WHERE chat_id=? AND user_email=? ORDER BY created_at,id").bind(messageMatch[1], identity.email).all();
+    const index = (ordered.results || []).findIndex(item => item.id === messageMatch[2]);
+    const laterIds = (ordered.results || []).slice(index + 1).map(item => item.id);
+    const statements = [
+      env.DB.prepare("UPDATE chat_messages SET content=? WHERE id=? AND chat_id=? AND user_email=?").bind(content, messageMatch[2], messageMatch[1], identity.email),
+      ...laterIds.map(id => env.DB.prepare("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(id, messageMatch[1], identity.email)),
+      env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(messageMatch[1], identity.email)
+    ];
+    await env.DB.batch(statements);
+    return json({ saved: true, id: messageMatch[2], removed_following: laterIds.length });
+  }
+  if (messageMatch && method === "DELETE") {
+    const result = await env.DB.prepare("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?").bind(messageMatch[2], messageMatch[1], identity.email).run();
+    if (!result.meta?.changes) return json({ error: "Message not found." }, 404);
+    await env.DB.prepare("UPDATE chats SET updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_email=?").bind(messageMatch[1], identity.email).run();
+    return json({ deleted: true });
+  }
   if (path === "/api/user/me" && method === "GET") return json({ authenticated: true, user: identity });
   if (path === "/api/user/chats" && method === "GET") {
     const url = new URL(request.url);
