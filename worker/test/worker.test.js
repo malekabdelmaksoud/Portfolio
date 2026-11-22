@@ -829,6 +829,7 @@ test("portfolio facts are optional grounding for personal project questions",asy
 
 test("model selection is restricted to configured Workers AI models",async()=>{
  const env=environment();
+ env.AI={async run(model,options){return {response:"Recursion is a function calling itself."};}};
  const response=await worker.fetch(request("/api/assistant",{question:"Explain recursion",model_id:"attacker-controlled-model"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
