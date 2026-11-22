@@ -473,6 +473,28 @@
           throw new Error("Google sign-in is not configured on the server.");
         }
 
+        if (fallbackBtn && !fallbackBtn.dataset.bound) {
+          fallbackBtn.dataset.bound = "true";
+          fallbackBtn.addEventListener("click", () => {
+            $("auth-error").textContent = "";
+            if (window.google?.accounts?.id) {
+              try { window.google.accounts.id.prompt(); } catch (_) {}
+            }
+            const oauthParams = new URLSearchParams({
+              client_id: config.googleClientId,
+              redirect_uri: window.location.origin + window.location.pathname,
+              response_type: "id_token",
+              scope: "openid email profile",
+              nonce: Math.random().toString(36).slice(2)
+            });
+            const oauthUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + oauthParams.toString();
+            const popup = window.open(oauthUrl, "google_login", "width=500,height=600,menubar=no,toolbar=no");
+            if (!popup || popup.closed || typeof popup.closed === "undefined") {
+              window.location.href = oauthUrl;
+            }
+          });
+        }
+
         await new Promise((resolve, reject) => {
           if (window.google?.accounts?.id) return resolve();
           const script = document.createElement("script");
@@ -518,16 +540,14 @@
           text: "continue_with",
           width: 320
         });
-        if (fallbackBtn) fallbackBtn.hidden = true;
+        setTimeout(() => {
+          if (mount.querySelector("iframe") && fallbackBtn) {
+            fallbackBtn.hidden = true;
+          }
+        }, 600);
         $("email-divider").hidden = false;
       } catch (error) {
         console.warn("Google sign-in initialization failed:", error);
-        if (fallbackBtn) {
-          fallbackBtn.hidden = false;
-          fallbackBtn.onclick = () => {
-            $("auth-error").textContent = error.message || "Google sign-in could not be started. Please try email and password.";
-          };
-        }
         $("email-divider").hidden = false;
       }
     })();
@@ -565,6 +585,25 @@
   }
 
   async function load() {
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const hashToken = hashParams.get("id_token") || hashParams.get("credential");
+    if (hashToken) {
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+        if (window.opener) {
+          try {
+            window.opener.postMessage({ type: "google_credential", credential: hashToken }, window.location.origin);
+            window.close();
+            return;
+          } catch (_) {}
+        }
+        await api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: hashToken }) });
+      } catch (err) {
+        showAuth();
+        $("auth-error").textContent = err.message;
+        return;
+      }
+    }
     const modelSelect = $("model-select");
     if (modelSelect && !modelSelect.dataset.bound) {
       modelSelect.dataset.bound = "1";
@@ -809,10 +848,13 @@
       recognition = null;
     }
     if ("speechSynthesis" in window) speechSynthesis.cancel();
-    $("mic-button").classList.remove("recording");
-    $("voice-session").classList.remove("selected");
-    $("voice-session").setAttribute("aria-pressed", "false");
-    $("voice-session").textContent = "Voice chat";
+    $("mic-button")?.classList.remove("recording");
+    const vs = $("voice-session");
+    if (vs) {
+      vs.classList.remove("selected");
+      vs.setAttribute("aria-pressed", "false");
+      vs.textContent = "Voice chat";
+    }
     showStopVocal(false);
   }
 
@@ -825,8 +867,9 @@
       recognition.interimResults = true;
       recognition.continuous = false;
       recognition.onstart = () => {
-        $("mic-button").classList.add("recording");
-        $("voice-session").textContent = "Listening…";
+        $("mic-button")?.classList.add("recording");
+        const vs = $("voice-session");
+        if (vs) vs.textContent = "Listening…";
       };
       recognition.onresult = event => {
         let finalText = "";
@@ -841,14 +884,15 @@
       };
       recognition.onend = () => {
         recognition = null;
-        $("mic-button").classList.remove("recording");
+        $("mic-button")?.classList.remove("recording");
         if (!voiceSession) return;
+        const vs = $("voice-session");
         if ($("chat-input").value.trim()) {
           usedVoice = true;
-          $("voice-session").textContent = "Thinking…";
+          if (vs) vs.textContent = "Thinking…";
           $("chat-form").requestSubmit();
         } else {
-          $("voice-session").textContent = "Voice chat on";
+          if (vs) vs.textContent = "Voice chat on";
           setTimeout(startVoiceCapture, 500);
         }
       };
@@ -875,7 +919,7 @@
     startVoiceCapture();
   });
 
-  $("voice-session").addEventListener("click", () => {
+  $("voice-session")?.addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
     if (voiceSession) {
       stopVoiceSession();
@@ -891,9 +935,12 @@
       return;
     }
     voiceSession = true;
-    $("voice-session").classList.add("selected");
-    $("voice-session").setAttribute("aria-pressed", "true");
-    $("voice-session").textContent = "Voice chat on";
+    const vs = $("voice-session");
+    if (vs) {
+      vs.classList.add("selected");
+      vs.setAttribute("aria-pressed", "true");
+      vs.textContent = "Voice chat on";
+    }
     toast("Voice chat started. Speak naturally; press Voice chat again to stop.");
     startVoiceCapture();
   });
@@ -908,6 +955,18 @@
 
   document.addEventListener("keydown", event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); $("new-chat").click(); }
+  });
+
+  window.addEventListener("message", async event => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type === "google_credential" && event.data.credential) {
+      try {
+        await api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: event.data.credential }) });
+        await load();
+      } catch (err) {
+        $("auth-error").textContent = err.message;
+      }
+    }
   });
 
   load();
