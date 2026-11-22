@@ -720,6 +720,67 @@ async function authRoutes(request, env, path, method) {
     await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, tokenHash, expires).run();
     return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(token, env) });
   }
+  if (path === "/api/auth/qr/create" && method === "POST") {
+    const ip = await sha256Hex(ipFrom(request));
+    if (!await abuseCheck(env, "qr-create:" + ip, "qr-create", 10, 600)) {
+      return json({ error: "Too many QR sign-in attempts. Try again later.", code: "QR_LIMIT" }, 429);
+    }
+    const challengeId = crypto.randomUUID();
+    const token = await randomToken(32);
+    const tokenHash = await sha256Hex(token + ":" + (env.OTP_PEPPER || ""));
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+    await env.DB.prepare(
+      "INSERT INTO qr_login_challenges(id,token_hash,expires_at) VALUES(?,?,?)"
+    ).bind(challengeId, tokenHash, expiresAt).run();
+    return json({ challengeId, token, expiresAt });
+  }
+  if (path === "/api/auth/qr/approve" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const challengeId = String(body.challengeId || "");
+    const token = String(body.token || "");
+    if (!/^[0-9a-f-]{36}$/i.test(challengeId) || token.length < 32 || token.length > 128) {
+      return json({ error: "Invalid QR sign-in request.", code: "QR_INVALID" }, 400);
+    }
+    let user;
+    try { user = await getSession(request, env); }
+    catch { return json({ error: "Sign in with Google on this phone before approving the QR code.", code: "QR_PHONE_AUTH_REQUIRED" }, 401); }
+    const tokenHash = await sha256Hex(token + ":" + (env.OTP_PEPPER || ""));
+    const result = await env.DB.prepare(
+      "UPDATE qr_login_challenges SET status='approved',approved_user_id=? WHERE id=? AND token_hash=? AND status='pending' AND approved_user_id IS NULL AND expires_at>?"
+    ).bind(user.id, challengeId, tokenHash, new Date().toISOString()).run();
+    if (result.meta?.changes === 0) return json({ error: "This QR code expired or was already used. Create a new one.", code: "QR_EXPIRED" }, 400);
+    return json({ approved: true });
+  }
+  if (path === "/api/auth/qr/poll" && method === "POST") {
+    const body = await readBody(request, 4000);
+    const challengeId = String(body.challengeId || "");
+    const token = String(body.token || "");
+    if (!/^[0-9a-f-]{36}$/i.test(challengeId) || token.length < 32 || token.length > 128) {
+      return json({ error: "Invalid QR sign-in request.", code: "QR_INVALID" }, 400);
+    }
+    const tokenHash = await sha256Hex(token + ":" + (env.OTP_PEPPER || ""));
+    const challenge = await env.DB.prepare(
+      "SELECT status,approved_user_id,expires_at FROM qr_login_challenges WHERE id=? AND token_hash=?"
+    ).bind(challengeId, tokenHash).first();
+    if (!challenge || Date.now() >= Date.parse(challenge.expires_at)) {
+      return json({ approved: false, expired: true }, 410);
+    }
+    if (challenge.status !== "approved" || !challenge.approved_user_id) {
+      return json({ approved: false, pending: true });
+    }
+    const consumed = await env.DB.prepare(
+      "UPDATE qr_login_challenges SET status='consumed' WHERE id=? AND token_hash=? AND status='approved' AND expires_at>? RETURNING approved_user_id"
+    ).bind(challengeId, tokenHash, new Date().toISOString()).first();
+    if (!consumed?.approved_user_id) return json({ approved: false, expired: true }, 410);
+    const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE id=?").bind(consumed.approved_user_id).first();
+    if (!user) return json({ error: "The approved account could not be found.", code: "QR_USER_NOT_FOUND" }, 404);
+    const sessionToken = await randomToken(32);
+    const sessionHash = await sha256Hex(sessionToken + ":" + (env.SESSION_PEPPER || ""));
+    const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await env.DB.prepare("INSERT INTO auth_sessions(id,user_id,token_hash,expires_at) VALUES(?,?,?,?)").bind(crypto.randomUUID(), user.id, sessionHash, expires).run();
+    await env.DB.prepare("UPDATE users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?").bind(user.id).run();
+    return json({ authenticated: true, user: { email: user.email, name: user.display_name || user.email } }, 200, { "set-cookie": sessionCookie(sessionToken, env) });
+  }
   if (path === "/api/auth/password/reset/request" && method === "POST") {
     const body = await readBody(request, 4000);
     const email = String(body.email || "").trim().toLowerCase();
