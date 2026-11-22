@@ -137,7 +137,8 @@ test("account workspace HTML and assets are served from the API Worker", async (
     async fetch(request) {
       const path = new URL(request.url).pathname;
       if (path === "/account.html") return new Response("<!doctype html><title>Melek AI Workspace</title>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
-      if (path === "/account.js" || path === "/account.css" || path === "/api-config.js") return new Response("/* asset */", { status: 200 });
+      if (path === "/password-reset.html") return new Response("<!doctype html><title>Reset your password</title>", { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+      if (path === "/account.js" || path === "/account.css" || path === "/password-reset.js" || path === "/api-config.js") return new Response("/* asset */", { status: 200 });
       return new Response("Not found", { status: 404 });
     }
   };
@@ -145,6 +146,9 @@ test("account workspace HTML and assets are served from the API Worker", async (
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(await response.text(), /Melek AI Workspace/);
+  const resetPage = await worker.fetch(new Request("https://api.test/password-reset.html"), env);
+  assert.equal(resetPage.status, 200);
+  assert.match(await resetPage.text(), /Reset your password/);
 });
 
 let mockAdminSigning;
