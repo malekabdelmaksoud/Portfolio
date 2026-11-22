@@ -84,9 +84,15 @@
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
+  function keepLatestMessageVisible(node) {
+    if (!node) return;
+    requestAnimationFrame(() => node.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" }));
+  }
+
   function addMessage(role, content, withActions = true, createdAt = null) {
     const node = document.createElement("article");
     node.className = "message " + (role === "user" ? "user" : "assistant");
+    keepLatestMessageVisible(node);
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
     avatar.textContent = role === "user" ? "M" : "AI";
