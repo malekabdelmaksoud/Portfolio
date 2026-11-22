@@ -1,0 +1,26 @@
+name: Worker tests
+
+on:
+  push:
+    branches:
+      - feature/native-otp-workers-ai
+  pull_request:
+    branches:
+      - feature/native-otp-workers-ai
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Worker tests
+        working-directory: worker
+        run: npm test
