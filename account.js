@@ -89,9 +89,10 @@
     requestAnimationFrame(() => node.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" }));
   }
 
-  function addMessage(role, content, withActions = true, createdAt = null) {
+  function addMessage(role, content, withActions = true, createdAt = null, messageId = null) {
     const node = document.createElement("article");
     node.className = "message " + (role === "user" ? "user" : "assistant");
+    if (messageId) node.dataset.messageId = messageId;
     keepLatestMessageVisible(node);
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
@@ -110,6 +111,28 @@
       time.className = "message-time";
       time.textContent = formatTime(createdAt);
       body.append(time);
+    }
+    if (role === "user" && withActions && messageId) {
+      const actions = document.createElement("div");
+      actions.className = "message-actions";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => editUserMessage(node, content));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", async () => {
+        if (!confirm("Delete this message?")) return;
+        try {
+          await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(messageId), { method: "DELETE" });
+          node.remove();
+          await refreshChats();
+          toast("Message deleted.");
+        } catch (error) { toast(error.message); }
+      });
+      actions.append(edit, remove);
+      body.append(actions);
     }
     if (role === "assistant" && withActions) {
       const actions = document.createElement("div");
@@ -307,7 +330,7 @@
     $("conversation").hidden = false;
     $("conversation-head").textContent = data.chat.title || "Conversation";
     $("messages").replaceChildren();
-    (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at));
+    (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at, message.id));
     renderList();
     $("messages").scrollTop = $("messages").scrollHeight;
   }
@@ -350,6 +373,54 @@
     $("mobile-mode").textContent = mode === "chat" ? "Chat" : "Analyze";
   }
 
+  async function editUserMessage(node, oldContent) {
+    if (sending || !active || !node.dataset.messageId) return;
+    const editor = document.createElement("textarea");
+    editor.className = "message-edit-input";
+    editor.rows = Math.max(2, Math.min(8, oldContent.split("\n").length));
+    editor.maxLength = 6000;
+    editor.value = oldContent;
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save & regenerate";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    const originalText = node.querySelector(".message-text");
+    const originalActions = node.querySelector(".message-actions");
+    originalText.hidden = true;
+    if (originalActions) originalActions.hidden = true;
+    node.querySelector(".message-body").append(editor, actions);
+    actions.append(save, cancel);
+    editor.focus();
+    cancel.addEventListener("click", () => { editor.remove(); actions.remove(); originalText.hidden = false; if (originalActions) originalActions.hidden = false; });
+    save.addEventListener("click", async () => {
+      const content = editor.value.trim();
+      if (!content) return toast("Message cannot be empty.");
+      save.disabled = true;
+      try {
+        const history = [];
+        let previous = node.previousElementSibling;
+        while (previous) {
+          history.unshift({ role: previous.classList.contains("user") ? "user" : "assistant", content: previous.querySelector(".message-text")?.textContent || "" });
+          previous = previous.previousElementSibling;
+        }
+        await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(node.dataset.messageId), { method: "PATCH", body: JSON.stringify({ content }) });
+        editor.remove(); actions.remove();
+        const response = await fetch(base + "/api/assistant", { method: "POST", credentials: "include", headers: { "content-type": "application/json", "accept": "application/json" }, body: JSON.stringify({ question: content, mode, history: history.slice(-12), model_id: selectedModel }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
+        const answer = typeof data.answer === "string" ? data.answer : "No response available.";
+        await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
+        await openChat(active);
+        await refreshChats();
+        toast("Message updated and response regenerated.");
+      } catch (error) { toast(error.message || "Could not update message."); await openChat(active); }
+    });
+  }
+
   async function sendMessage(event) {
     event.preventDefault();
     const input = $("chat-input");
@@ -364,8 +435,8 @@
     let pending = null;
     try {
       if (!active) await createChat(question.slice(0, 64));
-      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
-      addMessage("user", question);
+      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
+      addMessage("user", question, true, null, savedUser.id);
       pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
       const previousMessages = [...$("messages").querySelectorAll(".message")].slice(-12, -2);
       const history = previousMessages.map(node => ({
@@ -383,8 +454,8 @@
       if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
       const answer = typeof data.answer === "string" ? data.answer : "No response available.";
       if (pending) { pending.remove(); pending = null; }
-      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
-      addMessage("assistant", answer);
+      const savedAssistant = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
+      addMessage("assistant", answer, true, null, savedAssistant.id);
       if (autoSpeak || usedVoice) {
         speakText(answer);
         usedVoice = false;
