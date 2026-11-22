@@ -1215,6 +1215,9 @@ MODE
 - Current mode: ${mode === "analyze" ? "analysis: provide a structured, evidence-based analysis and practical conclusions" : "chat: answer naturally and directly"}.
 - Keep answers proportional to the request. Use Markdown when it improves readability.
 
+RECENT CONVERSATION CONTEXT
+${conversationContext || "No earlier conversation context was provided."}
+
 VERIFIED PORTFOLIO CONTEXT
 ${factsText || "No matching verified portfolio facts were found. This does not limit answers to general questions."}`;
 
