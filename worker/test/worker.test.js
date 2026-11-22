@@ -1260,6 +1260,7 @@ function authEnvironment(overrides = {}) {
   const sessions = [];
   const chats = [];
   const chatMessages = [];
+  const sharedConversations = [];
   const facts = [];
   const projects = [];
   const backupLogs = [];
@@ -1308,6 +1309,7 @@ function authEnvironment(overrides = {}) {
         if (sql.includes("FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?")) {
           return chatMessages.find(m => m.id === params[0] && m.chat_id === params[1] && m.user_email === params[2]) || null;
         }
+        if (sql.includes("FROM shared_conversations")) return sharedConversations.find(item => item.token === params[0] && !item.revoked_at) || null;
         if (sql.includes("COUNT(*) AS c FROM facts")) return { c: facts.length };
         if (sql.includes("COUNT(*) AS c FROM projects")) return { c: projects.length };
         if (sql.includes("COUNT(*) AS c FROM users")) return { c: users.length };
@@ -1380,6 +1382,8 @@ function authEnvironment(overrides = {}) {
         return { results: [] };
       },
       async run() {
+        if (sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({ token: params[0], chat_id: params[1], user_email: params[2], title: params[3], prompt: params[4], messages_json: params[5], created_at: new Date().toISOString(), revoked_at: null }); return { meta: { changes: 1 } }; }
+        if (sql.includes("UPDATE shared_conversations SET revoked_at")) { let count = 0; for (const item of sharedConversations) if (item.chat_id === params[0] && item.user_email === params[1] && !item.revoked_at) { item.revoked_at = new Date().toISOString(); count++; } return { meta: { changes: count } }; }
         if (sql.includes("INSERT INTO backup_logs")) {
           backupLogs.unshift({ id: params[0], backup_key: params[1], status: params[2], size_bytes: params[3], sha256_plain: params[4], sha256_cipher: params[5], tables_summary: params[6], error_message: params[7], created_at: new Date().toISOString() });
           return { meta: { changes: 1 } };
