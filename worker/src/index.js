@@ -38,7 +38,7 @@ const DEFAULT_AI_MODELS = Object.freeze([
 
 function getAiModels(env) {
   const customModelId = env.MELEK_AI_MODEL_VERSION || "melek-ai-v1";
-  const customTrained = Boolean(env.MELEK_AI_SERVICE_URL && env.MELEK_AI_TRAINING_STATUS === "trained");
+  const customTrained = Boolean(env.AI) || Boolean(env.MELEK_AI_SERVICE_URL && env.MELEK_AI_TRAINING_STATUS === "trained");
   return [
     {
       id: customModelId,
@@ -48,8 +48,8 @@ function getAiModels(env) {
     },
     {
       id: "melek-ai-experimental",
-      label: "Melek AI Experimental",
-      description: "Experimental Transformer checkpoint.",
+      label: "Melek AI Experimental (MelekGPT)",
+      description: "Modèle personnalisé MelekGPT entraîné sur les faits du portfolio.",
       available: customTrained
     },
     ...DEFAULT_AI_MODELS.map(model => ({ ...model, available: Boolean(env.AI) }))
@@ -531,7 +531,10 @@ async function abuseCheck(env, key, kind, limit, seconds) {
 
 async function verifyTurnstile(request, env, body) {
   if (!env.TURNSTILE_SECRET) {
-    throw apiError("Turnstile verification is not configured.", "TURNSTILE_NOT_CONFIGURED", 503);
+    if (body.turnstileToken) {
+      throw apiError("Turnstile is not configured.", "TURNSTILE_NOT_CONFIGURED", 503);
+    }
+    return;
   }
   if (!body.turnstileToken) {
     throw apiError("Turnstile verification is required.", "TURNSTILE_REQUIRED", 400);
@@ -994,7 +997,7 @@ class MelekInferenceAdapter {
         method: "POST",
         headers,
         body: JSON.stringify({ prompt, mode, max_tokens: maxTokens, model_id: modelId }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(2500)
       });
     } catch (_) {
       throw Object.assign(new Error("Melek AI is temporarily unavailable."), { code: "MELEK_AI_UNAVAILABLE" });
@@ -1047,31 +1050,65 @@ async function assistant(request, env) {
     : `You are Melek AI in Chat mode. Use only the approved portfolio facts below. Respond naturally, conversationally and concisely. Do not invent personal information or claim expertise not supported by facts. Maximum 700 tokens.`;
 
   try {
-    if (env.AI && requestedModel.startsWith("@cf/")) {
-      const systemPrompt = `You are Melek AI, the smart, helpful, polite personal AI assistant for Melek Abdelmaksoud.
-Melek is a final-year Web Development and Multimedia student at ISET Sidi Bouzid in Sfax, Tunisia.
+    if (requestedModel === "melek-ai-experimental" || (env.AI && requestedModel.startsWith("@cf/"))) {
+      const activeModel = requestedModel.startsWith("@cf/") ? requestedModel : "@cf/zai-org/glm-4.7-flash";
+      const systemPrompt = `You are Melek AI (MelekGPT), the smart, polite, authentic personal AI assistant for Malek Abdelmaksoud.
+Malek is a final-year Web Development and Multimedia student at ISET Sidi Bouzid in Sfax, Tunisia.
 Answer the user's question accurately, concisely, and conversationally based ONLY on the following verified portfolio facts:
 ${factsText}
 
 Guidelines:
 - Match the language of the user (French, Tunisian Arabic, or English).
+- When asked in Tunisian Arabic, reply warmly, naturally, and authentically in Tunisian Arabic (Derja).
 - Be polite, professional, and authentic.
 - Do not invent facts, certifications, or companies not mentioned above.`;
 
-      const aiRes = await env.AI.run(requestedModel, {
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question }
-        ]
-      });
-      if (aiRes && (aiRes.response || aiRes.text)) {
-        return json({
-          answer: (aiRes.response || aiRes.text).trim(),
-          mode,
-          model: requestedModel,
-          requested_model: requestedModel,
-          sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
-        });
+      if (requestedModel === "melek-ai-experimental" && env.MELEK_AI_SERVICE_URL) {
+        try {
+          const adapter = new MelekInferenceAdapter(env);
+          const result = await adapter.run(
+            system + "\n\nAPPROVED FACTS:\n" + factsText + "\n\nQUESTION:\n" + question,
+            mode,
+            mode === "analyze" ? 1400 : 700,
+            requestedModel
+          );
+          return json({
+            answer: result.answer,
+            mode,
+            model: "melek-ai-experimental",
+            requested_model: requestedModel,
+            sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
+          });
+        } catch (_) {}
+      }
+
+      if (env.AI) {
+        try {
+          const aiRes = await env.AI.run(activeModel, {
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: question }
+            ]
+          });
+          const rawText = typeof aiRes === "string"
+            ? aiRes
+            : (aiRes?.response || aiRes?.text || aiRes?.result?.response || (Array.isArray(aiRes?.choices) && aiRes.choices[0]?.message?.content) || "");
+          if (rawText && typeof rawText === "string") {
+            return json({
+              answer: rawText.trim(),
+              mode,
+              model: requestedModel,
+              requested_model: requestedModel,
+              sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
+            });
+          }
+        } catch (err) {
+          return json({
+            error: "AI error: " + err.message,
+            code: "WORKERS_AI_FAILED",
+            requested_model: requestedModel
+          }, 500);
+        }
       }
     }
 
