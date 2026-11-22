@@ -134,17 +134,15 @@ test('mobile layout has no horizontal overflow and menu toggles', async () => {
   } finally { await page.close(); }
 });
 
-test('floating AI button opens the authenticated workspace as a top-level page', async () => {
+test('floating AI button sends the current tab straight to the API sign-in page', async () => {
   const page = await openPage();
   try {
-    assert.equal(await page.locator('#aiChatToggle').isVisible(), true);
-    const popupPromise = page.waitForEvent('popup');
+    const loginLink = page.locator('#aiWorkspaceNewTab');
+    assert.match(await loginLink.getAttribute('href'), /login\\?next=%2Faccount/);
+    const navigation = page.waitForNavigation({ waitUntil: 'domcontentloaded' });
     await page.locator('#aiChatToggle').click();
-    const popup = await popupPromise;
-    try {
-      await popup.waitForLoadState('domcontentloaded');
-      assert.match(popup.url(), /account\.html$/);
-    } finally { await popup.close(); }
+    await navigation;
+    assert.match(page.url(), /login\\?next=%2Faccount/);
   } finally { await page.close(); }
 });
 
