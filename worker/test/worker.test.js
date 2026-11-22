@@ -245,9 +245,9 @@ test("assistant builds owner CV from all approved portfolio facts and visible pr
  env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"CV composed from verified portfolio details."};}};
  const response=await worker.fetch(request("/api/assistant",{question:"اعطني CV مالك"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.match(prompt,/Web developer profile/);
- assert.match(prompt,/Computer science education/);
- assert.match(prompt,/Web development experience/);
+ assert.match(prompt,/ملف مطور ويب/);
+ assert.match(prompt,/تكوين في الإعلامية/);
+ assert.match(prompt,/خبرة في تطوير الويب/);
  assert.match(prompt,/C, Java, Python and PHP/);
  assert.match(prompt,/Laravel project published in the portfolio/);
  assert.match(prompt,/synthesize a useful structured CV/);
