@@ -1413,6 +1413,12 @@ function authEnvironment(overrides = {}) {
           }
           return { meta: { changes: c } };
         }
+        if (sql.includes("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?")) {
+          const [id, chatId, email] = params;
+          const idx = chatMessages.findIndex(message => message.id === id && message.chat_id === chatId && message.user_email === email);
+          if (idx !== -1) { chatMessages.splice(idx, 1); return { meta: { changes: 1 } }; }
+          return { meta: { changes: 0 } };
+        }
         if (sql.includes("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?")) {
           const [chatId, email] = params;
           let c = 0;
