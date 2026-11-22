@@ -36,32 +36,73 @@
   }
 
   async function loadGoogle() {
+    const fallback = $("google-fallback-btn");
+    const host = $("google-signin");
+    if (fallback) fallback.addEventListener("click", () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.prompt(notification => {
+          if (notification.isNotDisplayed?.()) {
+            const reason = notification.getNotDisplayedReason?.() || "browser_blocked";
+            $("auth-error").textContent = "Google sign-in could not open (" + reason + "). Allow Google sign-in pop-ups/cookies, then try again.";
+          } else if (notification.isSkippedMoment?.()) {
+            $("auth-error").textContent = "Google sign-in was closed before completion. Please try again.";
+          }
+        });
+      } else {
+        $("auth-error").textContent = "Google sign-in is still loading or blocked by the browser. Reload the page and allow accounts.google.com.";
+      }
+    });
     try {
       const config = await api("/api/auth/config");
-      if (!config.googleClientId) return;
+      if (!config.googleClientId) {
+        $("auth-error").textContent = "Google sign-in is not configured on the server.";
+        return;
+      }
       await new Promise((resolve, reject) => {
         if (window.google?.accounts?.id) return resolve();
         const script = document.createElement("script");
         script.src = "https://accounts.google.com/gsi/client";
         script.async = true;
         script.defer = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Google sign-in could not load."));
+        script.onload = () => window.google?.accounts?.id ? resolve() : reject(new Error("Google Identity Services did not initialize."));
+        script.onerror = () => reject(new Error("Google sign-in script was blocked. Check browser extensions or network access."));
         document.head.append(script);
       });
       window.google.accounts.id.initialize({
         client_id: config.googleClientId,
+        auto_select: false,
+        ux_mode: "popup",
         callback: async response => {
+          if (!response?.credential) {
+            $("auth-error").textContent = "Google did not return a sign-in credential. Please try again.";
+            return;
+          }
           try {
-            await api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: response.credential }) });
-            location.href = "account.html";
-          } catch (error) { $("auth-error").textContent = error.message; }
+            const result = await api("/api/auth/google", {
+              method: "POST",
+              body: JSON.stringify({ credential: response.credential })
+            });
+            if (!result.authenticated) throw new Error("Google sign-in was not completed.");
+            location.replace("account.html");
+          } catch (error) {
+            $("auth-error").textContent = error.message || "Google sign-in failed. Please try again.";
+          }
         }
       });
-      window.google.accounts.id.renderButton($("google-signin"), {
-        theme: "outline", size: "large", shape: "pill", text: "continue_with", width: 320
+      if (!host) throw new Error("Google sign-in button container is missing.");
+      const mount = document.createElement("div");
+      mount.id = "google-gis-button";
+      host.append(mount);
+      window.google.accounts.id.renderButton(mount, {
+        theme: "filled_black", size: "large", shape: "pill",
+        text: page === "register" ? "signup_with" : "signin_with",
+        width: Math.min(320, Math.max(220, host.clientWidth || 320)),
+        logo_alignment: "left"
       });
-    } catch (error) { $("auth-error").textContent = error.message; }
+      if (fallback) fallback.hidden = true;
+    } catch (error) {
+      if ($("auth-error")) $("auth-error").textContent = error.message || "Google sign-in could not be started.";
+    }
   }
 
   if (page === "login") {
