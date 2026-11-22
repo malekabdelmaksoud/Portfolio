@@ -122,17 +122,13 @@ const aiWorkspaceUrl = portfolioApiBase + "/account.html";
 if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
   aiWorkspaceNewTab.href = aiWorkspaceUrl;
 
-  // Authentication is hosted on the API Worker origin. Launch it as a
-  // top-level page so Cloudflare Access/session cookies are first-party;
-  // browsers may block those cookies when the Worker is embedded cross-site.
+  // Always start at the login endpoint in the current tab. This avoids
+  // opening a stale account page in a second tab and guarantees the user
+  // sees the sign-in screen immediately before entering the AI workspace.
+  const aiLoginUrl = portfolioApiBase + "/login?next=%2Faccount";
+  aiWorkspaceNewTab.href = aiLoginUrl;
   function openMelekAI() {
-    const opened = window.open(aiWorkspaceUrl, "_blank");
-    if (opened) {
-      try { opened.opener = null; } catch (_) {}
-    } else {
-      // Popup blockers: keep the sign-in flow usable in the current tab.
-      window.location.assign(aiWorkspaceUrl);
-    }
+    window.location.assign(aiLoginUrl);
   }
 
   aiWorkspaceEntry.addEventListener("click", openMelekAI);
