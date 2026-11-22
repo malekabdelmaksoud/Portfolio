@@ -8,7 +8,7 @@
   let chats = [];
   let searchSequence = 0;
   let abortController = null;
-  let turnstileToken = "";
+
   const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let autoSpeak = false;
@@ -437,26 +437,6 @@
     $("app-shell").hidden = false;
   }
 
-  async function loadTurnstile() {
-    try {
-      const config = await api("/api/auth/config");
-      if (!config.turnstileSiteKey) return;
-      await new Promise((resolve, reject) => {
-        if (window.turnstile) return resolve();
-        const script = document.createElement("script");
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Turnstile could not load."));
-        document.head.append(script);
-      });
-      window.turnstile.render("turnstile-wrap", {
-        sitekey: config.turnstileSiteKey,
-        callback: token => { turnstileToken = token; },
-        "expired-callback": () => { turnstileToken = ""; }
-      });
-    } catch (error) { toast(error.message); }
-  }
-
   // Keep one Google Identity Services initialization per page and render its official popup button.
   async function loadGoogleSignIn() {
     const btn = $("google-signin");
@@ -590,7 +570,6 @@
         $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "approved-facts-only");
       }
     } catch (_) {}
-    await loadTurnstile();
     try {
       const me = await api("/api/user/me");
       showApp();
@@ -604,7 +583,7 @@
       if (targetChat) await openChat(targetChat.id);
     } catch (error) {
       showAuth();
-      $("auth-error").textContent = error.auth ? "Enter your email to receive a sign-in code." : error.message;
+      $("auth-error").textContent = error.auth ? "Please sign in with your email and password or Google." : error.message;
     }
   }
 
@@ -655,71 +634,6 @@
     } catch (error) { $("auth-error").textContent = error.message; }
   });
 
-  $("otp-request-form").addEventListener("submit", async event => {
-    event.preventEvent = true;
-    event.preventDefault();
-    const email = $("otp-email").value.trim();
-    $("auth-error").textContent = "";
-    try {
-      await api("/api/auth/request", { method: "POST", body: JSON.stringify({ email, turnstileToken }) });
-      $("otp-request-form").hidden = true;
-      $("otp-verify-form").hidden = false;
-      $("otp-code").focus();
-    } catch (error) { $("auth-error").textContent = error.message; }
-  });
-  $("otp-verify-form").addEventListener("submit", async event => {
-    event.preventDefault();
-    const email = $("otp-email").value.trim();
-    const code = $("otp-code").value.trim();
-    $("auth-error").textContent = "";
-    try {
-      await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ email, code }) });
-      await load();
-    } catch (error) { $("auth-error").textContent = error.message; }
-  });
-  $("otp-back").addEventListener("click", () => {
-    $("otp-verify-form").hidden = true;
-    $("otp-request-form").hidden = false;
-    $("otp-code").value = "";
-  });
-
-  $("reset-request-form").addEventListener("submit", async event => {
-    event.preventDefault();
-    const email = $("reset-email").value.trim();
-    $("reset-error").textContent = "";
-    try {
-      await api("/api/auth/password/reset/request", {
-        method: "POST",
-        body: JSON.stringify({ email, turnstileToken })
-      });
-      $("reset-request-form").hidden = true;
-      $("reset-verify-form").hidden = false;
-      $("reset-code").focus();
-    } catch (error) { $("reset-error").textContent = error.message; }
-  });
-
-  $("reset-verify-form").addEventListener("submit", async event => {
-    event.preventDefault();
-    $("reset-error").textContent = "";
-    try {
-      await api("/api/auth/password/reset/verify", {
-        method: "POST",
-        body: JSON.stringify({
-          email: $("reset-email").value.trim(),
-          code: $("reset-code").value.trim(),
-          password: $("reset-password").value
-        })
-      });
-      $("reset-password").value = "";
-      $("reset-code").value = "";
-      $("reset-request-form").hidden = false;
-      $("reset-verify-form").hidden = true;
-      $("password-reset").open = false;
-      $("login-email").value = $("reset-email").value.trim();
-      $("login-password").value = "";
-      $("auth-error").textContent = "Password reset successfully. Sign in with your new password.";
-    } catch (error) { $("reset-error").textContent = error.message; }
-  });
   $("logout").addEventListener("click", async () => {
     try {
       await api("/api/auth/logout", { method: "POST", body: "{}" });
@@ -729,9 +643,6 @@
       $("login-email").value = "";
       $("login-password").value = "";
       $("auth-error").textContent = "";
-      $("otp-request-form").hidden = false;
-      $("otp-verify-form").hidden = true;
-      $("otp-email").value = "";
       $("otp-code").value = "";
       $("messages").replaceChildren();
       $("welcome").hidden = false;
