@@ -523,12 +523,14 @@
   }
 
   function showAuth() {
+    $("auth-bootstrap")?.remove();
     $("auth-screen").hidden = false;
     $("app-shell").hidden = true;
     loadGoogleSignIn().catch(() => {});
   }
 
   function showApp() {
+    $("auth-bootstrap")?.remove();
     $("auth-screen").hidden = true;
     $("app-shell").hidden = false;
   }
