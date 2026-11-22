@@ -15,6 +15,7 @@
   let usedVoice = false;
   let voiceSession = false;
   let selectedModel = "melek-ai-v1";
+  let googleSignInPromise = null;
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
   if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
 
@@ -44,7 +45,7 @@
     });
     const data = await response.json().catch(() => ({}));
     if (response.status === 401) throw Object.assign(new Error(data.error || "Email sign-in is required."), { auth: true });
-    if (!response.ok) throw new Error(data.error || "The server could not complete this request.");
+    if (!response.ok) throw Object.assign(new Error(data.error || "The server could not complete this request."), { code: data.code || null, status: response.status });
     return data;
   };
 
@@ -459,61 +460,78 @@
   async function loadGoogleSignIn() {
     const btn = $("google-signin");
     if (!btn) return;
-    try {
-      const config = await api("/api/auth/config");
-      if (!config.googleClientId) {
-        btn.hidden = true;
-        $("email-divider").hidden = false;
-        return;
-      }
-      btn.hidden = false;
+    if (googleSignInPromise) return googleSignInPromise;
+
+    googleSignInPromise = (async () => {
       const fallbackBtn = $("google-fallback-btn");
-      if (fallbackBtn && !fallbackBtn.dataset.bound) {
-        fallbackBtn.dataset.bound = "true";
-        fallbackBtn.addEventListener("click", () => {
-          if (window.google?.accounts?.id) {
-            window.google.accounts.id.prompt();
-          } else {
-            toast("Chargement de Google sign-in…");
+      try {
+        const config = await api("/api/auth/config");
+        if (!config.googleClientId) {
+          btn.hidden = true;
+          $("email-divider").hidden = false;
+          throw new Error("Google sign-in is not configured on the server.");
+        }
+
+        await new Promise((resolve, reject) => {
+          if (window.google?.accounts?.id) return resolve();
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.async = true;
+          script.defer = true;
+          script.onload = () => window.google?.accounts?.id
+            ? resolve()
+            : reject(new Error("Google Identity Services did not initialize."));
+          script.onerror = () => reject(new Error("Google sign-in could not load. Check network access or browser extensions."));
+          document.head.append(script);
+        });
+
+        window.google.accounts.id.initialize({
+          client_id: config.googleClientId,
+          auto_select: false,
+          ux_mode: "popup",
+          callback: async response => {
+            $("auth-error").textContent = "";
+            if (!response?.credential) {
+              $("auth-error").textContent = "Google did not return a sign-in credential. Please try again.";
+              return;
+            }
+            try {
+              await api("/api/auth/google", {
+                method: "POST",
+                body: JSON.stringify({ credential: response.credential })
+              });
+              await load();
+            } catch (error) {
+              $("auth-error").textContent = error.message || "Google sign-in failed.";
+            }
           }
         });
-      }
-      await new Promise((resolve, reject) => {
-        if (window.google?.accounts?.id) return resolve();
-        const script = document.createElement("script");
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Google sign-in could not load."));
-        document.head.append(script);
-      });
-      window.google.accounts.id.initialize({
-        client_id: config.googleClientId,
-        callback: async response => {
-          $("auth-error").textContent = "";
-          try {
-            await api("/api/auth/google", { method: "POST", body: JSON.stringify({ credential: response.credential }) });
-            await load();
-          } catch (error) { $("auth-error").textContent = error.message; }
-        }
-      });
-      try {
-        window.google.accounts.id.renderButton(btn, {
+
+        const mount = document.createElement("div");
+        mount.id = "google-gis-button";
+        btn.append(mount);
+        window.google.accounts.id.renderButton(mount, {
           theme: "outline",
           size: "large",
           shape: "pill",
           text: "continue_with",
           width: 320
         });
-      } catch (e) {
-        console.warn("Google renderButton fallback retained:", e);
+        if (fallbackBtn) fallbackBtn.hidden = true;
+        $("email-divider").hidden = false;
+      } catch (error) {
+        console.warn("Google sign-in initialization failed:", error);
+        if (fallbackBtn) {
+          fallbackBtn.hidden = false;
+          fallbackBtn.onclick = () => {
+            $("auth-error").textContent = error.message || "Google sign-in could not be started. Please try email and password.";
+          };
+        }
+        $("email-divider").hidden = false;
       }
-      $("email-divider").hidden = false;
-    } catch (error) {
-      console.warn("Google sign-in init issue:", error);
-      $("email-divider").hidden = false;
-    }
+    })();
+
+    return googleSignInPromise;
   }
 
   async function loadModels() {
@@ -572,7 +590,6 @@
       }
     } catch (_) {}
     await loadTurnstile();
-    await loadGoogleSignIn();
     try {
       const me = await api("/api/user/me");
       showApp();
@@ -614,7 +631,11 @@
         })
       });
       await load();
-    } catch (error) { $("auth-error").textContent = error.message; }
+    } catch (error) {
+      $("auth-error").textContent = error.code === "INVALID_CREDENTIALS"
+        ? "Email or password is incorrect. If this account was created with an email code, use Create account to set a password."
+        : error.message;
+    }
   });
 
   $("register-form").addEventListener("submit", async event => {
