@@ -679,7 +679,7 @@ test("general questions are answered by Workers AI without matching portfolio fa
  const env=environment();
  let captured;
  env.AI={async run(model,options){captured={model,options};return {response:"Python is a general-purpose programming language."};}};
- const response=await worker.fetch(request("/api/assistant",{question:"What is Python?",mode:"chat"}),env);
+ const response=await worker.fetch(request("/api/assistant",{question:"What causes rainbows?",mode:"chat"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
  assert.equal(data.mode,"chat");
