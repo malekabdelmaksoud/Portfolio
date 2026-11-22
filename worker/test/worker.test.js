@@ -20,6 +20,18 @@ async function accessToken(){
  return{token:signingInput+"."+base64url(signature),jwk};
 }
 
+test("account workspace assets are served from the API Worker asset binding",async()=>{
+ const env=environment();
+ env.ASSETS={async fetch(request){
+  const path=new URL(request.url).pathname;
+  if(path==="/account.html")return new Response("<!doctype html><title>Melek AI Workspace</title>",{status:200,headers:{"content-type":"text/html; charset=utf-8"}});
+  return new Response("Not found",{status:404});
+ }};
+ const response=await worker.fetch(new Request("https://api.test/account.html"),env);
+ assert.equal(response.status,200);
+ assert.match(await response.text(),/Melek AI Workspace/);
+ assert.match(response.headers.get("content-type"),/text\/html/);
+});
 test("health endpoint checks D1 and reports authenticated assistant mode",async()=>{
  const r=await worker.fetch(new Request("https://api.test/api/health"),environment());assert.equal(r.status,200);
  const d=await r.json();assert.equal(d.ok,true);assert.equal(d.assistant,"authenticated-llm");
