@@ -725,6 +725,7 @@ async function authRoutes(request, env, path, method) {
     if (!await abuseCheck(env, "qr-create:" + ip, "qr-create", 10, 600)) {
       return json({ error: "Too many QR sign-in attempts. Try again later.", code: "QR_LIMIT" }, 429);
     }
+    await env.DB.prepare("DELETE FROM qr_login_challenges WHERE expires_at<? OR status='consumed'").bind(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()).run();
     const challengeId = crypto.randomUUID();
     const token = await randomToken(32);
     const tokenHash = await sha256Hex(token + ":" + (env.OTP_PEPPER || ""));
