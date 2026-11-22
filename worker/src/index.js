@@ -1087,6 +1087,12 @@ async function rankedFacts(env, question, context = "") {
   return { searchTerms, selected, personalPortfolioQuestion: false };
 }
 
+function isPublishedPortfolioQuestion(question, context = "") {
+  const text = normalize(question + " " + context.slice(-1500));
+  return /\b(portfolio|website|site web|site officiel|in this portfolio|dans ce portfolio)\b|البورتفوليو|بورتفوليو|الموقع/i.test(text);
+}
+
+
 const PUBLIC_PORTFOLIO_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev";
 
 async function fetchPublishedPortfolioContext(env = {}) {
@@ -1240,7 +1246,9 @@ async function assistant(request, env) {
   try {
     const ranked = await rankedFacts(env, question, conversationContext);
     selected = ranked.selected || [];
-    if (ranked.personalPortfolioQuestion) publishedPortfolioContext = await fetchPublishedPortfolioContext(env);
+    if (ranked.personalPortfolioQuestion || isPublishedPortfolioQuestion(question, conversationContext)) {
+      publishedPortfolioContext = await fetchPublishedPortfolioContext(env);
+    }
   } catch (_) {
     selected = [];
   }
