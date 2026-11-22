@@ -158,6 +158,277 @@ test("untrusted browser origin is rejected",async()=>{
  assert.equal(response.status,403);
 });
 
+test("CSRF protection: mutating requests strictly reject missing Origin, null Origin, untrusted origins, and spoofed subdomains", async () => {
+  const env = authEnvironment();
+  const token = "a".repeat(64);
+  const userId = randomUUID();
+  env.__users.push({ id: userId, email: "csrf.test@example.test", display_name: "CSRF Tester" });
+  env.__sessions.push({ id: randomUUID(), user_id: userId, token_hash: sha256(token + ":"), expires_at: new Date(Date.now() + 86400000).toISOString() });
+
+  const makeReq = (originHeader) => {
+    const headers = {
+      "content-type": "application/json",
+      "Cookie": "__Host-portfolio_session=" + token
+    };
+    if (originHeader !== undefined) headers["Origin"] = originHeader;
+    return new Request("https://api.test/api/user/chats", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: "CSRF Chat" })
+    });
+  };
+
+  // 1. Missing Origin on mutating request -> 403
+  const missingRes = await worker.fetch(makeReq(undefined), env);
+  assert.equal(missingRes.status, 403);
+  const missingData = await missingRes.json();
+  assert.equal(missingData.error, "Origin not allowed.");
+
+  // 2. Origin: null (sandboxed iframe / redirect) -> 403
+  const nullRes = await worker.fetch(makeReq("null"), env);
+  assert.equal(nullRes.status, 403);
+
+  // 3. Untrusted origin -> 403
+  const attackerRes = await worker.fetch(makeReq("https://attacker.test"), env);
+  assert.equal(attackerRes.status, 403);
+
+  // 4. Untrusted subdomain (e.g. evil.portfolio.test) -> 403
+  const subRes = await worker.fetch(makeReq("https://evil.portfolio.test"), env);
+  assert.equal(subRes.status, 403);
+
+  // 5. Suffix spoofing (e.g. portfolio.test.attacker.com) -> 403
+  const suffixRes = await worker.fetch(makeReq("https://portfolio.test.attacker.com"), env);
+  assert.equal(suffixRes.status, 403);
+
+  // 6. Valid allowed origin -> 201 (success)
+  const validRes = await worker.fetch(makeReq("https://portfolio.test"), env);
+  assert.equal(validRes.status, 201);
+  const validData = await validRes.json();
+  assert.ok(validData.chat.id);
+
+  // 7. Non-mutating GET without Origin is allowed (browser direct navigation)
+  const getRes = await worker.fetch(new Request("https://api.test/api/health"), env);
+  assert.equal(getRes.status, 200);
+});
+
+test("OPTIONS preflight handling and CORS headers strict verification", async () => {
+  const env = authEnvironment();
+  env.ALLOWED_ORIGIN = "https://portfolio.test";
+
+  // 1. Authorized origin preflight -> 204 with correct CORS headers
+  const authPreflight = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "OPTIONS",
+    headers: { "Origin": "https://portfolio.test" }
+  }), env);
+  assert.equal(authPreflight.status, 204);
+  assert.equal(authPreflight.headers.get("access-control-allow-origin"), "https://portfolio.test");
+  assert.equal(authPreflight.headers.get("access-control-allow-credentials"), "true");
+  assert.ok(authPreflight.headers.get("access-control-allow-methods").includes("POST"));
+
+  // 2. Unauthorized origin preflight -> 403 Forbidden with NO CORS allow header
+  const unauthPreflight = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "OPTIONS",
+    headers: { "Origin": "https://unauthorized.test" }
+  }), env);
+  assert.equal(unauthPreflight.status, 403);
+  assert.equal(unauthPreflight.headers.get("access-control-allow-origin"), null);
+
+  // 3. Preflight with Origin: null -> 403 Forbidden
+  const nullPreflight = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "OPTIONS",
+    headers: { "Origin": "null" }
+  }), env);
+  assert.equal(nullPreflight.status, 403);
+  assert.equal(nullPreflight.headers.get("access-control-allow-origin"), null);
+
+  // 4. Preflight with missing Origin -> 403 Forbidden
+  const missingPreflight = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "OPTIONS"
+  }), env);
+  assert.equal(missingPreflight.status, 403);
+  assert.equal(missingPreflight.headers.get("access-control-allow-origin"), null);
+});
+
+test("allowedOrigin in production rejects localhost, 127.0.0.1, and empty ALLOWED_ORIGIN", async () => {
+  const prodEnv = authEnvironment({
+    ENVIRONMENT: "production",
+    ALLOWED_ORIGIN: "https://portfolio.melekabdelmaksoud72.workers.dev"
+  });
+
+  // Localhost rejected in production
+  const localRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "http://localhost:3000", "content-type": "application/json" },
+    body: "{}"
+  }), prodEnv);
+  assert.equal(localRes.status, 403);
+
+  // 127.0.0.1 rejected in production
+  const ipRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "http://127.0.0.1:8787", "content-type": "application/json" },
+    body: "{}"
+  }), prodEnv);
+  assert.equal(ipRes.status, 403);
+
+  // Case A: Empty ALLOWED_ORIGIN in production rejects all, including Same-Origin
+  const emptyEnv = authEnvironment({
+    ENVIRONMENT: "production",
+    ALLOWED_ORIGIN: ""
+  });
+  const emptyRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "https://portfolio.melekabdelmaksoud72.workers.dev", "content-type": "application/json" },
+    body: "{}"
+  }), emptyEnv);
+  assert.equal(emptyRes.status, 403, "Case A: Empty ALLOWED_ORIGIN must reject even with valid origin");
+
+  // Case A (Same-Origin variant): Production + ALLOWED_ORIGIN empty + origin===requestOrigin
+  const sameOriginEmptyRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "https://api.test", "content-type": "application/json" },
+    body: "{}"
+  }), emptyEnv);
+  assert.equal(sameOriginEmptyRes.status, 403, "Case A: Empty ALLOWED_ORIGIN must reject even Same-Origin");
+
+  // Case B: Missing (undefined) ALLOWED_ORIGIN in production rejects all
+  const missingEnv = authEnvironment({
+    ENVIRONMENT: "production"
+  });
+  delete missingEnv.ALLOWED_ORIGIN;
+  const missingAllowedRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "https://api.test", "content-type": "application/json" },
+    body: "{}"
+  }), missingEnv);
+  assert.equal(missingAllowedRes.status, 403, "Case B: Missing ALLOWED_ORIGIN must reject in production");
+
+  // Case C: Valid ALLOWED_ORIGIN in production allows configured origin and returns Access-Control-Allow-Origin
+  const validProdEnv = authEnvironment({
+    ENVIRONMENT: "production",
+    ALLOWED_ORIGIN: "https://portfolio.melekabdelmaksoud72.workers.dev"
+  });
+  const validOriginRes = await worker.fetch(new Request("https://api.test/api/assistant", {
+    method: "POST",
+    headers: { "Origin": "https://portfolio.melekabdelmaksoud72.workers.dev", "content-type": "application/json" },
+    body: JSON.stringify({ question: "test" })
+  }), validProdEnv);
+  assert.notEqual(validOriginRes.status, 403, "Case C: Valid ALLOWED_ORIGIN must allow configured origin");
+  assert.equal(
+    validOriginRes.headers.get("access-control-allow-origin"),
+    "https://portfolio.melekabdelmaksoud72.workers.dev",
+    "Access-Control-Allow-Origin must match the allowed origin"
+  );
+  assert.equal(validOriginRes.headers.get("access-control-allow-credentials"), "true");
+
+  // Case D: Development environment allows localhost and reflects in Access-Control-Allow-Origin
+  const devEnv = authEnvironment({
+    ENVIRONMENT: "development",
+    ALLOWED_ORIGIN: "http://localhost:3000"
+  });
+  const devLocalRes = await worker.fetch(new Request("https://api.test/api/assistant", {
+    method: "POST",
+    headers: { "Origin": "http://localhost:3000", "content-type": "application/json" },
+    body: JSON.stringify({ question: "test" })
+  }), devEnv);
+  assert.notEqual(devLocalRes.status, 403, "Case D: Development must allow localhost");
+  assert.equal(
+    devLocalRes.headers.get("access-control-allow-origin"),
+    "http://localhost:3000",
+    "Development allowed localhost must reflect in Access-Control-Allow-Origin"
+  );
+
+  // Fail-Closed: ENVIRONMENT="prod" with localhost -> 403
+  const prodShortEnv = authEnvironment({
+    ENVIRONMENT: "prod",
+    ALLOWED_ORIGIN: "https://portfolio.melekabdelmaksoud72.workers.dev"
+  });
+  const prodShortRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "http://localhost:3000", "content-type": "application/json" },
+    body: "{}"
+  }), prodShortEnv);
+  assert.equal(prodShortRes.status, 403, 'ENVIRONMENT="prod" must reject localhost as fail-closed production');
+
+  // Fail-Closed: ENVIRONMENT="staging" with localhost -> 403
+  const stagingEnv = authEnvironment({
+    ENVIRONMENT: "staging",
+    ALLOWED_ORIGIN: "https://portfolio.melekabdelmaksoud72.workers.dev"
+  });
+  const stagingRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "http://localhost:3000", "content-type": "application/json" },
+    body: "{}"
+  }), stagingEnv);
+  assert.equal(stagingRes.status, 403, 'ENVIRONMENT="staging" must reject localhost as fail-closed production');
+
+  // Fail-Closed: Missing ENVIRONMENT (undefined) with localhost -> 403
+  const missingEnvEnv = authEnvironment({
+    ALLOWED_ORIGIN: "https://portfolio.melekabdelmaksoud72.workers.dev"
+  });
+  delete missingEnvEnv.ENVIRONMENT;
+  const missingEnvRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "Origin": "http://localhost:3000", "content-type": "application/json" },
+    body: "{}"
+  }), missingEnvEnv);
+  assert.equal(missingEnvRes.status, 403, "Missing ENVIRONMENT must reject localhost as fail-closed production");
+
+  // Case E (already tested above): Production + localhost → 403
+
+  // Case F: Public GET without Origin header succeeds in production
+  const getRes = await worker.fetch(new Request("https://api.test/api/health"), prodEnv);
+  assert.equal(getRes.status, 200, "Case F: Public GET without Origin must work in production");
+});
+
+test("CSRF protection is universally enforced across all 15 mutating routes (POST, PUT, DELETE)", async () => {
+  const env = authEnvironment();
+  const dummyChatId = "11111111-2222-3333-4444-555555555555";
+  const mutatingRoutes = [
+    { method: "POST", path: "/api/assistant" },
+    { method: "POST", path: "/api/auth/register" },
+    { method: "POST", path: "/api/auth/login" },
+    { method: "POST", path: "/api/auth/request" },
+    { method: "POST", path: "/api/auth/verify" },
+    { method: "POST", path: "/api/auth/google" },
+    { method: "POST", path: "/api/auth/password/reset/request" },
+    { method: "POST", path: "/api/auth/password/reset/verify" },
+    { method: "POST", path: "/api/auth/logout" },
+    { method: "POST", path: "/api/user/chats" },
+    { method: "PUT", path: `/api/user/chats/${dummyChatId}` },
+    { method: "POST", path: `/api/user/chats/${dummyChatId}` },
+    { method: "DELETE", path: `/api/user/chats/${dummyChatId}` },
+    { method: "DELETE", path: "/api/user/chats" },
+    { method: "POST", path: "/api/admin/projects/import" }
+  ];
+
+  for (const { method, path } of mutatingRoutes) {
+    // 1. Missing Origin must return 403
+    const missingRes = await worker.fetch(new Request("https://api.test" + path, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: method === "DELETE" ? undefined : "{}"
+    }), env);
+    assert.equal(missingRes.status, 403, `Route ${method} ${path} did not reject missing Origin`);
+
+    // 2. Origin: null must return 403
+    const nullRes = await worker.fetch(new Request("https://api.test" + path, {
+      method,
+      headers: { "Origin": "null", "content-type": "application/json" },
+      body: method === "DELETE" ? undefined : "{}"
+    }), env);
+    assert.equal(nullRes.status, 403, `Route ${method} ${path} did not reject Origin: null`);
+
+    // 3. Attacker Origin must return 403
+    const attackerRes = await worker.fetch(new Request("https://api.test" + path, {
+      method,
+      headers: { "Origin": "https://attacker.test", "content-type": "application/json" },
+      body: method === "DELETE" ? undefined : "{}"
+    }), env);
+    assert.equal(attackerRes.status, 403, `Route ${method} ${path} did not reject untrusted Origin`);
+  }
+});
+
 test("admin API refuses requests without Cloudflare Access identity",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/admin/facts"),environment());
  assert.equal(response.status,401);
@@ -180,7 +451,7 @@ test("auth config does not expose Turnstile secret",async()=>{
 });
 
 test("API origin is allowed and Google sign-in fails closed when unconfigured",async()=>{
- const response=await worker.fetch(new Request("https://api.test/api/auth/google",{method:"POST",headers:{"content-type":"application/json","Origin":"https://api.test"},body:'{"credential":"test"}'}),environment());
+ const response=await worker.fetch(new Request("https://api.test/api/auth/google",{method:"POST",headers:{"content-type":"application/json","Origin":"https://portfolio.test"},body:'{"credential":"test"}'}),environment());
  const data=await response.json();
  assert.equal(response.status,503);
  assert.equal(data.code,"GOOGLE_NOT_CONFIGURED");
@@ -285,6 +556,13 @@ test("unavailable independent inference has no third-party fallback",async()=>{
  assert.equal(response.status,200);
  assert.equal(data.model,"approved-facts-only");
  assert.doesNotMatch(JSON.stringify(data),/@cf\/|GLM|Llama|OpenAI|Gemini/i);
+});
+
+test("model selection is preserved and extensible in assistant requests",async()=>{
+ const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?",model_id:"melek-ai-custom"}),environment());
+ const data=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(data.requested_model,"melek-ai-custom");
 });
 
 test("repository import rejects external URLs from an authenticated admin",async()=>{
@@ -600,12 +878,17 @@ function authEnvironment(overrides = {}) {
   const passwordResetChallenges = [];
   const users = [];
   const sessions = [];
+  const chats = [];
+  const chatMessages = [];
   const abuseWindows = new Map();
   const DB = { prepare(sql) {
     let params = [];
     return {
       bind(...values) { params = values; return this; },
       async first() {
+        if (sql.includes("FROM chats WHERE id=? AND user_email=?")) {
+          return chats.find(c => c.id === params[0] && c.user_email === params[1]) || null;
+        }
         if (sql.includes("abuse_windows")) {
           // Accurate SQL UPSERT simulation with RETURNING count
           const [key, kind, nowIso, seconds] = params;
@@ -656,8 +939,35 @@ function authEnvironment(overrides = {}) {
         }
         return null;
       },
-      async all() { return { results: [] }; },
+      async all() {
+        if (sql.includes("FROM chats WHERE user_email=?")) {
+          return { results: chats.filter(c => c.user_email === params[0]) };
+        }
+        if (sql.includes("FROM chat_messages WHERE chat_id=? AND user_email=?")) {
+          return { results: chatMessages.filter(m => m.chat_id === params[0] && m.user_email === params[1]) };
+        }
+        return { results: [] };
+      },
       async run() {
+        if (sql.includes("INSERT INTO chats")) {
+          chats.push({ id: params[0], user_email: params[1], title: params[2], created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+          return { meta: { changes: 1 } };
+        }
+        if (sql.includes("INSERT INTO chat_messages")) {
+          chatMessages.push({ id: params[0], chat_id: params[1], user_email: params[2], role: params[3], content: params[4], created_at: new Date().toISOString() });
+          return { meta: { changes: 1 } };
+        }
+        if (sql.includes("UPDATE chats")) {
+          const chatId = sql.includes("updated_at=CURRENT_TIMESTAMP WHERE id=?") ? params[0] : params[1];
+          const userEmail = sql.includes("updated_at=CURRENT_TIMESTAMP WHERE id=?") ? params[1] : params[2];
+          const chat = chats.find(c => c.id === chatId && c.user_email === userEmail);
+          if (chat) {
+            if (sql.includes("title=?")) chat.title = params[0];
+            chat.updated_at = new Date().toISOString();
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        }
         if (sql.includes("UPDATE otp_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE email=?")) {
           let count = 0;
           for (const c of otpChallenges) {
@@ -715,9 +1025,13 @@ function authEnvironment(overrides = {}) {
           return { meta: { changes: 1 } };
         }
         return { meta: { changes: 1 } };
-      },
-      async batch() { return []; }
+      }
     };
+  },
+  async batch(statements) {
+    const results = [];
+    for (const s of statements) results.push(await s.run());
+    return results;
   }};
   return { DB, ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows };
 }
@@ -1052,4 +1366,450 @@ test("auth logout invalidates session and prevents subsequent access",async()=>{
  // Subsequent call to /api/user/me must now return 401
  const meRes2=await worker.fetch(meReq,env);
  assert.equal(meRes2.status,401);
+});
+
+// --- Zero Trust Access JWT, Isolation & Models Tests ---
+
+async function createAccessJwtToken(envOverrides = {}, claimsOverrides = {}) {
+  const env = authEnvironment();
+  env.ACCESS_ISSUER = "https://team.cloudflareaccess.test";
+  env.ACCESS_USER_AUD = "user-aud-12345";
+  env.ACCESS_AUD = "admin-aud-67890";
+  env.ADMIN_EMAIL = "admin@example.test";
+  env.ACCESS_JWKS_URL = "https://team.cloudflareaccess.test/certs";
+  Object.assign(env, envOverrides);
+
+  const { pair, jwk } = await getMockAdminSigning();
+  const encode = value => Buffer.from(typeof value === "string" ? value : JSON.stringify(value)).toString("base64url");
+  const header = encode({ alg: "RS256", kid: "test-key", typ: "JWT" });
+  const now = Math.floor(Date.now() / 1000);
+  const claims = encode({
+    iss: env.ACCESS_ISSUER,
+    aud: [env.ACCESS_USER_AUD],
+    exp: now + 3600,
+    nbf: now - 10,
+    email: "user@example.test",
+    name: "Regular User",
+    ...claimsOverrides
+  });
+  const signingInput = header + "." + claims;
+  const signature = await webcrypto.subtle.sign(
+    { name: "RSASSA-PKCS1-v1_5" },
+    pair.privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+  const token = signingInput + "." + Buffer.from(signature).toString("base64url");
+  env.__jwks = { keys: [jwk] };
+  env.__token = token;
+  return { env, token, jwk };
+}
+
+test("valid Cloudflare Access JWT authenticates user on /api/user/me", async () => {
+  const { env, token } = await createAccessJwtToken();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.authenticated, true);
+    assert.equal(typeof data.user.id, "string");
+    assert.ok(data.user.id.length > 0);
+    assert.equal(data.user.email, "user@example.test");
+    assert.equal(data.user.name, "user@example.test");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("Cloudflare Access user identity matches native session data contract and operates chats without id errors", async () => {
+  const { env, token } = await createAccessJwtToken();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    // 1. Verify Access /api/user/me returns identical contract shape { id, email, name }
+    const accessMeRes = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(accessMeRes.status, 200);
+    const accessMe = await accessMeRes.json();
+    assert.equal(accessMe.authenticated, true);
+    assert.deepEqual(Object.keys(accessMe.user).sort(), ["email", "id", "name"]);
+
+    // 2. Access user creates a chat
+    const createRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+      method: "POST",
+      headers: { "origin": "https://portfolio.test", "content-type": "application/json", "CF-Access-Jwt-Assertion": token },
+      body: JSON.stringify({ title: "Access User Chat" })
+    }), env);
+    assert.equal(createRes.status, 201);
+    const { chat } = await createRes.json();
+    assert.ok(chat.id);
+    assert.equal(chat.title, "Access User Chat");
+
+    // 3. Access user appends a message
+    const msgRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, {
+      method: "POST",
+      headers: { "origin": "https://portfolio.test", "content-type": "application/json", "CF-Access-Jwt-Assertion": token },
+      body: JSON.stringify({ role: "user", content: "Hello from Access session" })
+    }), env);
+    assert.equal(msgRes.status, 201);
+
+    // 4. Access user reads the chat and messages
+    const getRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(getRes.status, 200);
+    const chatData = await getRes.json();
+    assert.equal(chatData.chat.title, "Access User Chat");
+    assert.equal(chatData.messages.length, 1);
+    assert.equal(chatData.messages[0].content, "Hello from Access session");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("expired Cloudflare Access JWT is rejected with 401", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const { env, token } = await createAccessJwtToken({}, { exp: now - 60 });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(response.status, 401);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("Cloudflare Access JWT with mismatched audience is rejected with 401", async () => {
+  const { env, token } = await createAccessJwtToken({}, { aud: ["wrong-aud"] });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(response.status, 401);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("Cloudflare Access JWT with mismatched issuer is rejected with 401", async () => {
+  const { env, token } = await createAccessJwtToken({}, { iss: "https://imposter.cloudflareaccess.test" });
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": token }
+    }), env);
+    assert.equal(response.status, 401);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("Cloudflare Access JWT with tampered signature is rejected with 401", async () => {
+  const { env, token } = await createAccessJwtToken();
+  const parts = token.split(".");
+  const tampered = parts[0] + "." + parts[1] + ".tamperedSignature";
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: { "origin": "https://portfolio.test", "CF-Access-Jwt-Assertion": tampered }
+    }), env);
+    assert.equal(response.status, 401);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("invalid Access JWT cannot be bypassed using an expired session cookie", async () => {
+  const env = authEnvironment();
+  env.ACCESS_ISSUER = "https://team.cloudflareaccess.test";
+  env.ACCESS_USER_AUD = "user-aud-12345";
+  env.ACCESS_JWKS_URL = "https://team.cloudflareaccess.test/certs";
+
+  const userId = randomUUID();
+  const token = "b".repeat(64);
+  const tokenHash = sha256(token + ":" + (env.SESSION_PEPPER || ""));
+  env.__users.push({ id: userId, email: "olduser@example.test", display_name: "Old User" });
+  env.__sessions.push({ id: randomUUID(), user_id: userId, token_hash: tokenHash, expires_at: new Date(Date.now() - 3600000).toISOString() });
+
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  try {
+    const response = await worker.fetch(new Request("https://api.test/api/user/me", {
+      headers: {
+        "origin": "https://portfolio.test",
+        "CF-Access-Jwt-Assertion": "invalid.jwt.token",
+        "Cookie": "__Host-portfolio_session=" + token
+      }
+    }), env);
+    assert.equal(response.status, 401);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("/api/models requires authentication and returns models list with defaultModel", async () => {
+  const env = authEnvironment();
+  const userId = randomUUID();
+  const token = "c".repeat(64);
+  const tokenHash = sha256(token + ":" + (env.SESSION_PEPPER || ""));
+  env.__users.push({ id: userId, email: "modeluser@example.test", display_name: "Model User" });
+  env.__sessions.push({ id: randomUUID(), user_id: userId, token_hash: tokenHash, expires_at: new Date(Date.now() + 86400000).toISOString() });
+
+  // Unauthenticated request must return 401
+  const unauthRes = await worker.fetch(new Request("https://api.test/api/models", {
+    headers: { origin: "https://portfolio.test" }
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  // Authenticated request returns models array and defaultModel
+  const authRes = await worker.fetch(new Request("https://api.test/api/models", {
+    headers: { origin: "https://portfolio.test", Cookie: "__Host-portfolio_session=" + token }
+  }), env);
+  assert.equal(authRes.status, 200);
+  const data = await authRes.json();
+  assert.ok(Array.isArray(data.models));
+  assert.ok(data.models.length >= 1);
+  assert.ok(data.defaultModel);
+  assert.equal(data.available, true);
+
+  // Without env.AI, Workers AI models must be available: false
+  const workersAiModel = data.models.find(m => m.id.startsWith("@cf/"));
+  if (workersAiModel) {
+    assert.equal(workersAiModel.available, false);
+  }
+  // Without MELEK_AI_SERVICE_URL and training status, experimental must be false
+  const experimental = data.models.find(m => m.id === "melek-ai-experimental");
+  if (experimental) {
+    assert.equal(experimental.available, false);
+  }
+  // The default model must be one of the available models
+  const defaultModelObj = data.models.find(m => m.id === data.defaultModel);
+  assert.ok(defaultModelObj);
+  assert.equal(defaultModelObj.available, true);
+});
+
+test("strict conversation isolation in D1 between different users", async () => {
+  const env = authEnvironment();
+  const userA = { id: randomUUID(), email: "user.a@example.test", token: "1".repeat(64) };
+  const userB = { id: randomUUID(), email: "user.b@example.test", token: "2".repeat(64) };
+  env.__users.push(
+    { id: userA.id, email: userA.email, display_name: "User A" },
+    { id: userB.id, email: userB.email, display_name: "User B" }
+  );
+  env.__sessions.push(
+    { id: randomUUID(), user_id: userA.id, token_hash: sha256(userA.token + ":"), expires_at: new Date(Date.now() + 86400000).toISOString() },
+    { id: randomUUID(), user_id: userB.id, token_hash: sha256(userB.token + ":"), expires_at: new Date(Date.now() + 86400000).toISOString() }
+  );
+
+  // User A creates a chat
+  const createReq = new Request("https://api.test/api/user/chats", {
+    method: "POST",
+    headers: { "origin": "https://portfolio.test", "content-type": "application/json", "Cookie": "__Host-portfolio_session=" + userA.token },
+    body: JSON.stringify({ title: "User A Private Chat" })
+  });
+  const createRes = await worker.fetch(createReq, env);
+  assert.equal(createRes.status, 201);
+  const { chat: { id: chatAId } } = await createRes.json();
+
+  // User B lists their chats - must NOT see User A's chat
+  const listBReq = new Request("https://api.test/api/user/chats", {
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + userB.token }
+  });
+  const listBRes = await worker.fetch(listBReq, env);
+  assert.equal(listBRes.status, 200);
+  const listBData = await listBRes.json();
+  assert.equal(listBData.chats.length, 0);
+
+  // User B attempts direct read access to User A's chat ID - must receive 404
+  const accessCrossReq = new Request("https://api.test/api/user/chats/" + chatAId, {
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + userB.token }
+  });
+  const accessCrossRes = await worker.fetch(accessCrossReq, env);
+  assert.equal(accessCrossRes.status, 404);
+
+  // User B attempts to rename/modify User A's chat - must receive 404
+  const modifyCrossReq = new Request("https://api.test/api/user/chats/" + chatAId, {
+    method: "PUT",
+    headers: { "origin": "https://portfolio.test", "content-type": "application/json", "Cookie": "__Host-portfolio_session=" + userB.token },
+    body: JSON.stringify({ title: "Hijacked Title" })
+  });
+  const modifyCrossRes = await worker.fetch(modifyCrossReq, env);
+  assert.equal(modifyCrossRes.status, 404);
+
+  // User B attempts to append a message to User A's chat - must receive 404
+  const msgCrossReq = new Request("https://api.test/api/user/chats/" + chatAId, {
+    method: "POST",
+    headers: { "origin": "https://portfolio.test", "content-type": "application/json", "Cookie": "__Host-portfolio_session=" + userB.token },
+    body: JSON.stringify({ role: "user", content: "Injected unauthorized message" })
+  });
+  const msgCrossRes = await worker.fetch(msgCrossReq, env);
+  assert.equal(msgCrossRes.status, 404);
+
+  // User B attempts to delete User A's chat - must receive 404
+  const deleteCrossReq = new Request("https://api.test/api/user/chats/" + chatAId, {
+    method: "DELETE",
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + userB.token }
+  });
+  const deleteCrossRes = await worker.fetch(deleteCrossReq, env);
+  assert.equal(deleteCrossRes.status, 404);
+
+  // User B attempts bulk delete on /api/user/chats - must NOT delete User A's chats
+  const bulkDeleteBReq = new Request("https://api.test/api/user/chats", {
+    method: "DELETE",
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + userB.token }
+  });
+  const bulkDeleteBRes = await worker.fetch(bulkDeleteBReq, env);
+  assert.equal(bulkDeleteBRes.status, 200);
+
+  // User A verifies their chat still exists, unchanged in title and content
+  const verifyAReq = new Request("https://api.test/api/user/chats/" + chatAId, {
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + userA.token }
+  });
+  const verifyARes = await worker.fetch(verifyAReq, env);
+  assert.equal(verifyARes.status, 200);
+  const verifyAData = await verifyARes.json();
+  assert.equal(verifyAData.chat.title, "User A Private Chat");
+  assert.equal(verifyAData.messages.length, 0);
+});
+
+test("conversation creation, message appending, and persistence after refresh in D1 mock", async () => {
+  const env = authEnvironment();
+  const userId = randomUUID();
+  const token = "3".repeat(64);
+  env.__users.push({ id: userId, email: "persister@example.test", display_name: "Persist User" });
+  env.__sessions.push({ id: randomUUID(), user_id: userId, token_hash: sha256(token + ":"), expires_at: new Date(Date.now() + 86400000).toISOString() });
+
+  const headers = { "origin": "https://portfolio.test", "content-type": "application/json", "Cookie": "__Host-portfolio_session=" + token };
+
+  // 1. Create chat
+  const createRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    method: "POST", headers, body: JSON.stringify({ title: "Persisted Discussion" })
+  }), env);
+  assert.equal(createRes.status, 201);
+  const { chat: { id: chatId } } = await createRes.json();
+
+  // 2. Append user message
+  const userMsgRes = await worker.fetch(new Request(`https://api.test/api/user/chats/${chatId}`, {
+    method: "POST", headers, body: JSON.stringify({ role: "user", content: "Hello Melek AI!" })
+  }), env);
+  assert.equal(userMsgRes.status, 201);
+
+  // 3. Append assistant message
+  const assistantMsgRes = await worker.fetch(new Request(`https://api.test/api/user/chats/${chatId}`, {
+    method: "POST", headers, body: JSON.stringify({ role: "assistant", content: "Hello! How can I help you today?" })
+  }), env);
+  assert.equal(assistantMsgRes.status, 201);
+
+  // 4. Simulate page refresh: Fetch chat list and verify conversation exists with ordered messages
+  const refreshListRes = await worker.fetch(new Request("https://api.test/api/user/chats", {
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + token }
+  }), env);
+  assert.equal(refreshListRes.status, 200);
+  const listData = await refreshListRes.json();
+  assert.equal(listData.chats.length, 1);
+  assert.equal(listData.chats[0].title, "Persisted Discussion");
+
+  const getChatRes = await worker.fetch(new Request(`https://api.test/api/user/chats/${chatId}`, {
+    headers: { "origin": "https://portfolio.test", "Cookie": "__Host-portfolio_session=" + token }
+  }), env);
+  assert.equal(getChatRes.status, 200);
+  const chatData = await getChatRes.json();
+  assert.equal(chatData.messages.length, 2);
+  assert.equal(chatData.messages[0].role, "user");
+  assert.equal(chatData.messages[0].content, "Hello Melek AI!");
+  assert.equal(chatData.messages[1].role, "assistant");
+  assert.equal(chatData.messages[1].content, "Hello! How can I help you today?");
+});
+
+test("auth lifecycle worker integration test (in-memory API): register, refresh, session expiry, login, OTP verify, and logout", async () => {
+  const env = authEnvironment();
+  const email = "lifecycle.user@example.test";
+  const password = "StrongP@ssword2026!";
+
+  // 1. Register new user
+  const regRes = await worker.fetch(new Request("https://api.test/api/auth/register", {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json" },
+    body: JSON.stringify({ name: "Lifecycle Tester", email, password })
+  }), env);
+  assert.equal(regRes.status, 200);
+  const regCookieHeader = regRes.headers.get("set-cookie") || "";
+  const regCookie = regCookieHeader.match(/(__Host-portfolio_session=[^;]+)/)[1];
+  assert.ok(regCookie);
+
+  // 2. Refresh simulation: Check session validity on /api/user/me
+  const meRes = await worker.fetch(new Request("https://api.test/api/user/me", {
+    headers: { origin: "https://portfolio.test", Cookie: regCookie }
+  }), env);
+  assert.equal(meRes.status, 200);
+  const meData = await meRes.json();
+  assert.equal(meData.authenticated, true);
+  assert.equal(meData.user.email, email);
+  assert.equal(meData.user.name, "Lifecycle Tester");
+
+  // 3. Session expiry simulation: expire session in D1 mock
+  for (const s of env.__sessions) {
+    s.expires_at = new Date(Date.now() - 5000).toISOString();
+  }
+  const expiredRes = await worker.fetch(new Request("https://api.test/api/user/me", {
+    headers: { origin: "https://portfolio.test", Cookie: regCookie }
+  }), env);
+  assert.equal(expiredRes.status, 401);
+
+  // 4. Re-login with email & password
+  const loginRes = await worker.fetch(new Request("https://api.test/api/auth/login", {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", "content-type": "application/json" },
+    body: JSON.stringify({ email, password })
+  }), env);
+  assert.equal(loginRes.status, 200);
+  const loginCookieHeader = loginRes.headers.get("set-cookie") || "";
+  const loginCookie = loginCookieHeader.match(/(__Host-portfolio_session=[^;]+)/)[1];
+  assert.ok(loginCookie);
+
+  // 5. Verify session after re-login
+  const meAfterLogin = await worker.fetch(new Request("https://api.test/api/user/me", {
+    headers: { origin: "https://portfolio.test", Cookie: loginCookie }
+  }), env);
+  assert.equal(meAfterLogin.status, 200);
+
+  // 6. Logout
+  const logoutRes = await worker.fetch(new Request("https://api.test/api/auth/logout", {
+    method: "POST",
+    headers: { origin: "https://portfolio.test", Cookie: loginCookie }
+  }), env);
+  assert.equal(logoutRes.status, 200);
+  const logoutData = await logoutRes.json();
+  assert.equal(logoutData.loggedOut, true);
+
+  // Verify revoked session returns 401
+  const meAfterLogout = await worker.fetch(new Request("https://api.test/api/user/me", {
+    headers: { origin: "https://portfolio.test", Cookie: loginCookie }
+  }), env);
+  assert.equal(meAfterLogout.status, 401);
+
+  // 7. OTP Flow: Seed challenge and verify
+  seedChallenge(env, email, "654321");
+  const otpVerifyRes = await worker.fetch(authRequest("/api/auth/verify", { email, code: "654321" }), env);
+  assert.equal(otpVerifyRes.status, 200);
+  const otpCookieHeader = otpVerifyRes.headers.get("set-cookie") || "";
+  const otpCookie = otpCookieHeader.match(/(__Host-portfolio_session=[^;]+)/)[1];
+  assert.ok(otpCookie);
+
+  // Verify session established via OTP
+  const meAfterOtp = await worker.fetch(new Request("https://api.test/api/user/me", {
+    headers: { origin: "https://portfolio.test", Cookie: otpCookie }
+  }), env);
+  assert.equal(meAfterOtp.status, 200);
+  const otpMeData = await meAfterOtp.json();
+  assert.equal(otpMeData.user.email, email);
 });

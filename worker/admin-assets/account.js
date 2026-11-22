@@ -12,6 +12,7 @@
   const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let autoSpeak = false;
+  let selectedModel = "melek-ai-v1";
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
   if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
 
@@ -143,8 +144,8 @@
   function renderList() {
     const list = $("chat-list");
     list.replaceChildren();
-    const query = $("history-search").value.trim().toLower();
-    const filtered = chats.filter(c => (c.title || "").toLower().includes(query));
+    const query = $("history-search").value.trim().toLowerCase();
+    const filtered = chats.filter(c => (c.title || "").toLowerCase().includes(query));
     if (!filtered.length) {
       const p = document.createElement("p");
       p.className = "list-empty";
@@ -269,7 +270,7 @@
         credentials: "include",
         signal: abortController.signal,
         headers: { "content-type": "application/json", "accept": "application/json" },
-        body: JSON.stringify({ question, mode, context })
+        body: JSON.stringify({ question, mode, context, model_id: selectedModel })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
@@ -305,8 +306,8 @@
   }
 
   function showAuth() {
-    const next = encodeURIComponent(location.pathname + location.search);
-    location.replace("login.html?next=" + next);
+    $("auth-screen").hidden = false;
+    $("app-shell").hidden = true;
   }
 
   function showApp() {
@@ -376,7 +377,58 @@
     }
   }
 
+  async function loadModels() {
+    const select = $("model-select");
+    if (!select) return;
+    try {
+      const data = await api("/api/models");
+      if (Array.isArray(data.models) && data.models.length) {
+        select.replaceChildren();
+        data.models.forEach(model => {
+          const opt = document.createElement("option");
+          opt.value = model.id;
+          opt.textContent = model.label || model.id;
+          if (model.description) opt.title = model.description;
+          opt.disabled = model.available === false;
+          select.append(opt);
+        });
+        const saved = localStorage.getItem("melek-ai-model") || data.defaultModel;
+        const preferred = data.models.some(m => m.id === saved && m.available !== false) ? saved : data.defaultModel;
+        if (preferred) {
+          select.value = preferred;
+          selectedModel = preferred;
+          $("model-version").textContent = "Model version: " + preferred;
+        }
+      }
+    } catch (_) {
+      select.replaceChildren();
+      const opt = document.createElement("option");
+      opt.value = "melek-ai-v1";
+      opt.textContent = "Melek AI v1 (Approved Facts Retrieval)";
+      opt.selected = true;
+      select.append(opt);
+      selectedModel = "melek-ai-v1";
+      $("model-version").textContent = "Model version: melek-ai-v1";
+    }
+  }
+
   async function load() {
+    const modelSelect = $("model-select");
+    if (modelSelect && !modelSelect.dataset.bound) {
+      modelSelect.dataset.bound = "1";
+      modelSelect.addEventListener("change", () => {
+        const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+        if (selectedOption?.disabled) {
+          modelSelect.value = "melek-ai-v1";
+          selectedModel = "melek-ai-v1";
+          return;
+        }
+        selectedModel = modelSelect.value || "melek-ai-v1";
+        $("model-version").textContent = "Model version: " + selectedModel;
+        try { localStorage.setItem("melek-ai-model", selectedModel); } catch (_) {}
+        toast("Model switched to: " + (selectedOption?.text || selectedModel));
+      });
+    }
     try {
       const statusResponse = await fetch(base + "/api/melek-ai/status", { credentials: "omit", headers: { accept: "application/json" } });
       if (statusResponse.ok) {
@@ -393,6 +445,7 @@
       showApp();
       $("identity").textContent = me.user.email;
       $("status").textContent = "Verified · private history";
+      await loadModels();
       await refreshChats();
       if (chats.length) await openChat(chats[0].id);
     } catch (error) {
@@ -515,10 +568,16 @@
       active = null;
       chats = [];
       showAuth();
+      $("login-email").value = "";
+      $("login-password").value = "";
+      $("auth-error").textContent = "";
       $("otp-request-form").hidden = false;
       $("otp-verify-form").hidden = true;
       $("otp-email").value = "";
       $("otp-code").value = "";
+      $("messages").replaceChildren();
+      $("welcome").hidden = false;
+      $("conversation").hidden = true;
     } catch (error) { toast(error.message); }
   });
 

@@ -31,12 +31,77 @@ function safeId(value) {
   return /^[a-z0-9][a-z0-9_-]{1,79}$/i.test(value);
 }
 
+const DEFAULT_AI_MODELS = Object.freeze([
+  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash (Workers AI)", description: "Requires Cloudflare Workers AI binding." },
+  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 (Workers AI)", description: "Requires Cloudflare Workers AI binding." }
+]);
+
+function getAiModels(env) {
+  const customModelId = env.MELEK_AI_MODEL_VERSION || "melek-ai-v1";
+  const customTrained = Boolean(env.MELEK_AI_SERVICE_URL && env.MELEK_AI_TRAINING_STATUS === "trained");
+  return [
+    {
+      id: customModelId,
+      label: "Melek AI v1 (Approved Facts Retrieval)",
+      description: "Deterministic retrieval based on verified portfolio facts and projects (non-generative).",
+      available: true
+    },
+    {
+      id: "melek-ai-experimental",
+      label: "Melek AI Experimental",
+      description: "Experimental Transformer checkpoint.",
+      available: customTrained
+    },
+    ...DEFAULT_AI_MODELS.map(model => ({ ...model, available: Boolean(env.AI) }))
+  ];
+}
+
 function allowedOrigin(request, env) {
   const origin = request.headers.get("Origin");
+  const method = request.method;
+  const isMutating = ["POST", "PUT", "DELETE", "PATCH"].includes(method);
+  const isPreflight = method === "OPTIONS";
+  const isProtectedMethod = isMutating || isPreflight;
+
+  if (origin === "null" || (isProtectedMethod && !origin)) return false;
   if (!origin) return true;
+
+  let parsedOrigin;
+  try {
+    parsedOrigin = new URL(origin);
+    if (parsedOrigin.origin !== origin) return false;
+  } catch {
+    return false;
+  }
+
+  const isDevelopment = String(env.ENVIRONMENT || "").trim().toLowerCase() === "development";
+  const isProduction = !isDevelopment;
+
+  const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  if (isProduction && isLocalhost) return false;
+
+  const rawAllowed = typeof env.ALLOWED_ORIGIN === "string" ? env.ALLOWED_ORIGIN.trim() : "";
   const requestOrigin = new URL(request.url).origin;
-  const configured = String(env.ALLOWED_ORIGIN || requestOrigin).split(",").map(value => value.trim().replace(/\/$/, "")).filter(Boolean);
-  return configured.includes(origin) || origin === requestOrigin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+  if (isProduction) {
+    if (!rawAllowed) return false;
+    const configured = rawAllowed
+      .split(",")
+      .map(value => value.trim().replace(/\/$/, ""))
+      .filter(Boolean);
+    if (configured.length === 0) return false;
+    return configured.includes(origin);
+  }
+
+  const configured = String(rawAllowed || requestOrigin)
+    .split(",")
+    .map(value => value.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  if (configured.includes(origin) || origin === requestOrigin) return true;
+  if (isLocalhost) return true;
+
+  return false;
 }
 
 function corsHeaders(request, env) {
@@ -46,7 +111,7 @@ function corsHeaders(request, env) {
     "access-control-allow-origin": origin,
     "vary": "Origin",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "Content-Type",
+    "access-control-allow-headers": "Content-Type,CF-Access-Jwt-Assertion",
     "access-control-allow-credentials": "true"
   } : {};
 }
@@ -386,20 +451,29 @@ function ipFrom(request) {
   return request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() || "unknown";
 }
 
-async function verifyAdmin(request, env) {
-  if (!env.ACCESS_ISSUER || !env.ACCESS_AUD || !env.ADMIN_EMAIL) throw new Error("Admin authentication is not configured.");
+async function verifyAccessIdentity(request, env, expectedAud = env.ACCESS_USER_AUD) {
+  if (!env.ACCESS_ISSUER || !expectedAud) throw new Error("Access authentication is not configured.");
   const token = request.headers.get("CF-Access-Jwt-Assertion");
   if (!token) throw new Error("Cloudflare Access authentication is required.");
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Invalid Access token.");
-  const header = JSON.parse(new TextDecoder().decode(b64url(parts[0])));
+  let header, claims;
+  try {
+    header = JSON.parse(new TextDecoder().decode(b64url(parts[0])));
+    claims = JSON.parse(new TextDecoder().decode(b64url(parts[1])));
+  } catch (_) {
+    throw new Error("Invalid Access token format.");
+  }
   if (header.alg !== "RS256" || !header.kid) throw new Error("Unsupported Access token signature.");
-  const claims = JSON.parse(new TextDecoder().decode(b64url(parts[1])));
   const issuer = env.ACCESS_ISSUER.replace(/\/$/, "");
   const now = Math.floor(Date.now() / 1000);
   const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-  if (claims.iss !== issuer || !aud.includes(env.ACCESS_AUD) || !claims.exp || claims.exp <= now || (claims.nbf && claims.nbf > now)) throw new Error("Access token claims are invalid.");
-  if (String(claims.email || "").toLowerCase() !== env.ADMIN_EMAIL.toLowerCase()) throw new Error("This account is not allowed to administer the portfolio.");
+  if (claims.iss !== issuer || !aud.includes(expectedAud) || !claims.exp || claims.exp <= now || (claims.nbf && claims.nbf > now)) {
+    throw new Error("Access token claims are invalid or expired.");
+  }
+  const email = String(claims.email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new Error("A verified email identity is required.");
+
   if (!jwksCache || jwksCache.expires < Date.now()) {
     const response = await fetch(env.ACCESS_JWKS_URL || issuer + "/cdn-cgi/access/certs");
     if (!response.ok) throw new Error("Could not load Cloudflare Access signing keys.");
@@ -407,10 +481,22 @@ async function verifyAdmin(request, env) {
   }
   const jwk = jwksCache.keys.find(k => k.kid === header.kid);
   if (!jwk) { jwksCache = null; throw new Error("Unknown Access signing key."); }
-  const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
-  const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64url(parts[2]), enc.encode(parts[0] + "." + parts[1]));
+  let valid = false;
+  try {
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64url(parts[2]), enc.encode(parts[0] + "." + parts[1]));
+  } catch (_) {
+    valid = false;
+  }
   if (!valid) throw new Error("Access token signature is invalid.");
-  return { email: String(claims.email).toLowerCase(), name: claims.name || claims.email };
+  return { email, name: claims.name || email };
+}
+
+async function verifyAdmin(request, env) {
+  if (!env.ACCESS_ISSUER || !env.ACCESS_AUD || !env.ADMIN_EMAIL) throw new Error("Admin authentication is not configured.");
+  const verified = await verifyAccessIdentity(request, env, env.ACCESS_AUD);
+  if (verified.email.toLowerCase() !== env.ADMIN_EMAIL.toLowerCase()) throw new Error("This account is not allowed to administer the portfolio.");
+  return verified;
 }
 
 async function abuseCheck(env, key, kind, limit, seconds) {
@@ -545,6 +631,20 @@ async function hashPassword(password, salt) {
 }
 
 async function getSession(request, env) {
+  const accessJwt = request.headers.get("CF-Access-Jwt-Assertion");
+  if (accessJwt) {
+    if (!env.ACCESS_ISSUER || !env.ACCESS_USER_AUD) {
+      throw new Error("Access authentication is not configured.");
+    }
+    const verified = await verifyAccessIdentity(request, env, env.ACCESS_USER_AUD);
+    await env.DB.prepare(
+      "INSERT INTO users(id,email,display_name,last_login_at) VALUES(?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET last_login_at=CURRENT_TIMESTAMP"
+    ).bind(crypto.randomUUID(), verified.email, verified.name).run();
+    const user = await env.DB.prepare("SELECT id,email,display_name FROM users WHERE email=?").bind(verified.email).first();
+    if (!user) throw new Error("User record could not be loaded.");
+    return { id: user.id, email: String(user.email).toLowerCase(), name: user.display_name || user.email };
+  }
+
   const cookie = request.headers.get("Cookie") || "";
   const match = cookie.match(/(?:^|;\s*)__Host-portfolio_session=([^;]+)/);
   if (!match) throw new Error("Email sign-in is required.");
@@ -860,7 +960,7 @@ class MelekInferenceAdapter {
     return result;
   }
 
-  async run(prompt, mode, maxTokens) {
+  async run(prompt, mode, maxTokens, modelId = "melek-ai-v1") {
     const base = String(this.env.MELEK_AI_SERVICE_URL || "").replace(/\/$/, "");
     if (!base) throw Object.assign(new Error("Melek AI is in development and no independently trained checkpoint is connected."), { code: "MELEK_AI_NOT_CONNECTED" });
     const allowed = /^https:\/\//i.test(base) || /^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/i.test(base);
@@ -872,7 +972,7 @@ class MelekInferenceAdapter {
       response = await fetch(base + "/generate", {
         method: "POST",
         headers,
-        body: JSON.stringify({ prompt, mode, max_tokens: maxTokens }),
+        body: JSON.stringify({ prompt, mode, max_tokens: maxTokens, model_id: modelId }),
         signal: AbortSignal.timeout(30000)
       });
     } catch (_) {
@@ -883,7 +983,7 @@ class MelekInferenceAdapter {
     if (data.trained_from_scratch !== true || typeof data.text !== "string") {
       throw Object.assign(new Error("The inference service did not return a verified Melek AI checkpoint."), { code: "MELEK_AI_INVALID_CHECKPOINT" });
     }
-    return { answer: data.text.trim(), model: data.model_id || this.env.MELEK_AI_MODEL_VERSION || "melek-ai-v1" };
+    return { answer: data.text.trim(), model: data.model_id || modelId || this.env.MELEK_AI_MODEL_VERSION || "melek-ai-v1" };
   }
 }
 
@@ -893,6 +993,7 @@ async function assistant(request, env) {
   const question = String(body.question || "").trim().slice(0, 800);
   if (!question) return json({ error: "A question is required." }, 400);
   const mode = body.mode === "analyze" ? "analyze" : "chat";
+  const requestedModel = String(body.model_id || body.model || "").trim().slice(0, 64) || env.MELEK_AI_MODEL_VERSION || "melek-ai-v1";
   const context = Array.isArray(body.context)
     ? body.context.slice(-4).filter(x => typeof x === "string").map(x => x.slice(0, 300)).join(" ")
     : "";
@@ -902,8 +1003,8 @@ async function assistant(request, env) {
   }
 
   const { searchTerms, selected } = await rankedFacts(env, question, context);
-  if (!searchTerms.size) return json({ answer: /[\u0600-\u06ff]/.test(question) ? "اسأل سؤال واضح ومحدد." : "Please ask a specific question.", mode, sources: [] });
-  if (!selected.length) return json({ answer: abstentionFor(question), mode, sources: [] });
+  if (!searchTerms.size) return json({ answer: /[\u0600-\u06ff]/.test(question) ? "اسأل سؤال واضح ومحدد." : "Please ask a specific question.", mode, sources: [], requested_model: requestedModel });
+  if (!selected.length) return json({ answer: abstentionFor(question), mode, sources: [], requested_model: requestedModel });
 
   const arabic = /[\u0600-\u06ff]/.test(question);
   const english = /\b(what|who|where|when|which|tell|show|experience|skills|projects|education|do|does|can|could|is|are|your|about|how|please)\b/i.test(question);
@@ -920,12 +1021,14 @@ async function assistant(request, env) {
     const result = await adapter.run(
       system + "\n\nAPPROVED FACTS:\n" + factsText + "\n\nQUESTION:\n" + question,
       mode,
-      mode === "analyze" ? 1400 : 700
+      mode === "analyze" ? 1400 : 700,
+      requestedModel
     );
     return json({
       answer: result.answer,
       mode,
-      model: result.model,
+      model: result.model || requestedModel,
+      requested_model: requestedModel,
       sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
     });
   } catch (error) {
@@ -935,6 +1038,7 @@ async function assistant(request, env) {
         answer: groundedAnswer,
         mode,
         model: "approved-facts-only",
+        requested_model: requestedModel,
         sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file })),
         experimental_inference: false
       });
@@ -1133,14 +1237,22 @@ export default {
     const path = url.pathname;
     const method = request.method;
     const cors = corsHeaders(request, env);
-    if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (!allowedOrigin(request, env)) return json({ error: "Origin not allowed." }, 403);
+    if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     try {
       if (path === "/api/health" && method === "GET") {
         await env.DB.prepare("SELECT 1").first();
         return withCors(json({ ok: true, service: "portfolio-api", assistant: "melek-ai-experimental", auth: "native-email-otp", admin: "cloudflare-access" }), cors);
       }
       if (path === "/api/melek-ai/status" && method === "GET") return withCors(json(await new MelekInferenceAdapter(env).status()), cors);
+      if (path === "/api/models" && method === "GET") {
+        await getSession(request, env);
+        const models = getAiModels(env);
+        const defaultModel = models.find(m => m.id === env.AI_DEFAULT_MODEL && m.available)?.id
+          || models.find(m => m.available)?.id
+          || "melek-ai-v1";
+        return withCors(json({ models, defaultModel, available: true }), cors);
+      }
       if (path.startsWith("/api/auth/")) {
         const result = await authRoutes(request, env, path, method);
         if (result) return withCors(result, cors);

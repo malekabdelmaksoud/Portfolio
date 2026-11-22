@@ -10,6 +10,7 @@ database_id = "15577d7f-b636-4fa6-817c-8f0c77731927"
 migrations_dir = "migrations"
 
 [vars]
+ENVIRONMENT = "production"
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
 # MELEK_AI_MODEL_VERSION, MELEK_AI_TRAINING_STATUS, MELEK_AI_SERVICE_URL,
 # MELEK_AI_SERVICE_TOKEN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY, RESEND_API_KEY, EMAIL_FROM, SESSION_PEPPER,
