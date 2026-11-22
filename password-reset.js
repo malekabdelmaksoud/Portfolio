@@ -71,7 +71,6 @@
     if (qrTimer) clearInterval(qrTimer);
     try {
       const challenge = await api("/api/auth/qr/create", { method: "POST", body: "{}" });
-      qrChallenge = challenge;
       const link = location.origin + "/qr-approve.html?challenge=" + encodeURIComponent(challenge.challengeId) + "&token=" + encodeURIComponent(challenge.token);
       await new Promise((resolve, reject) => {
         if (window.QRCode) return resolve();
