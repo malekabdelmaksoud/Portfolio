@@ -210,7 +210,7 @@ function adminRequest(env,path,body) {
 test("health endpoint checks D1 and reports the native auth and Melek AI modes",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/health"),environment());
  const data=await response.json();
- assert.equal(response.status,200);assert.equal(data.assistant,"melek-ai-experimental");
+ assert.equal(response.status,200);assert.equal(data.assistant,"generative-workers-ai");
  assert.equal(data.auth,"native-email-otp");
 });
 
@@ -792,13 +792,16 @@ test("password-reset convenience paths redirect to /password-reset.html", async 
   assert.match(res.headers.get("location") || "", /\/password-reset\.html/);
 });
 
-test("Melek AI status reports development truthfully",async()=>{
- const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
+test("Melek AI status reports configured Workers AI inference honestly",async()=>{
+ const env=environment();
+ env.AI={async run(){return {response:"mock"};}};
+ const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),env);
  const data=await response.json();
  assert.equal(response.status,200);
- assert.equal(data.experimental,true);
+ assert.equal(data.inference_available,true);
+ assert.equal(data.provider,"Cloudflare Workers AI");
+ assert.equal(data.assistant_mode,"generative");
  assert.equal(data.trained_from_scratch,false);
- assert.equal(data.inference_available,false);
  assert.equal(data.third_party_fallback_disabled,true);
 });
 
