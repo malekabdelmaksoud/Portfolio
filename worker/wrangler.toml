@@ -19,6 +19,9 @@ ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
 [triggers]
 crons = ["0 3 * * *"]
 
+[ai]
+binding = "AI"
+
 # Cloudflare R2 bucket binding for encrypted automated backups:
 # Once created in the Cloudflare dashboard (R2 -> Create Bucket -> melek-portfolio-backups),
 # uncomment the block below to bind it to the Worker:

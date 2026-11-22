@@ -32,8 +32,8 @@ function safeId(value) {
 }
 
 const DEFAULT_AI_MODELS = Object.freeze([
-  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash (Workers AI)", description: "Requires Cloudflare Workers AI binding." },
-  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 (Workers AI)", description: "Requires Cloudflare Workers AI binding." }
+  { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash (Workers AI)", description: "Fast, intelligent multilingual generative AI on Cloudflare Workers AI." },
+  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 26B (Workers AI)", description: "Advanced reasoning generative AI on Cloudflare Workers AI." }
 ]);
 
 function getAiModels(env) {
@@ -892,7 +892,20 @@ async function authRoutes(request, env, path, method) {
   return null;
 }
 
-const STOP = new Set("a an the and or is are was were what who where when why how can could do does did tell about please your you my of to in on for with from at as this that these le la les un une des du de et ou est sont qui quoi comment pourquoi quand ou dans sur pour avec mon ma mes ton ta tes moi je il elle au aux en par d cette ces شنو شنوّة شنوة شنية شنوما شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو متاع متاعها متاعو متاعك ملاك ماليك زيد زيدني فسرلي فصلي more details explain elaborate encore details explique plus".split(/\s+/));
+const STOP = new Set(
+  ("a an the and or is are was were what who where when why how can could do does did tell about please your you my of to in on for with from at as this that these " +
+  "le la les un une des du de et ou est sont qui quoi comment pourquoi quand ou dans sur pour avec mon ma mes ton ta tes moi je il elle au aux en par d cette ces " +
+  "quel quelle quels quelles ce cet cette ces presente presentes presentee presentees affiche affiches affichee affichees montrez montre donne donnez " +
+  "portfolio information informations detail details " +
+  "شنو شنوّة شنوة شنية شنوما شكون وين وقتاش علاش كيفاش كيف نحب نعرف قولي اعطيني وريني من في على الى إلى عن مع و او أو متاع متاعها متاعو متاعك ملاك ماليك زيد زيدني فسرلي فصلي more details explain elaborate encore details explique plus")
+  .split(/\s+/)
+);
+
+function isGreeting(text) {
+  const norm = normalize(text).trim();
+  return /^(bonjour|salut|hello|hi|hey|coucou|bonsoir|aslema|3aslema|marhaba|salam|ahla|صباح الخير|مساء الخير|السلام عليكم|عسلامة|مرحبا|اهلين|اهلا|سلام)$/i.test(norm)
+    || /^(bonjour|salut|hello|hi|عسلامة|مرحبا|سلام)\s+.*(melek|ai|ca va|comment vas|cv|portfolio)?$/i.test(norm);
+}
 
 function terms(value) {
   return new Set(normalize(value).split(/\s+/).filter(x => x.length > 1 && !STOP.has(x)));
@@ -919,7 +932,7 @@ async function rankedFacts(env, question, context = "") {
     text_fr: project.description_fr || project.title,
     text_en: project.description_en || project.title,
     text_ar: project.description_fr || project.title,
-    aliases_json: JSON.stringify([project.title, project.type, project.url]),
+    aliases_json: JSON.stringify([project.title, project.type, project.url, "projets", "projet", "projects", "project", "مشاريع", "مشروع"]),
     source_file: "D1 projects",
     source_selector: "#" + project.id,
     public_url: project.url
@@ -927,8 +940,9 @@ async function rankedFacts(env, question, context = "") {
   const ranked = [...results, ...projectFacts].map(f => {
     const hay = terms([f.text_fr, f.text_en, f.text_ar, ...parseJson(f.aliases_json, [])].join(" "));
     const matched = [...searchTerms].filter(t => hay.has(t));
-    return { fact: f, coverage: matched.length / searchTerms.size };
-  }).filter(x => x.coverage >= 0.5).sort((a, b) => b.coverage - a.coverage);
+    return { fact: f, coverage: matched.length / searchTerms.size, matches: matched.length };
+  }).filter(x => x.coverage >= 0.5 || (searchTerms.size > 2 && x.matches >= 2) || (searchTerms.size >= 2 && x.coverage >= 0.33) || (searchTerms.size === 1 && x.matches >= 1))
+    .sort((a, b) => b.matches !== a.matches ? b.matches - a.matches : b.coverage - a.coverage);
   const selected = [];
   const seen = new Set();
   for (const row of ranked) {
@@ -1009,6 +1023,15 @@ async function assistant(request, env) {
     return json({ error: "The shared assistant is receiving too many requests. Please wait one minute and retry.", code: "BURST_LIMIT" }, 429);
   }
 
+  if (isGreeting(question)) {
+    const greetingAnswer = /[\u0600-\u06ff]/.test(question)
+      ? "عسلامة ومرحباً بيك! أنا المساعد الذكي لملاك عبد المقصود. نجم نعاونك ونعطيك معلومات على قرايتها في ISET سيدي بوزيد، مهاراتها في تطوير الويب والبرمجيات (Java, Python, PHP, Laravel, Angular, C#)، ومشاريعها وتربصاتها. كيفاش نجم نعاونك اليوم؟"
+      : /\b(bonjour|salut|coucou|bonsoir)\b/i.test(question) || !/\b(hello|hi|hey)\b/i.test(question)
+        ? "Bonjour ! Je suis l'assistant virtuel de Melek Abdelmaksoud. Je peux vous renseigner sur son parcours à l'ISET de Sidi Bouzid, ses compétences techniques (Java, Python, PHP, Laravel, Angular, C#), ses projets et ses coordonnées. Comment puis-je vous aider ?"
+        : "Hello! I am Melek Abdelmaksoud's portfolio assistant. I can tell you about her education at ISET Sidi Bouzid, technical skills (Java, Python, PHP, Laravel, Angular, C#), portfolio projects, and contact info. How can I assist you today?";
+    return json({ answer: greetingAnswer, mode, model: "approved-facts-only", requested_model: requestedModel, sources: [] });
+  }
+
   const { searchTerms, selected } = await rankedFacts(env, question, context);
   if (!searchTerms.size) return json({ answer: /[\u0600-\u06ff]/.test(question) ? "اسأل سؤال واضح ومحدد." : "Please ask a specific question.", mode, sources: [], requested_model: requestedModel });
   if (!selected.length) return json({ answer: abstentionFor(question), mode, sources: [], requested_model: requestedModel });
@@ -1024,6 +1047,34 @@ async function assistant(request, env) {
     : `You are Melek AI in Chat mode. Use only the approved portfolio facts below. Respond naturally, conversationally and concisely. Do not invent personal information or claim expertise not supported by facts. Maximum 700 tokens.`;
 
   try {
+    if (env.AI && requestedModel.startsWith("@cf/")) {
+      const systemPrompt = `You are Melek AI, the smart, helpful, polite personal AI assistant for Melek Abdelmaksoud.
+Melek is a final-year Web Development and Multimedia student at ISET Sidi Bouzid in Sfax, Tunisia.
+Answer the user's question accurately, concisely, and conversationally based ONLY on the following verified portfolio facts:
+${factsText}
+
+Guidelines:
+- Match the language of the user (French, Tunisian Arabic, or English).
+- Be polite, professional, and authentic.
+- Do not invent facts, certifications, or companies not mentioned above.`;
+
+      const aiRes = await env.AI.run(requestedModel, {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question }
+        ]
+      });
+      if (aiRes && (aiRes.response || aiRes.text)) {
+        return json({
+          answer: (aiRes.response || aiRes.text).trim(),
+          mode,
+          model: requestedModel,
+          requested_model: requestedModel,
+          sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
+        });
+      }
+    }
+
     const adapter = new MelekInferenceAdapter(env);
     const result = await adapter.run(
       system + "\n\nAPPROVED FACTS:\n" + factsText + "\n\nQUESTION:\n" + question,
