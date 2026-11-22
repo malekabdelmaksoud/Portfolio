@@ -259,6 +259,20 @@ test("assistant builds owner CV from all approved portfolio facts and visible pr
  assert.equal(data.grounded_by_portfolio,true);
 });
 
+test("assistant still builds CV when the live portfolio website cannot be fetched",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="";
+ env.PORTFOLIO_CONTEXT_CV="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"CV based on the published portfolio source."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"اعطني CV"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/Published CV fallback from the portfolio repository source/);
+ assert.match(prompt,/Hôpital Hédi Chaker/);
+ assert.match(prompt,/Lycée Tayeb Mhiri/);
+ assert.match(prompt,/English \\(intermediate B1\\)/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
 test("assistant uses the full owner profile when asked about Melek",async()=>{
  const env=environment();let prompt="";
  env.PORTFOLIO_CONTEXT_HTML="<main><p>Published profile context from the public site.</p></main>";
