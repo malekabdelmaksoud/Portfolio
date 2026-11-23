@@ -8,6 +8,8 @@
   let chats = [];
   let searchSequence = 0;
   let abortController = null;
+  let pendingAttachmentText = "";
+  let pendingAttachmentName = "";
 
   const speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
@@ -459,8 +461,10 @@
     let pending = null;
     try {
       if (!active) await createChat(question.slice(0, 64));
-      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
-      addMessage("user", question, true, null, savedUser.id);
+      const attachedTranscript = pendingAttachmentText.slice(0, 12000);
+      const userVisibleContent = attachedTranscript ? question + "\n\n[Audio / video transcript]\n" + attachedTranscript : question;
+      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: userVisibleContent }) });
+      addMessage("user", userVisibleContent, true, null, savedUser.id);
 
       const isWebSearch = mode === "search" || /^\/(?:search|web)\b/i.test(question);
       pending = addMessage("assistant", isWebSearch ? "🌐 Searching the web & thinking…" : (mode === "analyze" ? "Analyzing…" : "Thinking…"), false);
@@ -484,7 +488,9 @@
           context,
           model_id: selectedModel,
           stream: true,
-          web_search: isWebSearch
+          web_search: isWebSearch,
+          attachmentText: attachedTranscript,
+          attachmentName: pendingAttachmentName
         })
       });
 
@@ -552,6 +558,8 @@
       if (pending) { pending.remove(); pending = null; }
       const savedAssistant = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
       const msgNode = addMessage("assistant", answer, true, null, savedAssistant.id);
+      pendingAttachmentText = "";
+      pendingAttachmentName = "";
 
       if (webSources && webSources.length > 0) {
         const bodyEl = msgNode.querySelector(".message-body");
@@ -607,12 +615,24 @@
       .replace(/https?:\/\/\S+/g, "")
       .replace(/[•–—]/g, ", ");
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    const isArabic = /[\u0600-\u06ff]/.test(text);
-    const isEnglish = /\b(the|and|with|for|project|skills|experience)\b/i.test(text);
-    utterance.lang = isArabic ? "ar-TN" : isEnglish ? "en-US" : "fr-FR";
+    const sample = text.slice(0, 2500);
+    const languageRules = [
+      [/[\u0600-\u06ff]/, "ar-TN"], [/[а-яё]/i, "ru-RU"], [/[\u4e00-\u9fff]/, "zh-CN"],
+      [/[\u3040-\u30ff]/, "ja-JP"], [/[\uac00-\ud7af]/, "ko-KR"], [/[\u0900-\u097f]/, "hi-IN"],
+      [/[ñ¿¡]/i, "es-ES"], [/[äöüß]/i, "de-DE"], [/[ãõç]/i, "pt-PT"]
+    ];
+    let preferredLanguage = "en-US";
+    const frenchWords = /\b(le|la|les|des|une|est|avec|pour|bonjour|merci|je|vous|nous|être|ça)\b/i.test(sample);
+    if (languageRules.some(([pattern]) => pattern.test(sample))) preferredLanguage = languageRules.find(([pattern]) => pattern.test(sample))[1];
+    else if (frenchWords) preferredLanguage = "fr-FR";
+    else if (/\b(hola|gracias|que|para|como|está)\b/i.test(sample)) preferredLanguage = "es-ES";
+    else if (/\b(hello|the|and|with|for|please|what|how)\b/i.test(sample)) preferredLanguage = "en-US";
+    utterance.lang = preferredLanguage;
     try {
       const voices = speechSynthesis.getVoices();
-      const matchVoice = voices.find(v => v.lang.startsWith(utterance.lang.slice(0, 2)));
+      const baseLanguage = preferredLanguage.slice(0, 2).toLowerCase();
+      const matchVoice = voices.find(v => v.lang.toLowerCase() === preferredLanguage.toLowerCase())
+        || voices.find(v => v.lang.toLowerCase().startsWith(baseLanguage));
       if (matchVoice) utterance.voice = matchVoice;
     } catch (_) {}
     utterance.rate = 1.0;
@@ -925,6 +945,230 @@
       toast(data.count ? "Shared links revoked." : "There were no active shared links.");
     } catch (error) { toast(error.message); }
   });
+
+  async function transcribeAudioChunk(blob) {
+    const form = new FormData();
+    form.append("audio", blob, "melek-audio.webm");
+    const response = await fetch(base + "/api/transcribe", {
+      method: "POST", credentials: "include", headers: { accept: "application/json" }, body: form
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Audio transcription failed.");
+    return data;
+  }
+
+  function formatTranscriptTime(seconds) {
+    const value = Math.max(0, Math.floor(seconds || 0));
+    return "[" + String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0") + "]";
+  }
+
+  let displayAudioStream = null;
+  let tabAudioRecorder = null;
+  let tabTranscriptParts = [];
+  let tabTranscriptionQueue = Promise.resolve();
+  let tabChunkOffset = 0;
+
+  async function stopTabAudioCapture() {
+    const button = $("listen-tab-audio");
+    if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") {
+      button.textContent = "⌛ Processing audio…";
+      button.disabled = true;
+      tabAudioRecorder.stop();
+      return;
+    }
+    if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
+    displayAudioStream = null;
+    button.disabled = false;
+    button.classList.remove("selected");
+    button.textContent = "🌍 Listen to tab";
+  }
+
+  async function startTabAudioCapture() {
+    const button = $("listen-tab-audio");
+    if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
+      toast("Tab-audio capture is not supported here. Use Chrome or Edge on HTTPS.");
+      return;
+    }
+    try {
+      displayAudioStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      const audioTracks = displayAudioStream.getAudioTracks();
+      if (!audioTracks.length) {
+        displayAudioStream.getTracks().forEach(track => track.stop());
+        displayAudioStream = null;
+        toast("No tab audio was shared. Choose a YouTube browser tab and enable 'Share tab audio'.");
+        return;
+      }
+      const audioOnlyStream = new MediaStream(audioTracks);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      tabAudioRecorder = new MediaRecorder(audioOnlyStream, { mimeType });
+      tabTranscriptParts = [];
+      tabTranscriptionQueue = Promise.resolve();
+      tabChunkOffset = 0;
+      tabAudioRecorder.ondataavailable = event => {
+        if (!event.data || event.data.size < 256) return;
+        const offset = tabChunkOffset;
+        tabChunkOffset += 25;
+        tabTranscriptionQueue = tabTranscriptionQueue.then(async () => {
+          const result = await transcribeAudioChunk(event.data);
+          if (result.text) {
+            const language = result.language ? " [language: " + result.language + "]" : "";
+            tabTranscriptParts.push(formatTranscriptTime(offset) + language + " " + result.text);
+          }
+        }).catch(error => { tabTranscriptParts.push("[Transcription issue at " + formatTranscriptTime(offset) + ": " + error.message + "]"); });
+      };
+      tabAudioRecorder.onerror = () => toast("The browser could not record this tab's audio.");
+      tabAudioRecorder.onstop = async () => {
+        try {
+          await tabTranscriptionQueue;
+          const transcript = tabTranscriptParts.join("\n").trim();
+          if (!transcript || !tabTranscriptParts.some(part => !part.startsWith("[Transcription issue"))) {
+            toast(transcript || "No speech was recognized. Check that the shared tab was playing audio.");
+          } else {
+            pendingAttachmentText = transcript.slice(0, 12000);
+            pendingAttachmentName = "YouTube tab audio transcript";
+            const firstLine = transcript.slice(0, 1200);
+            $("chat-input").value = /[\u0600-\u06ff]/.test(firstLine)
+              ? "حلّل الكلام المسموع في الفيديو، لخّص الأفكار الرئيسية واشرح التفاصيل، وجاوبني بالتونسي إذا الكلام تونسي."
+              : /\[language: fr\]/i.test(firstLine) ? "Analyse le contenu parlé de cette vidéo, résume les idées principales et explique les points importants."
+              : "Analyze this video's spoken content, summarize the key ideas and explain important details.";
+            $("chat-form").requestSubmit();
+          }
+        } catch (error) { toast(error.message); }
+        finally {
+          if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
+          displayAudioStream = null;
+          tabAudioRecorder = null;
+          button.disabled = false;
+          button.classList.remove("selected");
+          button.textContent = "🌍 Listen to tab";
+        }
+      };
+      tabAudioRecorder.start(25000);
+      button.classList.add("selected");
+      button.textContent = "■ Stop listening";
+      toast("Sharing started. Play the YouTube video in the shared tab. Audio is transcribed in 25-second segments; press Stop listening when finished.");
+      const videoTrack = displayAudioStream.getVideoTracks()[0];
+      if (videoTrack) videoTrack.addEventListener("ended", () => {
+        if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") tabAudioRecorder.stop();
+      }, { once: true });
+    } catch (error) {
+      if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
+      displayAudioStream = null;
+      button.textContent = "🌍 Listen to tab";
+      button.classList.remove("selected");
+      if (error.name !== "NotAllowedError") toast(error.message || "Could not start tab audio capture.");
+    }
+  }
+
+
+  let micWhisperStream = null;
+  let micWhisperRecorder = null;
+  let micWhisperParts = [];
+  let micWhisperQueue = Promise.resolve();
+  let micWhisperOffset = 0;
+
+  async function stopMicWhisperCapture() {
+    const button = $("mic-button");
+    if (micWhisperRecorder && micWhisperRecorder.state !== "inactive") {
+      button.textContent = "⌛";
+      button.disabled = true;
+      micWhisperRecorder.stop();
+      return;
+    }
+    if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+    micWhisperStream = null;
+    button.disabled = false;
+    button.classList.remove("recording");
+    button.textContent = "🎙";
+  }
+
+  async function startMicWhisperCapture() {
+    const button = $("mic-button");
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      toast("Microphone recording needs a supported browser and HTTPS.");
+      return;
+    }
+    try {
+      micWhisperStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      micWhisperRecorder = new MediaRecorder(micWhisperStream, { mimeType });
+      micWhisperParts = [];
+      micWhisperQueue = Promise.resolve();
+      micWhisperOffset = 0;
+      micWhisperRecorder.ondataavailable = event => {
+        if (!event.data || event.data.size < 256) return;
+        const offset = micWhisperOffset;
+        micWhisperOffset += 20;
+        micWhisperQueue = micWhisperQueue.then(async () => {
+          const result = await transcribeAudioChunk(event.data);
+          if (result.text) micWhisperParts.push(formatTranscriptTime(offset) + (result.language ? " [language: " + result.language + "] " : " ") + result.text);
+        }).catch(error => micWhisperParts.push("[Transcription issue: " + error.message + "]"));
+      };
+      micWhisperRecorder.onstop = async () => {
+        try {
+          await micWhisperQueue;
+          const transcript = micWhisperParts.join("\n").trim();
+          if (!transcript || !micWhisperParts.some(part => !part.startsWith("[Transcription issue"))) {
+            toast(transcript || "No clear speech was recognized.");
+          } else {
+            pendingAttachmentText = transcript.slice(0, 12000);
+            pendingAttachmentName = "Microphone audio transcript";
+            $("chat-input").value = /[\u0600-\u06ff]/.test(transcript)
+              ? "افهم كلامي وحلّل المطلوب وجاوبني بالتونسي إذا نحكي بالتونسي."
+              : /\[language: fr\]/i.test(transcript) ? "Comprends ma demande orale et réponds naturellement en français."
+              : "Understand my spoken request and reply naturally in the language I used.";
+            $("chat-form").requestSubmit();
+          }
+        } catch (error) { toast(error.message); }
+        finally {
+          if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+          micWhisperStream = null;
+          micWhisperRecorder = null;
+          button.disabled = false;
+          button.classList.remove("recording");
+          button.textContent = "🎙";
+        }
+      };
+      micWhisperRecorder.start(20000);
+      button.classList.add("recording");
+      button.textContent = "■";
+      toast("Recording started. Speak naturally in Arabic, Tunisian, French, English or another language; press the microphone again to send.");
+    } catch (error) {
+      if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+      micWhisperStream = null;
+      button.textContent = "🎙";
+      toast(error.message || "Microphone permission is required.");
+    }
+  }
+
+  $("listen-tab-audio")?.addEventListener("click", () => {
+    if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") stopTabAudioCapture();
+    else startTabAudioCapture();
+  });
+
+  $("audio-upload-button")?.addEventListener("click", () => $("audio-upload")?.click());
+  $("audio-upload")?.addEventListener("change", async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) {
+      toast("Choose an audio file. For YouTube, use Listen to tab and share the tab's audio.");
+      event.target.value = "";
+      return;
+    }
+    try {
+      toast("Transcribing audio…");
+      const result = await transcribeAudioChunk(file);
+      pendingAttachmentText = (result.language ? "[Detected language: " + result.language + "]\n" : "") + result.text;
+      pendingAttachmentName = file.name;
+      $("chat-input").value = /[\u0600-\u06ff]/.test(result.text)
+        ? "حلّل التسجيل الصوتي، لخّص أهم الأفكار وجاوبني بالتونسي إذا الكلام تونسي."
+        : result.language === "fr" ? "Analyse cet enregistrement, résume les idées principales et explique les points importants."
+        : "Analyze this audio recording, summarize its main ideas and explain the important points.";
+      $("chat-form").requestSubmit();
+    } catch (error) { toast(error.message); }
+    finally { event.target.value = ""; }
+  });
+
   $("chat-form").addEventListener("submit", sendMessage);
   $("chat-input").addEventListener("keydown", event => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -1005,9 +1249,9 @@
       recognition = new speech();
       const text = $("chat-input").value;
       const browserLanguage = navigator.language || "en-US";
-      recognition.lang = /[\u0600-\u06ff]/.test(text) || browserLanguage.toLowerCase().startsWith("ar")
-        ? "ar-TN"
-        : browserLanguage.toLowerCase().startsWith("fr") ? "fr-FR" : "en-US";
+      const tunisianLatinInput = /\b(chno|chnou|kifech|labes|tawa|nheb|n7eb|3lech|barcha|barsha|wa9tech)\b/i.test(text);
+      recognition.lang = /[\u0600-\u06ff]/.test(text) || tunisianLatinInput || browserLanguage.toLowerCase().startsWith("ar")
+        ? "ar-TN" : browserLanguage;
       recognition.interimResults = true;
       recognition.continuous = false;
       recognition.onstart = () => {
@@ -1050,17 +1294,11 @@
 
   $("mic-button").addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
-    if (!speech) {
-      toast("Speech recognition is unsupported in this browser.");
+    if (micWhisperRecorder && micWhisperRecorder.state !== "inactive") {
+      stopMicWhisperCapture();
       return;
     }
-    if (recognition) { try { recognition.stop(); } catch (_) {} return; }
-    if (voiceSession) {
-      startVoiceCapture();
-      return;
-    }
-    voiceSession = true;
-    startVoiceCapture();
+    startMicWhisperCapture();
   });
 
   $("voice-session")?.addEventListener("click", () => {
