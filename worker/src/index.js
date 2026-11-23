@@ -1303,9 +1303,15 @@ async function fetchYoutubeTranscript(rawUrl) {
     const captionResponse = await fetch(captionUrl.toString(), { headers: { accept: "text/xml" }, signal: AbortSignal.timeout(6000) });
     if (captionResponse.ok) {
       const xml = (await captionResponse.text()).slice(0, 900000);
-      const segments = [...xml.matchAll(/<(?:text|p)\b[^>]*>([\s\S]*?)<\/(?:text|p)>/gi)]
-        .map(match => decodeXmlText(match[1].replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim()).filter(Boolean);
-      transcript = segments.join(" ").slice(0, 26000);
+      const segments = [...xml.matchAll(/<(?:text|p)\b([^>]*)>([\s\S]*?)<\/(?:text|p)>/gi)]
+        .map(match => {
+          const attrs = match[1] || "";
+          const rawTime = attrs.match(/\b(?:start|t)="([\d.]+)"/i)?.[1];
+          const seconds = rawTime ? Number(rawTime) : NaN;
+          const timestamp = Number.isFinite(seconds) ? "[" + String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(Math.floor(seconds % 60)).padStart(2, "0") + "] " : "";
+          return timestamp + decodeXmlText(match[2].replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+        }).filter(Boolean);
+      transcript = segments.join("\n").slice(0, 26000);
     }
   } catch (_) {}
   return { videoId, title: decodeXmlText(details.title || ""), channel: decodeXmlText(details.author || ""), description: String(details.shortDescription || "").slice(0, 3000), language: track.languageCode || "", transcript, reason: transcript ? "" : "captions_unavailable" };
@@ -1448,7 +1454,8 @@ async function assistant(request, env) {
   const explicitSearch = body.web_search === true || mode === "search" ||
     /^\/(?:search|web)\b/i.test(question) ||
     /\b(ابحث في الويب|ابحث في النت|search the web|cherche sur le web|dernière actualité|dernières nouvelles|latest news|today|this week|current|latest|recent|2026|price now|who won|what happened)\b/i.test(question);
-  const generalQuestionNeedsLookup = !isGreeting(cleanQuestion) && !alarmCommand &&
+  const needsFreshLookup = /\b(latest|recent|today|tonight|this week|current|now|2026|price|weather|forecast|who won|score|result|news|release date|version|open now|near me|nearby|availability|schedule|election|president|stock|exchange rate)\b|آخر|اليوم|توا|توّة|الآن|البارح|مباراة|نتيجة|سعر|أسعار|طقس|أخبار|جديد|آخر الأخبار/i.test(cleanQuestion);
+  const generalQuestionNeedsLookup = needsFreshLookup && !isGreeting(cleanQuestion) && !alarmCommand &&
     !sensitivePortfolioRequest && !isPersonalPortfolioQuestion(cleanQuestion, priorContextForRouting) &&
     !isPublishedPortfolioQuestion(cleanQuestion, priorContextForRouting) && !videoUrl;
   const isSearchRequested = explicitSearch || generalQuestionNeedsLookup;
