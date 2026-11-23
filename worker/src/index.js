@@ -2498,8 +2498,9 @@ export default {
       }
       if (path === "/api/transcribe" && method === "POST") {
         const identity = await getSession(request, env);
-        if (!await abuseCheck(env, "transcribe-user:" + identity.id, "transcribe-user", 40, 3600)) {
-          return withCors(json({ error: "Audio transcription limit reached for this hour. Please wait and try again.", code: "TRANSCRIBE_LIMIT" }, 429), cors);
+        if (!await abuseCheck(env, "transcribe-user:" + identity.id, "transcribe-user", 40, 3600) ||
+            !await abuseCheck(env, "transcribe-daily:" + identity.id, "transcribe-daily", 100, 86400)) {
+          return withCors(json({ error: "Audio transcription usage limit reached. Please try again later.", code: "TRANSCRIBE_LIMIT" }, 429), cors);
         }
         return withCors(await transcribeAudioRequest(request, env), cors);
       }
