@@ -2551,7 +2551,8 @@ export default {
         return withCors(await transcribeAudioRequest(request, env), cors);
       }
       if (path === "/api/assistant" && method === "POST") {
-        const identity = await getSession(request, env);
+        let identity = null;
+        try { identity = await getSession(request, env); } catch (_) {}
         return withCors(await assistant(request, env, identity), cors);
       }
       if (path === "/api/search" && (method === "GET" || method === "POST")) {
