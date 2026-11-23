@@ -1282,7 +1282,35 @@ async function performFreeWebSearch(query) {
     }
   } catch (_) {}
 
-  // 2. Wikipedia Search API (100% Free, encyclopedic facts/knowledge, zero API key)
+  // 2. General web search via DuckDuckGo HTML; no API key or paid service required.
+  try {
+    const searchRes = await fetch("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(cleanQuery), {
+      signal: AbortSignal.timeout(4500),
+      headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; MelekAI/1.0)" }
+    });
+    if (searchRes.ok) {
+      const html = (await searchRes.text()).slice(0, 180000);
+      const decode = value => String(value || "").replace(/<[^>]*>/g, " ")
+        .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'")
+        .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\\s+/g, " ").trim();
+      const anchors = [...html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+      for (const match of anchors.slice(0, 5)) {
+        let url = match[1].replace(/&amp;/g, "&");
+        try {
+          const parsed = new URL(url, "https://html.duckduckgo.com");
+          if (parsed.hostname.endsWith("duckduckgo.com") && parsed.searchParams.has("uddg")) url = parsed.searchParams.get("uddg") || "";
+        } catch (_) {}
+        if (!/^https:\\/\\//i.test(url) || results.some(item => item.url === url)) continue;
+        const title = decode(match[2]);
+        const nearby = html.slice(Math.max(0, (match.index || 0) - 120), Math.min(html.length, (match.index || 0) + match[0].length + 1800));
+        const snippetMatch = nearby.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+        const snippet = decode(snippetMatch?.[1] || "");
+        if (title) results.push({ title, snippet: snippet || "Web search result", url, source: "Web Search" });
+      }
+    }
+  } catch (_) {}
+
+  // 3. Wikipedia Search API (100% Free, encyclopedic facts/knowledge, zero API key)
   try {
     const wikiUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1&srlimit=3`;
     const wikiRes = await fetch(wikiUrl, {
@@ -1413,11 +1441,12 @@ CORE BEHAVIOR
 - If the user writes Tunisian Arabic in Arabic script, answer in Tunisian Arabic script. If the user writes Tunisian Derja in Latin transliteration, answer in Tunisian Latin transliteration. Do not answer Arabic-script input with romanized Arabic.
 - Avoid Moroccan expressions such as "bghiti", "kifach", "ana m3ak" unless the user themselves uses that dialect. Prefer Tunisian wording such as "شنوّة تحب؟", "لاباس؟", "نجم نعاونك" or their natural Latin transliterations.
 - Be clear, useful, honest, and appropriately detailed. Do not repeat a generic refusal.
+- Before responding, silently review the draft for factual consistency, unsupported claims, missing steps, and whether cited web sources support the answer. Correct issues before sending. Never claim to retrain or modify your own model.
 
 PORTFOLIO FACTS AND PRIVACY
 - The verified portfolio facts below are optional context, not the only source of knowledge.
 - When a question is about Melek / the portfolio owner, use the supplied verified portfolio context as the primary source. For CV, resume, biography, or profile requests, synthesize a useful structured CV from ALL supplied categories (profile, education, skills, experience, projects, languages, and public contact details); do not answer with a generic missing-information refusal just because the exact phrase CV is not a stored fact.
-- When the user asks to see, get, download, or asks a question specifically about Melek’s CV/resume, answer from verified CV facts and always append a clear Markdown link labeled "📄 Open / download Melek’s CV (PDF)" pointing to ${env.ALLOWED_ORIGIN || "https://portfolio.melekabdelmaksoud72.workers.dev"}/?open_cv=1. This opens the published CV viewer with its PDF download button; do not claim the PDF is attached directly.
+- When the user asks to see, get, or download Melek’s CV/resume, answer from verified CV facts and always append a clear Markdown link labeled "📄 Generate / download Melek’s CV (PDF)" pointing to ${PUBLIC_PORTFOLIO_ORIGIN}/?open_cv=1&download_cv=1. The published CV page renders the verified CV and invokes its existing html2pdf PDF generator; never invent CV facts or claim a file is attached directly.
 - For any question about Melek, use all relevant supplied portfolio entries, not only the closest single keyword match. Use project descriptions and visible project records as evidence too.
 - Never invent personal details, qualifications, employment, dates, awards, or CV entries. If a requested personal detail is absent, explicitly identify only that missing detail while still answering with the supported information. Never disclose private credentials, passwords, passport numbers, government ID numbers, or other sensitive identifiers.
 - For unrelated general questions, answer directly without mentioning the portfolio.
