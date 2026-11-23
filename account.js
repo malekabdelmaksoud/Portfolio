@@ -461,9 +461,9 @@
     let pending = null;
     try {
       if (!active) await createChat(question.slice(0, 64));
-      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
       const attachedTranscript = pendingAttachmentText.slice(0, 12000);
       const userVisibleContent = attachedTranscript ? question + "\n\n[Audio / video transcript]\n" + attachedTranscript : question;
+      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: userVisibleContent }) });
       addMessage("user", userVisibleContent, true, null, savedUser.id);
 
       const isWebSearch = mode === "search" || /^\/(?:search|web)\b/i.test(question);
@@ -1026,7 +1026,11 @@
           } else {
             pendingAttachmentText = transcript.slice(0, 12000);
             pendingAttachmentName = "YouTube tab audio transcript";
-            $("chat-input").value = "Analyze this video's spoken content. Summarize the key ideas and explain important details in my language.";
+            const firstLine = transcript.slice(0, 1200);
+            $("chat-input").value = /[\u0600-\u06ff]/.test(firstLine)
+              ? "حلّل الكلام المسموع في الفيديو، لخّص الأفكار الرئيسية واشرح التفاصيل، وجاوبني بالتونسي إذا الكلام تونسي."
+              : /\[language: fr\]/i.test(firstLine) ? "Analyse le contenu parlé de cette vidéo, résume les idées principales et explique les points importants."
+              : "Analyze this video's spoken content, summarize the key ideas and explain important details.";
             $("chat-form").requestSubmit();
           }
         } catch (error) { toast(error.message); }
@@ -1075,7 +1079,10 @@
       const result = await transcribeAudioChunk(file);
       pendingAttachmentText = (result.language ? "[Detected language: " + result.language + "]\n" : "") + result.text;
       pendingAttachmentName = file.name;
-      $("chat-input").value = "Please understand and analyze this audio. Summarize it and explain its important points in my language.";
+      $("chat-input").value = /[\u0600-\u06ff]/.test(result.text)
+        ? "حلّل التسجيل الصوتي، لخّص أهم الأفكار وجاوبني بالتونسي إذا الكلام تونسي."
+        : result.language === "fr" ? "Analyse cet enregistrement, résume les idées principales et explique les points importants."
+        : "Analyze this audio recording, summarize its main ideas and explain the important points.";
       $("chat-form").requestSubmit();
     } catch (error) { toast(error.message); }
     finally { event.target.value = ""; }
