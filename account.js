@@ -86,7 +86,10 @@
 
   function keepLatestMessageVisible(node) {
     if (!node) return;
-    requestAnimationFrame(() => node.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" }));
+    requestAnimationFrame(() => {
+      const workspace = document.querySelector(".workspace");
+      if (workspace) workspace.scrollTop = workspace.scrollHeight;
+    });
   }
 
   function addMessage(role, content, withActions = true, createdAt = null, messageId = null) {
@@ -347,7 +350,10 @@
     $("messages").replaceChildren();
     (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at, message.id));
     renderList();
-    $("messages").scrollTop = $("messages").scrollHeight;
+    requestAnimationFrame(() => {
+      const workspace = document.querySelector(".workspace");
+      if (workspace) workspace.scrollTop = workspace.scrollHeight;
+    });
   }
 
   async function createChat(title = "New chat") {
