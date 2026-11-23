@@ -12,6 +12,7 @@ migrations_dir = "migrations"
 [vars]
 ENVIRONMENT = "production"
 ALLOWED_ORIGIN = "https://portfolio.melekabdelmaksoud72.workers.dev"
+AI_DEFAULT_MODEL = "@cf/zai-org/glm-4.7-flash"
 # MELEK_AI_MODEL_VERSION, MELEK_AI_TRAINING_STATUS, MELEK_AI_SERVICE_URL,
 # MELEK_AI_SERVICE_TOKEN, TURNSTILE_SECRET, TURNSTILE_SITE_KEY, RESEND_API_KEY, EMAIL_FROM, SESSION_PEPPER,
 # OTP_PEPPER, ACCESS_ISSUER, ACCESS_AUD, and ADMIN_EMAIL are runtime secrets.

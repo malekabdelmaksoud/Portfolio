@@ -5,7 +5,7 @@ import { webcrypto, createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-function environment() {
+function environment(overrides = {}) {
   const facts=[
     {id:"skills-001",category:"skills",text_fr:"Langages mentionnés : C, Java, Python et PHP.",text_en:"Listed programming languages include C, Java, Python and PHP.",text_ar:"لغات البرمجة المذكورة تشمل C و Java و Python و PHP.",aliases_json:'["python","java","programming"]',source_file:"index.html",source_selector:"#skillsLangagesList",public_url:null,approved:1},
     {id:"project-001",category:"project",text_fr:"Projet Laravel publié sur le portfolio.",text_en:"Laravel project published in the portfolio.",text_ar:"مشروع Laravel منشور في ملف الأعمال.",aliases_json:'["project","projets","مشاريع","المشاريع"]',source_file:"index.html",source_selector:"#projets .project-card",public_url:"https://github.com/example/project",approved:1},
@@ -127,7 +127,7 @@ async batch(statements){
     throw err;
   }
 }};
-  return {DB,BACKUP_BUCKET,AI:{async run(model,options){return {response:"Mock AI answer: "+options.messages.at(-1).content};}},BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
+  return {DB,BACKUP_BUCKET,BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",...overrides,__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
@@ -828,12 +828,85 @@ test("portfolio facts are optional grounding for personal project questions",asy
 });
 
 test("model selection is restricted to configured Workers AI models",async()=>{
- const env=environment();
+ const env=environment({ AI: { async run(model, options) { return { response: "ok" }; } } });
  const response=await worker.fetch(request("/api/assistant",{question:"Explain recursion",model_id:"attacker-controlled-model"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
  assert.equal(data.requested_model,"attacker-controlled-model");
  assert.equal(data.model,"@cf/zai-org/glm-4.7-flash");
+});
+
+test("free web search endpoint returns structured results with zero external keys", async () => {
+  const env = environment();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("news.google.com")) {
+      return new Response(`
+        <rss><channel>
+          <item><title><![CDATA[Tunisia Tech Startup Milestone 2026]]></title><link>https://example.com/news1</link><pubDate>Mon, 23 Nov 2026</pubDate></item>
+        </channel></rss>
+      `, { status: 200 });
+    }
+    if (String(url).includes("wikipedia.org")) {
+      return new Response(JSON.stringify({
+        query: { search: [{ title: "Technology in Tunisia", snippet: "Overview of tech hubs in Tunis.", pageid: 123 }] }
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response("{}", { status: 404 });
+  };
+
+  try {
+    const res = await worker.fetch(new Request("https://api.test/api/search?q=tunisia+tech"), env);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.ok, true);
+    assert.equal(data.free, true);
+    assert.ok(data.results.length >= 2);
+    assert.equal(data.results[0].title, "Tunisia Tech Startup Milestone 2026");
+    assert.equal(data.results[0].source, "Web News");
+    assert.equal(data.results[1].title, "Technology in Tunisia");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("assistant performs web search and incorporates live results when requested", async () => {
+  const env = environment();
+  let capturedPrompt = "";
+  env.AI = {
+    async run(model, options) {
+      capturedPrompt = options.messages[0].content;
+      return { response: "Based on recent news, Tunisia tech startups are expanding [Tunisia Tech Startup Milestone 2026](https://example.com/news1)." };
+    }
+  };
+
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("news.google.com")) {
+      return new Response(`
+        <rss><channel>
+          <item><title>Tunisia Tech Startup Milestone 2026</title><link>https://example.com/news1</link><pubDate>Mon, 23 Nov 2026</pubDate></item>
+        </channel></rss>
+      `, { status: 200 });
+    }
+    return new Response("{}", { status: 404 });
+  };
+
+  try {
+    const res = await worker.fetch(request("/api/assistant", {
+      question: "/search latest tech startups in Tunisia",
+      mode: "search"
+    }), env);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.web_search, true);
+    assert.ok(data.search_results.length > 0);
+    assert.match(capturedPrompt, /REAL-TIME FREE WEB SEARCH CONTEXT/);
+    assert.match(capturedPrompt, /Tunisia Tech Startup Milestone 2026/);
+    assert.match(data.answer, /Tunisia tech startups are expanding/);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
 });
 
 test("repository import rejects external URLs from an authenticated admin",async()=>{

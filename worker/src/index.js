@@ -32,6 +32,8 @@ function safeId(value) {
 }
 
 const DEFAULT_AI_MODELS = Object.freeze([
+  { id: "@cf/meta/llama-3.1-8b-instruct", label: "Llama 3.1 8B (Fast & Smart)", description: "Ultra-fast, multilingual, highly accurate model on Cloudflare Workers AI." },
+  { id: "@cf/meta/llama-3.2-3b-instruct", label: "Llama 3.2 3B (Lightning Speed)", description: "Ultra-low latency lightweight model on Cloudflare Workers AI." },
   { id: "@cf/zai-org/glm-4.7-flash", label: "GLM 4.7 Flash (Workers AI)", description: "Fast, intelligent multilingual generative AI on Cloudflare Workers AI." },
   { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 26B (Workers AI)", description: "Advanced reasoning generative AI on Cloudflare Workers AI." }
 ]);
@@ -45,7 +47,7 @@ function getAiModels(env) {
       id: "melek-ai-v1",
       label: "Melek AI (Portfolio grounding)",
       description: "Uses verified portfolio facts as optional context for questions about Melek.",
-      available: Boolean(env.AI)
+      available: true
     }
   ];
 }
@@ -109,7 +111,8 @@ function corsHeaders(request, env) {
     "access-control-allow-origin": origin,
     "vary": "Origin",
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "Content-Type,CF-Access-Jwt-Assertion",
+    "access-control-allow-headers": "Content-Type,CF-Access-Jwt-Assertion,Accept",
+    "access-control-expose-headers": "x-web-sources,content-type",
     "access-control-allow-credentials": "true"
   } : {};
 }
@@ -1128,6 +1131,76 @@ class MelekInferenceAdapter {
   }
 }
 
+async function performFreeWebSearch(query) {
+  const cleanQuery = String(query || "").trim().slice(0, 200);
+  if (!cleanQuery) return { query: "", results: [] };
+
+  const isArabic = /[\u0600-\u06ff]/.test(cleanQuery);
+  const isFrench = /[éèêëàâçîïôûùüÿœæ]/i.test(cleanQuery) || /\b(le|la|les|un|une|des|qui|quoi|comment|pourquoi|actualité|nouvelle)\b/i.test(cleanQuery);
+  const lang = isArabic ? "ar" : isFrench ? "fr" : "en";
+  const hl = isArabic ? "ar" : isFrench ? "fr" : "en-US";
+  const gl = isArabic ? "TN" : isFrench ? "FR" : "US";
+  const ceid = isArabic ? "TN:ar" : isFrench ? "FR:fr" : "US:en";
+
+  const results = [];
+
+  // 1. Google News Realtime RSS (100% Free, live web news, zero API key)
+  try {
+    const newsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(cleanQuery)}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
+    const newsRes = await fetch(newsUrl, {
+      signal: AbortSignal.timeout(3500),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+      }
+    });
+    if (newsRes.ok) {
+      const xml = await newsRes.text();
+      const items = [...xml.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>(?:[\s\S]*?<pubDate>(.*?)<\/pubDate>)?/g)].slice(0, 4);
+      for (const match of items) {
+        const rawTitle = match[1] || "";
+        const cleanTitle = rawTitle.replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1").replace(/<[^>]+>/g, "").trim();
+        const link = match[2] ? match[2].replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1").trim() : "";
+        const pubDate = match[3] || "";
+        if (cleanTitle && link) {
+          results.push({
+            title: cleanTitle,
+            snippet: pubDate ? `Published: ${pubDate}` : "Recent web news update",
+            url: link,
+            source: "Web News"
+          });
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. Wikipedia Search API (100% Free, encyclopedic facts/knowledge, zero API key)
+  try {
+    const wikiUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cleanQuery)}&format=json&utf8=1&srlimit=3`;
+    const wikiRes = await fetch(wikiUrl, {
+      signal: AbortSignal.timeout(3000),
+      headers: {
+        "User-Agent": "MelekAI-SearchBot/1.0 (https://melek-portfolio-api.melekabdelmaksoud72.workers.dev)"
+      }
+    });
+    if (wikiRes.ok) {
+      const data = await wikiRes.json();
+      const wikiItems = data?.query?.search || [];
+      for (const item of wikiItems) {
+        const cleanSnippet = String(item.snippet || "").replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&amp;/g, "&").trim();
+        const articleUrl = `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, "_"))}`;
+        results.push({
+          title: item.title,
+          snippet: cleanSnippet,
+          url: articleUrl,
+          source: `Wikipedia (${lang.toUpperCase()})`
+        });
+      }
+    }
+  } catch (_) {}
+
+  return { query: cleanQuery, results: results.slice(0, 6) };
+}
+
 async function assistant(request, env) {
   let body;
   try { body = await readBody(request, 24000); }
@@ -1136,7 +1209,23 @@ async function assistant(request, env) {
   const question = String(body.question || "").trim().slice(0, 4000);
   if (!question) return json({ error: "A question is required." }, 400);
 
-  const mode = body.mode === "analyze" ? "analyze" : "chat";
+  const mode = body.mode === "analyze" ? "analyze" : (body.mode === "search" ? "search" : "chat");
+  const isSearchRequested = body.web_search === true || mode === "search" ||
+    /^\/(?:search|web)\b/i.test(question) ||
+    /\b(ابحث في الويب|ابحث في النت|search the web|cherche sur le web|dernière actualité|dernières nouvelles|latest news)\b/i.test(question);
+
+  let searchResults = [];
+  const cleanQuestion = question.replace(/^\/(?:search|web)\s*/i, "").trim() || question;
+
+  if (isSearchRequested) {
+    try {
+      const searchData = await performFreeWebSearch(cleanQuestion);
+      searchResults = searchData.results || [];
+    } catch (_) {
+      searchResults = [];
+    }
+  }
+
   const requestedModel = String(body.model_id || body.model || "").trim().slice(0, 96)
     || env.AI_DEFAULT_MODEL || "@cf/zai-org/glm-4.7-flash";
 
@@ -1172,23 +1261,31 @@ async function assistant(request, env) {
   // general-knowledge answer or a useful analysis.
   let selected = [];
   try {
-    const ranked = await rankedFacts(env, question, conversationContext);
+    const ranked = await rankedFacts(env, cleanQuestion, conversationContext);
     selected = ranked.selected || [];
   } catch (_) {
     selected = [];
   }
 
-  const arabic = /[\u0600-\u06ff]/.test(question);
+  const arabic = /[\u0600-\u06ff]/.test(cleanQuestion);
   const languageInstruction = arabic
     ? "Reply in the user's Arabic variety. If the user writes Tunisian Derja, answer naturally in Tunisian Derja."
-    : /\b(hello|hi|what|how|why|explain|analyze|write|translate)\b/i.test(question)
+    : /\b(hello|hi|what|how|why|explain|analyze|write|translate)\b/i.test(cleanQuestion)
       ? "Reply in the same language as the user's message."
       : "Reply in the same language as the user's message.";
 
   const factsText = selected.map((fact, index) => {
-    const value = arabic ? fact.text_ar : /\b(what|who|where|when|which|tell|show|skills|projects|education|about|how)\b/i.test(question) ? fact.text_en : fact.text_fr;
+    const value = arabic ? fact.text_ar : /\b(what|who|where|when|which|tell|show|skills|projects|education|about|how)\b/i.test(cleanQuestion) ? fact.text_en : fact.text_fr;
     return (index + 1) + ". " + value + " [source: " + fact.source_file + " — " + fact.source_selector + "]";
   }).join("\n");
+
+  let webSearchSection = "";
+  if (searchResults.length > 0) {
+    const formattedResults = searchResults.map((r, i) =>
+      `[${i + 1}] "${r.title}" (${r.source})\nURL: ${r.url}\nSummary: ${r.snippet}`
+    ).join("\n\n");
+    webSearchSection = `\n\nREAL-TIME FREE WEB SEARCH CONTEXT FOR: "${cleanQuestion}"\n${formattedResults}\n\nWEB SEARCH INSTRUCTIONS:\n- Use these fresh search results to provide an accurate, up-to-date answer.\n- Cite relevant sources with markdown links: [Source Name](URL).\n- Answer clearly and factually.`;
+  }
 
   const systemPrompt = `You are Melek AI, a capable, helpful, general-purpose AI assistant created by the owner of the Melek AI project.
 
@@ -1212,25 +1309,31 @@ SAFETY AND HONESTY
 - If uncertain, state the uncertainty and explain what can be checked.
 
 MODE
-- Current mode: ${mode === "analyze" ? "analysis: provide a structured, evidence-based analysis and practical conclusions" : "chat: answer naturally and directly"}.
+- Current mode: ${mode === "analyze" ? "analysis: provide a structured, evidence-based analysis and practical conclusions" : (mode === "search" ? "web search: summarize live web sources and answer with up-to-date facts" : "chat: answer naturally and directly")}.
 - Keep answers proportional to the request. Use Markdown when it improves readability.
 
 VERIFIED PORTFOLIO CONTEXT
-${factsText || "No matching verified portfolio facts were found. This does not limit answers to general questions."}`;
+${factsText || "No matching verified portfolio facts were found. This does not limit answers to general questions."}${webSearchSection}`;
 
-  if (!env.AI || typeof env.AI.run !== "function") {
+  if (requestedModel === "melek-ai-v1" || !env.AI || typeof env.AI.run !== "function") {
     if (selected.length) {
-      const grounded = selected.map(f => arabic ? f.text_ar : /\b(what|who|where|when|which|tell|show|skills|projects|education|about|how)\b/i.test(question) ? f.text_en : f.text_fr).filter(Boolean).join("\n\n");
+      const isEnglish = /\b(what|who|where|when|which|tell|show|experience|skills|projects|education|do|does|can|could|is|are|your|about|how|please)\b/i.test(cleanQuestion);
+      const grounded = selected.map(f => arabic ? f.text_ar : isEnglish ? f.text_en : f.text_fr).filter(Boolean).join("\n\n");
       return json({
-        answer: grounded + "\n\n" + (arabic ? "ملاحظة: خدمة الذكاء الاصطناعي التوليدي غير مفعّلة حالياً." : "Note: generative AI is not currently enabled."),
-        mode, model: "portfolio-grounding-fallback", requested_model: requestedModel,
+        answer: grounded,
+        mode,
+        model: "approved-facts-only",
+        requested_model: requestedModel,
         sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file }))
       });
     }
     return json({
-      error: "Generative AI is not configured on this Worker. Enable the Cloudflare Workers AI binding to answer general questions.",
-      code: "WORKERS_AI_NOT_CONFIGURED", mode, retryable: false
-    }, 503);
+      answer: abstentionFor(cleanQuestion),
+      mode,
+      model: "approved-facts-only",
+      requested_model: requestedModel,
+      sources: []
+    });
   }
 
   const allowedModels = new Set(DEFAULT_AI_MODELS.map(model => model.id));
@@ -1243,8 +1346,33 @@ ${factsText || "No matching verified portfolio facts were found. This does not l
     { role: "system", content: systemPrompt },
     ...history,
     ...(attachmentText ? [{ role: "user", content: "Attached file: " + attachmentName + "\n\n" + attachmentText }] : []),
-    { role: "user", content: question }
+    { role: "user", content: cleanQuestion }
   ];
+
+  const wantsStream = body.stream === true || (request.headers.get("accept") || "").includes("text/event-stream");
+
+  if (wantsStream) {
+    try {
+      const aiStream = await env.AI.run(activeModel, {
+        messages,
+        stream: true,
+        max_tokens: mode === "analyze" ? 1800 : 1200,
+        temperature: 0.65
+      });
+      if (aiStream && (typeof aiStream.getReader === "function" || aiStream instanceof ReadableStream)) {
+        return new Response(aiStream, {
+          headers: {
+            "content-type": "text/event-stream; charset=utf-8",
+            "cache-control": "no-cache, no-transform",
+            "x-model": activeModel,
+            "x-web-sources": encodeURIComponent(JSON.stringify(searchResults.map(r => ({ title: r.title, url: r.url, source: r.source }))))
+          }
+        });
+      }
+    } catch (_) {
+      // Graceful fallback to non-streaming if stream encounters error
+    }
+  }
 
   try {
     const aiRes = await env.AI.run(activeModel, {
@@ -1263,7 +1391,12 @@ ${factsText || "No matching verified portfolio facts were found. This does not l
       mode,
       model: activeModel,
       requested_model: requestedModel,
-      sources: selected.map(f => ({ id: f.id, category: f.category, source: f.source_file })),
+      sources: [
+        ...selected.map(f => ({ id: f.id, category: f.category, source: f.source_file })),
+        ...searchResults.map(r => ({ id: r.url, title: r.title, category: "web", source: r.source, url: r.url }))
+      ],
+      search_results: searchResults,
+      web_search: searchResults.length > 0,
       grounded_by_portfolio: selected.length > 0
     });
   } catch (error) {
@@ -1983,6 +2116,14 @@ export default {
         if (result) return withCors(result, cors);
       }
       if (path === "/api/assistant" && method === "POST") return withCors(await assistant(request, env), cors);
+      if (path === "/api/search" && (method === "GET" || method === "POST")) {
+        const query = method === "GET"
+          ? (new URL(request.url).searchParams.get("q") || "").trim()
+          : String((await readBody(request, 4000)).query || "").trim();
+        if (!query) return withCors(json({ error: "A search query is required." }, 400), cors);
+        const data = await performFreeWebSearch(query);
+        return withCors(json({ ok: true, query: data.query, results: data.results, free: true }), cors);
+      }
       if (path === "/api/projects" && method === "GET") {
         const { results = [] } = await env.DB.prepare("SELECT id,title,type,description_fr,description_en,url,sort_order FROM projects WHERE visible=1 ORDER BY sort_order,title").all();
         return withCors(json({ projects: results }), cors);

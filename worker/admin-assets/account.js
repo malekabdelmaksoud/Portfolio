@@ -14,7 +14,7 @@
   let autoSpeak = false;
   let usedVoice = false;
   let voiceSession = false;
-  let selectedModel = "melek-ai-v1";
+  let selectedModel = "@cf/meta/llama-3.1-8b-instruct";
   let googleSignInPromise = null;
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
   if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
@@ -338,10 +338,13 @@
 
   function setMode(next) {
     mode = next;
-    $("mode-chat").classList.toggle("selected", mode === "chat");
-    $("mode-analyze").classList.toggle("selected", mode === "analyze");
-    $("mode-hint").textContent = mode === "chat" ? "Direct, concise answers" : "Detailed, structured analysis";
-    $("mobile-mode").textContent = mode === "chat" ? "Chat" : "Analyze";
+    $("mode-chat")?.classList.toggle("selected", mode === "chat");
+    $("mode-analyze")?.classList.toggle("selected", mode === "analyze");
+    $("mode-search")?.classList.toggle("selected", mode === "search");
+    if (mode === "chat") $("mode-hint").textContent = "Direct, concise answers";
+    else if (mode === "analyze") $("mode-hint").textContent = "Detailed, structured analysis";
+    else if (mode === "search") $("mode-hint").textContent = "Real-time web search (100% free)";
+    $("mobile-mode").textContent = mode === "chat" ? "Chat" : (mode === "analyze" ? "Analyze" : "Web");
   }
 
   async function sendMessage(event) {
@@ -360,21 +363,114 @@
       if (!active) await createChat(question.slice(0, 64));
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
       addMessage("user", question);
-      pending = addMessage("assistant", mode === "analyze" ? "Analyzing…" : "Thinking…", false);
+
+      const isWebSearch = mode === "search" || /^\/(?:search|web)\b/i.test(question);
+      pending = addMessage("assistant", isWebSearch ? "🌐 Searching the web & thinking…" : (mode === "analyze" ? "Analyzing…" : "Thinking…"), false);
+      const textEl = pending.querySelector(".message-text");
       const context = [...$("messages").querySelectorAll(".message")].slice(-8, -1).map(node => node.querySelector(".message-text")?.textContent || "");
+
       const response = await fetch(base + "/api/assistant", {
         method: "POST",
         credentials: "include",
         signal: abortController.signal,
-        headers: { "content-type": "application/json", "accept": "application/json" },
-        body: JSON.stringify({ question, mode, context, model_id: selectedModel })
+        headers: { "content-type": "application/json", "accept": "text/event-stream, application/json" },
+        body: JSON.stringify({
+          question,
+          mode,
+          context,
+          model_id: selectedModel,
+          stream: true,
+          web_search: isWebSearch
+        })
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
-      const answer = typeof data.answer === "string" ? data.answer : "No response available.";
+
+      let answer = "";
+      let webSources = [];
+
+      const sourcesHeader = response.headers.get("x-web-sources");
+      if (sourcesHeader) {
+        try { webSources = JSON.parse(decodeURIComponent(sourcesHeader)); } catch (_) {}
+      }
+
+      if (response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let firstChunk = true;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data:")) continue;
+            const dataStr = trimmed.slice(5).trim();
+            if (dataStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(dataStr);
+              const token = parsed.response || parsed.text || parsed.choices?.[0]?.delta?.content || "";
+              if (token) {
+                if (firstChunk) {
+                  answer = "";
+                  firstChunk = false;
+                }
+                answer += token;
+                textEl.innerHTML = markdown(answer);
+                $("messages").scrollTop = $("messages").scrollHeight;
+              }
+            } catch (_) {
+              if (dataStr && dataStr !== "[DONE]") {
+                if (firstChunk) {
+                  answer = "";
+                  firstChunk = false;
+                }
+                answer += dataStr;
+                textEl.innerHTML = markdown(answer);
+                $("messages").scrollTop = $("messages").scrollHeight;
+              }
+            }
+          }
+        }
+        if (!answer.trim()) answer = "No response available.";
+      } else {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
+        answer = typeof data.answer === "string" ? data.answer : "No response available.";
+        if (Array.isArray(data.search_results) && data.search_results.length) {
+          webSources = data.search_results;
+        }
+      }
+
       if (pending) { pending.remove(); pending = null; }
       await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
-      addMessage("assistant", answer);
+      const msgNode = addMessage("assistant", answer);
+
+      if (webSources && webSources.length > 0) {
+        const bodyEl = msgNode.querySelector(".message-body");
+        if (bodyEl) {
+          const sourcesEl = document.createElement("div");
+          sourcesEl.className = "web-sources";
+          const title = document.createElement("span");
+          title.className = "web-sources-title";
+          title.textContent = "🌐 Sources du Web :";
+          sourcesEl.append(title);
+          for (const s of webSources) {
+            const a = document.createElement("a");
+            a.className = "source-chip";
+            a.href = s.url || "#";
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            a.textContent = (s.title || s.source || "Source").slice(0, 50);
+            sourcesEl.append(a);
+          }
+          bodyEl.append(sourcesEl);
+        }
+      }
+
       if (autoSpeak || usedVoice) {
         speakText(answer);
         usedVoice = false;
@@ -714,6 +810,7 @@
   });
   $("mode-chat").addEventListener("click", () => setMode("chat"));
   $("mode-analyze").addEventListener("click", () => setMode("analyze"));
+  if ($("mode-search")) $("mode-search").addEventListener("click", () => setMode("search"));
   $("stop-generation").addEventListener("click", () => abortController?.abort());
   $("history-search").addEventListener("input", async event => {
     const sequence = ++searchSequence;
