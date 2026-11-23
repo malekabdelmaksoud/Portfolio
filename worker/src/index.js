@@ -1316,6 +1316,14 @@ async function fetchYoutubeTranscript(rawUrl) {
   } catch (_) {}
   return { videoId, title: decodeXmlText(details.title || ""), channel: decodeXmlText(details.author || ""), description: String(details.shortDescription || "").slice(0, 3000), language: track.languageCode || "", transcript, reason: transcript ? "" : "captions_unavailable" };
 }
+async function loadCachedKnowledgeSource(env, sourceUrl) {
+  if (!env.DB || !sourceUrl) return null;
+  try {
+    const row = await env.DB.prepare("SELECT source_url,source_type,title,content,language,metadata_json FROM knowledge_sources WHERE source_url=? LIMIT 1").bind(sourceUrl).first();
+    if (!row || typeof row.content !== "string" || !row.content) return null;
+    return row;
+  } catch (_) { return null; }
+}
 async function cacheKnowledgeSource(env, source) {
   if (!env.DB || !source?.url || !source.content) return;
   try {
@@ -1443,12 +1451,22 @@ async function assistant(request, env) {
   let videoContext = null;
   if (videoUrl) {
     try {
-      videoContext = await fetchYoutubeTranscript(videoUrl);
-      if (videoContext?.transcript) await cacheKnowledgeSource(env, {
-        url: "https://www.youtube.com/watch?v=" + videoContext.videoId,
-        type: "youtube_transcript", title: videoContext.title, content: videoContext.transcript,
-        language: videoContext.language, metadata: { channel: videoContext.channel, description: videoContext.description }
-      });
+      const videoId = youtubeVideoId(videoUrl);
+      const canonicalVideoUrl = videoId ? "https://www.youtube.com/watch?v=" + videoId : "";
+      const cachedVideo = await loadCachedKnowledgeSource(env, canonicalVideoUrl);
+      if (cachedVideo) {
+        const metadata = parseJsonText(cachedVideo.metadata_json || "{}", {});
+        videoContext = { videoId, title: cachedVideo.title || "", channel: metadata.channel || "",
+          description: metadata.description || "", language: cachedVideo.language || "",
+          transcript: cachedVideo.content, reason: "" };
+      } else {
+        videoContext = await fetchYoutubeTranscript(videoUrl);
+        if (videoContext?.transcript) await cacheKnowledgeSource(env, {
+          url: canonicalVideoUrl, type: "youtube_transcript", title: videoContext.title,
+          content: videoContext.transcript, language: videoContext.language,
+          metadata: { channel: videoContext.channel, description: videoContext.description }
+        });
+      }
     } catch (_) { videoContext = { transcript: "", reason: "fetch_failed" }; }
   }
   const explicitSearch = body.web_search === true || mode === "search" ||
