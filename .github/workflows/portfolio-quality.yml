@@ -2,7 +2,7 @@ name: Portfolio quality checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/native-otp-workers-ai]
   pull_request:
     branches: [main]
   workflow_dispatch:
