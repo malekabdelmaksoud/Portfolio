@@ -1,6 +1,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
+const vm = require('node:vm');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -47,6 +48,38 @@ before(async () => {
 after(async () => {
   if (browser) await browser.close();
   if (server) await new Promise(resolve => server.close(resolve));
+});
+
+test('AI chat renders safe Markdown links, lists, headings and code blocks', () => {
+  const source = fs.readFileSync(path.join(root, 'account.js'), 'utf8');
+  const match = source.match(/function markdown\\(value\\) \\{[\\s\\S]*?\\n  \\}/);
+  assert.ok(match, 'account.js should define the chat Markdown renderer');
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+  const markdown = vm.runInNewContext('(' + match[0] + ')', { escapeHTML });
+
+  const cvHtml = markdown('**Melek CV**\\n[📄 Generate / download Melek’s CV (PDF)](https://portfolio.example/?open_cv=1&download_cv=1)');
+  assert.match(cvHtml, /<strong>Melek CV<\\/strong>/);
+  assert.match(cvHtml, /<a href="https:\\/\\/portfolio\\.example\\/\\?open_cv=1&amp;download_cv=1" target="_blank" rel="noopener noreferrer">/);
+
+  const formatted = markdown('# Skills\\n- **Java**\\n- `PHP`\\n> Verified details');
+  assert.match(formatted, /<h1>Skills<\\/h1>/);
+  assert.match(formatted, /<ul><li><strong>Java<\\/strong><\\/li><li><code>PHP<\\/code><\\/li><\\/ul>/);
+  assert.match(formatted, /<blockquote>Verified details<\\/blockquote>/);
+
+  const unsafe = markdown('[unsafe](javascript:alert(1))\\n\\`\\`\\`html\\n<script>alert(1)</script>\\n\\`\\`\\`');
+  assert.doesNotMatch(unsafe, /<a href="javascript:/i);
+  assert.match(unsafe, /&lt;script&gt;alert\\(1\\)&lt;\\/script&gt;/);
+});
+
+test('CV URL opens the published CV modal automatically', async () => {
+  const page = await openPage();
+  try {
+    await page.goto(baseURL + '/?open_cv=1', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('#cvModalBackdrop')?.classList.contains('active'), { timeout: 8000 });
+    assert.ok((await page.locator('#cvPrintableArea').innerText()).trim().length > 0);
+  } finally { await page.close(); }
 });
 
 async function openPage() {
