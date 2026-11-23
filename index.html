@@ -439,9 +439,15 @@
 <script src="portfolio-auth-ui.js?v=14.0"></script>
 <script src="chat-crud-store.js?v=14.0"></script>
 <script>
-  if (new URLSearchParams(window.location.search).get("open_cv") === "1") {
+  const cvParams = new URLSearchParams(window.location.search);
+  if (cvParams.get("open_cv") === "1") {
     window.addEventListener("load", () => {
       if (typeof window.openCvModal === "function") window.openCvModal();
+      if (cvParams.get("download_cv") === "1") {
+        setTimeout(() => {
+          if (typeof window.downloadCvPdf === "function") window.downloadCvPdf();
+        }, 650);
+      }
     }, { once: true });
   }
 </script>
