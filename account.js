@@ -719,9 +719,8 @@
       $("status").textContent = "Verified · private history";
       await loadModels();
       await refreshChats();
-      let lastActiveId = null;
-      try { lastActiveId = localStorage.getItem("melek_active_chat_id"); } catch (_) {}
-      const targetChat = (lastActiveId && chats.find(c => c.id === lastActiveId)) || chats[0];
+      // Always resume the most recently updated conversation on sign-in.
+      const targetChat = chats[0];
       if (targetChat) await openChat(targetChat.id);
     } catch (error) {
       showAuth();
