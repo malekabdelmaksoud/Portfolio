@@ -84,9 +84,16 @@
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  function addMessage(role, content, withActions = true, createdAt = null) {
+  function keepLatestMessageVisible(node) {
+    if (!node) return;
+    requestAnimationFrame(() => node.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" }));
+  }
+
+  function addMessage(role, content, withActions = true, createdAt = null, messageId = null) {
     const node = document.createElement("article");
     node.className = "message " + (role === "user" ? "user" : "assistant");
+    if (messageId) node.dataset.messageId = messageId;
+    keepLatestMessageVisible(node);
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
     avatar.textContent = role === "user" ? "M" : "AI";
@@ -104,6 +111,28 @@
       time.className = "message-time";
       time.textContent = formatTime(createdAt);
       body.append(time);
+    }
+    if (role === "user" && withActions && messageId) {
+      const actions = document.createElement("div");
+      actions.className = "message-actions";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => editUserMessage(node, content));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", async () => {
+        if (!confirm("Delete this message?")) return;
+        try {
+          await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(messageId), { method: "DELETE" });
+          await openChat(active);
+          await refreshChats();
+          toast("Message deleted.");
+        } catch (error) { toast(error.message); }
+      });
+      actions.append(edit, remove);
+      body.append(actions);
     }
     if (role === "assistant" && withActions) {
       const actions = document.createElement("div");
@@ -129,6 +158,21 @@
       stop.textContent = "Stop";
       stop.addEventListener("click", () => speechSynthesis?.cancel());
       actions.append(copy, speak, pause, resume, stop);
+      if (messageId) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", async () => {
+          if (!confirm("Delete this message?")) return;
+          try {
+            await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(messageId), { method: "DELETE" });
+            node.remove();
+            await refreshChats();
+            toast("Message deleted.");
+          } catch (error) { toast(error.message); }
+        });
+        actions.append(remove);
+      }
       body.append(actions);
     }
     node.append(avatar, body);
@@ -301,7 +345,7 @@
     $("conversation").hidden = false;
     $("conversation-head").textContent = data.chat.title || "Conversation";
     $("messages").replaceChildren();
-    (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at));
+    (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at, message.id));
     renderList();
     $("messages").scrollTop = $("messages").scrollHeight;
   }
@@ -347,6 +391,54 @@
     $("mobile-mode").textContent = mode === "chat" ? "Chat" : (mode === "analyze" ? "Analyze" : "Web");
   }
 
+  async function editUserMessage(node, oldContent) {
+    if (sending || !active || !node.dataset.messageId) return;
+    const editor = document.createElement("textarea");
+    editor.className = "message-edit-input";
+    editor.rows = Math.max(2, Math.min(8, oldContent.split("\n").length));
+    editor.maxLength = 6000;
+    editor.value = oldContent;
+    const actions = document.createElement("div");
+    actions.className = "message-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.textContent = "Save & regenerate";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    const originalText = node.querySelector(".message-text");
+    const originalActions = node.querySelector(".message-actions");
+    originalText.hidden = true;
+    if (originalActions) originalActions.hidden = true;
+    node.querySelector(".message-body").append(editor, actions);
+    actions.append(save, cancel);
+    editor.focus();
+    cancel.addEventListener("click", () => { editor.remove(); actions.remove(); originalText.hidden = false; if (originalActions) originalActions.hidden = false; });
+    save.addEventListener("click", async () => {
+      const content = editor.value.trim();
+      if (!content) return toast("Message cannot be empty.");
+      save.disabled = true;
+      try {
+        const history = [];
+        let previous = node.previousElementSibling;
+        while (previous) {
+          history.unshift({ role: previous.classList.contains("user") ? "user" : "assistant", content: previous.querySelector(".message-text")?.textContent || "" });
+          previous = previous.previousElementSibling;
+        }
+        const response = await fetch(base + "/api/assistant", { method: "POST", credentials: "include", headers: { "content-type": "application/json", "accept": "application/json" }, body: JSON.stringify({ question: content, mode, history: history.slice(-12), model_id: selectedModel }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
+        const answer = typeof data.answer === "string" ? data.answer : "No response available.";
+        await api("/api/user/chats/" + encodeURIComponent(active) + "/messages/" + encodeURIComponent(node.dataset.messageId), { method: "PATCH", body: JSON.stringify({ content }) });
+        editor.remove(); actions.remove();
+        await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
+        await openChat(active);
+        await refreshChats();
+        toast("Message updated and response regenerated.");
+      } catch (error) { toast(error.message || "Could not update message."); await openChat(active); }
+    });
+  }
+
   async function sendMessage(event) {
     event.preventDefault();
     const input = $("chat-input");
@@ -361,14 +453,19 @@
     let pending = null;
     try {
       if (!active) await createChat(question.slice(0, 64));
-      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
-      addMessage("user", question);
+      const savedUser = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "user", content: question }) });
+      addMessage("user", question, true, null, savedUser.id);
 
       const isWebSearch = mode === "search" || /^\/(?:search|web)\b/i.test(question);
       pending = addMessage("assistant", isWebSearch ? "🌐 Searching the web & thinking…" : (mode === "analyze" ? "Analyzing…" : "Thinking…"), false);
       const textEl = pending.querySelector(".message-text");
-      const context = [...$("messages").querySelectorAll(".message")].slice(-8, -1).map(node => node.querySelector(".message-text")?.textContent || "");
 
+      const previousMessages = [...$("messages").querySelectorAll(".message")].slice(-12, -2);
+      const history = previousMessages.map(node => ({
+        role: node.classList.contains("user") ? "user" : "assistant",
+        content: node.querySelector(".message-text")?.textContent || ""
+      })).filter(item => item.content.trim());
+      const context = history.map(item => item.content);
       const response = await fetch(base + "/api/assistant", {
         method: "POST",
         credentials: "include",
@@ -377,6 +474,7 @@
         body: JSON.stringify({
           question,
           mode,
+          history,
           context,
           model_id: selectedModel,
           stream: true,
@@ -446,8 +544,8 @@
       }
 
       if (pending) { pending.remove(); pending = null; }
-      await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
-      const msgNode = addMessage("assistant", answer);
+      const savedAssistant = await api("/api/user/chats/" + encodeURIComponent(active), { method: "POST", body: JSON.stringify({ role: "assistant", content: answer }) });
+      const msgNode = addMessage("assistant", answer, true, null, savedAssistant.id);
 
       if (webSources && webSources.length > 0) {
         const bodyEl = msgNode.querySelector(".message-body");
@@ -470,7 +568,6 @@
           bodyEl.append(sourcesEl);
         }
       }
-
       if (autoSpeak || usedVoice) {
         speakText(answer);
         usedVoice = false;
@@ -523,12 +620,14 @@
   }
 
   function showAuth() {
+    $("auth-bootstrap")?.remove();
     $("auth-screen").hidden = false;
     $("app-shell").hidden = true;
     loadGoogleSignIn().catch(() => {});
   }
 
   function showApp() {
+    $("auth-bootstrap")?.remove();
     $("auth-screen").hidden = true;
     $("app-shell").hidden = false;
   }
@@ -707,7 +806,7 @@
         const status = await statusResponse.json();
         $("model-version").textContent = "Model version: " + (status.model_id || "melek-ai-v1");
         $("training-status").textContent = "Training status: " + (status.training_status || "untrained");
-        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available" : "approved-facts-only");
+        $("inference-status").textContent = "Inference: " + (status.inference_available ? "available (Workers AI)" : "unavailable");
       }
     } catch (_) {}
     try {
@@ -795,6 +894,29 @@
       active = null;
       await createChat();
       $("chat-input").focus();
+    } catch (error) { toast(error.message); }
+  });
+  $("share-conversation").addEventListener("click", async () => {
+    if (!active) return toast("Open a conversation before sharing it.");
+    const button = $("share-conversation");
+    button.disabled = true;
+    try {
+      const data = await api("/api/user/chats/" + encodeURIComponent(active) + "/share", { method: "POST", body: "{}" });
+      try {
+        await navigator.clipboard.writeText(data.url);
+        toast("Share link copied. The original prompt is included.");
+      } catch (_) {
+        window.prompt("Copy this share link:", data.url);
+      }
+    } catch (error) { toast(error.message); }
+    finally { button.disabled = false; }
+  });
+  $("revoke-share").addEventListener("click", async () => {
+    if (!active) return;
+    if (!confirm("Revoke all public links for this conversation?")) return;
+    try {
+      const data = await api("/api/user/chats/" + encodeURIComponent(active) + "/share", { method: "DELETE" });
+      toast(data.count ? "Shared links revoked." : "There were no active shared links.");
     } catch (error) { toast(error.message); }
   });
   $("chat-form").addEventListener("submit", sendMessage);

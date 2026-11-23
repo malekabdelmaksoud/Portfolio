@@ -11,10 +11,11 @@ function environment(overrides = {}) {
     {id:"project-001",category:"project",text_fr:"Projet Laravel publié sur le portfolio.",text_en:"Laravel project published in the portfolio.",text_ar:"مشروع Laravel منشور في ملف الأعمال.",aliases_json:'["project","projets","مشاريع","المشاريع"]',source_file:"index.html",source_selector:"#projets .project-card",public_url:"https://github.com/example/project",approved:1},
     {id:"private-001",category:"profile",text_fr:"Secret private draft.",text_en:"Secret private draft.",text_ar:"مسودة خاصة سرية.",aliases_json:'["secret"]',source_file:"draft.md",source_selector:"#private",public_url:null,approved:0}
   ];
-  const projects=[{id:"project-001",title:"Demo",type:"WEB",description_fr:"Projet public",description_en:"Public project",url:"https://github.com/example/demo",sort_order:1,visible:1},{id:"hidden-001",title:"Hidden",type:"WEB",description_fr:"Brouillon",description_en:"Draft",url:"https://github.com/example/hidden",sort_order:2,visible:0}];
+  const projects=[{id:"project-001",title:"Laravel",type:"WEB",description_fr:"Projet Laravel publié sur le portfolio.",description_en:"Laravel project published in the portfolio.",url:"https://github.com/example/demo",sort_order:1,visible:1},{id:"hidden-001",title:"Hidden",type:"WEB",description_fr:"Brouillon",description_en:"Draft",url:"https://github.com/example/hidden",sort_order:2,visible:0}];
   const users=[{id:"u-001",email:"visitor@example.test",display_name:"Visitor"}];
   const chats=[{id:"c-001",user_email:"visitor@example.test",title:"Chat 1",created_at:"2026-11-20",updated_at:"2026-11-20"}];
   const chatMessages=[{id:"m-001",chat_id:"c-001",user_email:"visitor@example.test",role:"user",content:"Hello",created_at:"2026-11-20"}];
+  const sharedConversations=[];
   const backupLogs=[];
   const r2Storage=new Map();
   const BACKUP_BUCKET={
@@ -56,6 +57,8 @@ function environment(overrides = {}) {
       if(sql.includes("COUNT(*) AS c FROM users")) return {c:users.length};
       if(sql.includes("COUNT(*) AS c FROM chats")) return {c:chats.length};
       if(sql.includes("COUNT(*) AS c FROM chat_messages")) return {c:chatMessages.length};
+      if(sql.includes("FROM shared_conversations")) return sharedConversations.find(item=>item.token===params[0]&&!item.revoked_at)||null;
+      if(sql.includes("SELECT id,title FROM chats WHERE id=? AND user_email=?")) return chats.find(chat=>chat.id===params[0]&&chat.user_email===params[1])||null;
       if(sql.includes("SELECT 1")) return {ok:1};
       if(sql.includes("SELECT COALESCE(MAX")) return {max_order:projects.reduce((max,p)=>Math.max(max,p.sort_order||0),0)};
       if(sql.includes("SELECT id,url,title FROM projects")) {
@@ -73,9 +76,13 @@ function environment(overrides = {}) {
       if(sql.includes("FROM projects")) return {results:sql.includes("WHERE visible=1")?projects.filter(p=>p.visible===1):projects};
       if(sql.includes("FROM users")) return {results:users};
       if(sql.includes("FROM chats")) return {results:chats};
-      if(sql.includes("FROM chat_messages")) return {results:chatMessages};
+      if(sql.includes("FROM chat_messages")) return {results:sql.includes("WHERE chat_id=? AND user_email=?")?chatMessages.filter(message=>message.chat_id===params[0]&&message.user_email===params[1]):chatMessages};
       return {results:[]};
     },async run(){
+      if(sql.includes("INSERT INTO chats")) { chats.push({id:params[0],user_email:params[1],title:params[2],created_at:new Date().toISOString(),updated_at:new Date().toISOString()}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT INTO chat_messages")) { chatMessages.push({id:params[0],chat_id:params[1],user_email:params[2],role:params[3],content:params[4],created_at:new Date().toISOString()}); return {meta:{changes:1}}; }
+      if(sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({token:params[0],chat_id:params[1],user_email:params[2],title:params[3],prompt:params[4],messages_json:params[5],created_at:new Date().toISOString(),revoked_at:null}); return {meta:{changes:1}}; }
+      if(sql.includes("UPDATE shared_conversations SET revoked_at")) { let count=0; for(const item of sharedConversations) if(item.chat_id===params[0]&&item.user_email===params[1]&&!item.revoked_at){item.revoked_at=new Date().toISOString();count++;} return {meta:{changes:count}}; }
       if(sql.includes("INSERT INTO backup_logs")) {
         backupLogs.unshift({id:params[0],backup_key:params[1],status:params[2],size_bytes:params[3],sha256_plain:params[4],sha256_cipher:params[5],tables_summary:params[6],error_message:params[7],created_at:new Date().toISOString()});
         return {meta:{changes:1}};
@@ -111,6 +118,7 @@ async batch(statements){
     users: JSON.parse(JSON.stringify(users)),
     chats: JSON.parse(JSON.stringify(chats)),
     chatMessages: JSON.parse(JSON.stringify(chatMessages)),
+    sharedConversations: JSON.parse(JSON.stringify(sharedConversations)),
     backupLogs: JSON.parse(JSON.stringify(backupLogs))
   };
   const results=[];
@@ -123,11 +131,12 @@ async batch(statements){
     users.length = 0; users.push(...snapshot.users);
     chats.length = 0; chats.push(...snapshot.chats);
     chatMessages.length = 0; chatMessages.push(...snapshot.chatMessages);
+    sharedConversations.length = 0; sharedConversations.push(...snapshot.sharedConversations);
     backupLogs.length = 0; backupLogs.push(...snapshot.backupLogs);
     throw err;
   }
 }};
-  return {DB,BACKUP_BUCKET,BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",...overrides,__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__backupLogs:backupLogs,__r2Storage:r2Storage};
+  return {DB,BACKUP_BUCKET,AI:{async run(model,options){return {response:"Mock AI answer: "+options.messages.at(-1).content};}},BACKUP_ENCRYPTION_KEY:"test-backup-encryption-key-32-chars-long!",ALLOWED_ORIGIN:"https://portfolio.test",ADMIN_EMAIL:"owner@example.test",...overrides,__facts:facts,__projects:projects,__users:users,__chats:chats,__chatMessages:chatMessages,__sharedConversations:sharedConversations,__backupLogs:backupLogs,__r2Storage:r2Storage};
 }
 const request=(path,body,origin="https://portfolio.test")=>new Request("https://api.test"+path,{method:"POST",headers:{"content-type":"application/json",Origin:origin},body:JSON.stringify(body)});
 
@@ -210,50 +219,145 @@ function adminRequest(env,path,body) {
 test("health endpoint checks D1 and reports the native auth and Melek AI modes",async()=>{
  const response=await worker.fetch(new Request("https://api.test/api/health"),environment());
  const data=await response.json();
- assert.equal(response.status,200);assert.equal(data.assistant,"melek-ai-experimental");
+ assert.equal(response.status,200);assert.equal(data.assistant,"generative-workers-ai");
  assert.equal(data.auth,"native-email-otp");
 });
 
-test("assistant clearly reports that Melek AI is not connected",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Do you know Python?"}),environment());
+test("assistant answers general questions with Workers AI",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"The Moon is made primarily of rock and dust."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
- assert.match(data.answer,/C, Java, Python and PHP/i);
+ assert.match(data.answer,/rock and dust/i);
+ assert.equal(data.grounded_by_portfolio,false);
  assert.equal(response.headers.get("access-control-allow-origin"),"https://portfolio.test");
  assert.equal(response.headers.get("access-control-allow-credentials"),"true");
 });
 
-
-test("assistant recognizes Tunisian Arabic project questions",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"شنو المشاريع متاع ملاك"}),environment());
+test("assistant sends verified portfolio facts as optional grounding",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"The portfolio lists a Laravel project."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What projects are listed in Melek's portfolio?"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
- assert.match(data.answer,/مشروع/i);
+ assert.match(data.answer,/Laravel/i);
+ assert.equal(data.grounded_by_portfolio,true);
+ assert.match(prompt,/Laravel project published in the portfolio/i);
 });
 
-
-test("assistant uses recent topic for a short Arabic follow-up",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),environment());
+test("assistant builds owner CV from all approved portfolio facts and visible projects",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Public portfolio page context fixture.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { title: 'Étudiante en dernière année' } }; }\n  getData() {}";
+ env.__facts.push(
+  {id:"profile-002",category:"profile",text_fr:"Profil développeur web.",text_en:"Web developer profile.",text_ar:"ملف مطور ويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#about",public_url:null,approved:1},
+  {id:"education-002",category:"education",text_fr:"Formation en informatique.",text_en:"Computer science education.",text_ar:"تكوين في الإعلامية.",aliases_json:"[]",source_file:"index.html",source_selector:"#education",public_url:null,approved:1},
+  {id:"experience-002",category:"experience",text_fr:"Expérience en développement web.",text_en:"Web development experience.",text_ar:"خبرة في تطوير الويب.",aliases_json:"[]",source_file:"index.html",source_selector:"#experience",public_url:null,approved:1}
+ );
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"CV composed from verified portfolio details."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"اعطني CV مالك"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.equal(data.model,"approved-facts-only");
+ assert.match(prompt,/ملف مطور ويب/);
+ assert.match(prompt,/تكوين في الإعلامية/);
+ assert.match(prompt,/خبرة في تطوير الويب/);
+ assert.match(prompt,/C و Java و Python و PHP/);
+ assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
+ assert.match(prompt,/synthesize a useful structured CV/);
+ assert.match(prompt,/Published CV default data/);
+ assert.match(prompt,/Étudiante en dernière année/);
+ assert.match(prompt,/Public portfolio page context fixture/);
+ assert.equal(data.grounded_by_portfolio,true);
 });
 
-test("assistant never returns an unapproved fact",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"Tell me the secret private draft"}),environment());
+test("assistant still builds CV when the live portfolio website cannot be fetched",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="";
+ env.PORTFOLIO_CONTEXT_CV="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"CV based on the published portfolio source."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"اعطني CV"}),env);
  const data=await response.json();assert.equal(response.status,200);
- assert.match(data.answer,/not present|approved/i);assert.equal(data.sources.length,0);
+ assert.match(prompt,/Published CV fallback from the portfolio repository source/);
+ assert.match(prompt,/Hôpital Hédi Chaker/);
+ assert.match(prompt,/Lycée Tayeb Mhiri/);
+ assert.match(prompt,/English \(intermediate B1\)/);
+ assert.equal(data.grounded_by_portfolio,true);
 });
 
-test("assistant abstains when there is no matching approved evidence",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),environment());
- const data=await response.json();assert.equal(data.sources.length,0);assert.match(data.answer,/not present/i);
+test("assistant uses the full owner profile when asked about Melek",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Published profile context from the public site.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { personal: { name: 'Melek Abdelmaksoud' } }; }";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is the verified profile."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"شنو تعرف على ملاك؟"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/لغات البرمجة المذكورة تشمل C و Java و Python و PHP/);
+ assert.match(prompt,/مشروع Laravel منشور في ملف الأعمال/);
+ assert.match(prompt,/Published profile context from the public site/);
+ assert.equal(data.grounded_by_portfolio,true);
 });
 
+test("assistant retrieves owner facts for contextual French follow-ups",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><p>Owner experience and education published on the site.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="getDefaultData() { return { experiences: ['Web internship'] }; }\n  getData() {}";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Voici les expériences publiées."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Et ses expériences ?",context:["Tell me about Melek"]}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/VERIFIED PORTFOLIO CONTEXT/);
+ assert.match(prompt,/Published portfolio page content/);
+ assert.match(prompt,/Owner experience and education published on the site/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
 
-test("assistant abstains in Tunisian Arabic when evidence is missing",async()=>{
- const response=await worker.fetch(request("/api/assistant",{question:"شنو رقم جواز سفر ملاك؟"}),environment());
- const data=await response.json();assert.equal(data.sources.length,0);
- assert.match(data.answer,/المعلومة هاذي موش موجودة/);
+test("assistant grounds portfolio project questions in the published website",async()=>{
+ const env=environment();let prompt="";
+ env.PORTFOLIO_CONTEXT_HTML="<main><h2>Selected projects</h2><p>Symfony application and TypeScript dashboard.</p></main>";
+ env.PORTFOLIO_CONTEXT_CV="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"The portfolio lists its published projects."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Quels sont les projets présentés dans ce portfolio ?"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(prompt,/Published portfolio page content/);
+ assert.match(prompt,/Symfony application and TypeScript dashboard/);
+ assert.equal(data.grounded_by_portfolio,true);
+});
+
+test("assistant understands Tunisian follow-ups using recent context",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"Here is a deeper explanation of those projects."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"زيد فسّرلي",context:["شنو المشاريع متاع ملاك؟"]}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.match(data.answer,/deeper explanation/i);
+ assert.match(prompt,/شنو المشاريع متاع ملاك/);
+ assert.match(prompt,/Tunisian Latin transliteration/);
+ assert.match(prompt,/Arabic script, not Latin transliteration/);
+ assert.match(prompt,/Avoid Moroccan expressions/);
+});
+
+test("assistant never exposes unapproved portfolio facts to the model",async()=>{
+ const env=environment();let prompt="";
+ env.AI={async run(model,options){prompt=options.messages[0].content;return {response:"I don't have verified public information about that private draft."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"Tell me the secret private draft"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.sources.length,0);
+ assert.doesNotMatch(prompt,/Secret private draft/i);
+ assert.match(data.answer,/verified public information/i);
+});
+
+test("assistant answers general questions even when no portfolio evidence matches",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"The Moon is made mostly of silicate rock."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"What is the moon made of?"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.sources.length,0);
+ assert.match(data.answer,/silicate rock/i);
+});
+
+test("assistant handles personal-data questions without inventing facts",async()=>{
+ const env=environment();
+ env.AI={async run(model,options){return {response:"That private detail is not included in the verified public portfolio."};}};
+ const response=await worker.fetch(request("/api/assistant",{question:"شنو رقم جواز سفر ملاك؟"}),env);
+ const data=await response.json();assert.equal(response.status,200);
+ assert.equal(data.sources.length,0);
+ assert.match(data.answer,/not included in the verified public portfolio/i);
 });
 
 test("public projects endpoint exposes only visible projects",async()=>{
@@ -776,13 +880,16 @@ test("password-reset convenience paths redirect to /password-reset.html", async 
   assert.match(res.headers.get("location") || "", /\/password-reset\.html/);
 });
 
-test("Melek AI status reports development truthfully",async()=>{
- const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),environment());
+test("Melek AI status reports configured Workers AI inference honestly",async()=>{
+ const env=environment();
+ env.AI={async run(){return {response:"mock"};}};
+ const response=await worker.fetch(new Request("https://api.test/api/melek-ai/status"),env);
  const data=await response.json();
  assert.equal(response.status,200);
- assert.equal(data.experimental,true);
+ assert.equal(data.inference_available,true);
+ assert.equal(data.provider,"Cloudflare Workers AI");
+ assert.equal(data.assistant_mode,"generative");
  assert.equal(data.trained_from_scratch,false);
- assert.equal(data.inference_available,false);
  assert.equal(data.third_party_fallback_disabled,true);
 });
 
@@ -828,7 +935,8 @@ test("portfolio facts are optional grounding for personal project questions",asy
 });
 
 test("model selection is restricted to configured Workers AI models",async()=>{
- const env=environment({ AI: { async run(model, options) { return { response: "ok" }; } } });
+ const env=environment();
+ env.AI={async run(model,options){return {response:"Recursion is a function calling itself."};}};
  const response=await worker.fetch(request("/api/assistant",{question:"Explain recursion",model_id:"attacker-controlled-model"}),env);
  const data=await response.json();
  assert.equal(response.status,200);
@@ -999,6 +1107,7 @@ test("public GitHub repository is imported once with metadata evidence",async()=
 
 test("imported GitHub project appears in public projects and assistant retrieval",async()=>{
  const env=await adminEnvironment();
+ env.AI={async run(){return {response:"The demo project is a public JavaScript application."};}};
  const oldFetch=globalThis.fetch;
  globalThis.fetch=async url=>{
   if(url.includes("/certs")) return new Response(JSON.stringify(env.__jwks),{status:200,headers:{"content-type":"application/json"}});
@@ -1142,7 +1251,7 @@ test("import rejects existing old project URL with 409 and preserves original pr
   const publicData=await publicRes.json();
   const original=publicData.projects.find(p=>p.id==="project-001");
   assert.ok(original);
-  assert.equal(original.title,"Demo");
+  assert.equal(original.title,"Laravel");
   assert.equal(original.url,"https://github.com/example/demo");
   assert.equal(original.type,"WEB");
  } finally {globalThis.fetch=oldFetch;}
@@ -1224,6 +1333,7 @@ function authEnvironment(overrides = {}) {
   const sessions = [];
   const chats = [];
   const chatMessages = [];
+  const sharedConversations = [];
   const facts = [];
   const projects = [];
   const backupLogs = [];
@@ -1272,6 +1382,7 @@ function authEnvironment(overrides = {}) {
         if (sql.includes("FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?")) {
           return chatMessages.find(m => m.id === params[0] && m.chat_id === params[1] && m.user_email === params[2]) || null;
         }
+        if (sql.includes("FROM shared_conversations")) return sharedConversations.find(item => item.token === params[0] && !item.revoked_at) || null;
         if (sql.includes("COUNT(*) AS c FROM facts")) return { c: facts.length };
         if (sql.includes("COUNT(*) AS c FROM projects")) return { c: projects.length };
         if (sql.includes("COUNT(*) AS c FROM users")) return { c: users.length };
@@ -1344,6 +1455,8 @@ function authEnvironment(overrides = {}) {
         return { results: [] };
       },
       async run() {
+        if (sql.includes("INSERT INTO shared_conversations")) { sharedConversations.push({ token: params[0], chat_id: params[1], user_email: params[2], title: params[3], prompt: params[4], messages_json: params[5], created_at: new Date().toISOString(), revoked_at: null }); return { meta: { changes: 1 } }; }
+        if (sql.includes("UPDATE shared_conversations SET revoked_at")) { let count = 0; for (const item of sharedConversations) if (item.chat_id === params[0] && item.user_email === params[1] && !item.revoked_at) { item.revoked_at = new Date().toISOString(); count++; } return { meta: { changes: count } }; }
         if (sql.includes("INSERT INTO backup_logs")) {
           backupLogs.unshift({ id: params[0], backup_key: params[1], status: params[2], size_bytes: params[3], sha256_plain: params[4], sha256_cipher: params[5], tables_summary: params[6], error_message: params[7], created_at: new Date().toISOString() });
           return { meta: { changes: 1 } };
@@ -1372,6 +1485,12 @@ function authEnvironment(overrides = {}) {
             if (chatMessages[i].user_email === email) { chatMessages.splice(i, 1); c++; }
           }
           return { meta: { changes: c } };
+        }
+        if (sql.includes("DELETE FROM chat_messages WHERE id=? AND chat_id=? AND user_email=?")) {
+          const [id, chatId, email] = params;
+          const idx = chatMessages.findIndex(message => message.id === id && message.chat_id === chatId && message.user_email === email);
+          if (idx !== -1) { chatMessages.splice(idx, 1); return { meta: { changes: 1 } }; }
+          return { meta: { changes: 0 } };
         }
         if (sql.includes("DELETE FROM chat_messages WHERE chat_id=? AND user_email=?")) {
           const [chatId, email] = params;
@@ -1506,7 +1625,7 @@ function authEnvironment(overrides = {}) {
       throw err;
     }
   }};
-  return { DB, BACKUP_BUCKET, BACKUP_ENCRYPTION_KEY: "test-backup-encryption-key-32-chars-long!", ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows, __backupLogs: backupLogs, __facts: facts, __projects: projects, __chats: chats, __chatMessages: chatMessages, __r2Storage: r2Storage };
+  return { DB, BACKUP_BUCKET, BACKUP_ENCRYPTION_KEY: "test-backup-encryption-key-32-chars-long!", ALLOWED_ORIGIN: "https://portfolio.test", ADMIN_EMAIL: "owner@example.test", OTP_PEPPER: "", ...overrides, __challenges: otpChallenges, __resetChallenges: passwordResetChallenges, __users: users, __sessions: sessions, __abuseWindows: abuseWindows, __backupLogs: backupLogs, __facts: facts, __projects: projects, __chats: chats, __chatMessages: chatMessages, __sharedConversations: sharedConversations, __r2Storage: r2Storage };
 }
 
 const authRequest = (path, body) => new Request("https://api.test" + path, {
@@ -1944,6 +2063,39 @@ test("Cloudflare Access user identity matches native session data contract and o
   } finally { globalThis.fetch = oldFetch; }
 });
 
+test("shared conversations include the original prompt and can be revoked by their owner", async () => {
+  const { env, token } = await createAccessJwtToken();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async url => url.includes("/certs")
+    ? new Response(JSON.stringify(env.__jwks), { status: 200, headers: { "content-type": "application/json" } })
+    : new Response("{}", { status: 404 });
+  const authHeaders = { "origin": "https://portfolio.test", "content-type": "application/json", "CF-Access-Jwt-Assertion": token };
+  try {
+    const created = await worker.fetch(new Request("https://api.test/api/user/chats", { method: "POST", headers: authHeaders, body: JSON.stringify({ title: "Share test" }) }), env);
+    const { chat } = await created.json();
+    await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, { method: "POST", headers: authHeaders, body: JSON.stringify({ role: "user", content: "Original prompt for this shared chat" }) }), env);
+    await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id, { method: "POST", headers: authHeaders, body: JSON.stringify({ role: "assistant", content: "A public read-only answer" }) }), env);
+
+    const shareRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id + "/share", { method: "POST", headers: authHeaders, body: "{}" }), env);
+    assert.equal(shareRes.status, 201);
+    const share = await shareRes.json();
+    assert.match(share.url, /\/share\.html\?token=/);
+
+    const publicRes = await worker.fetch(new Request("https://api.test/api/share/" + share.token, { headers: { "origin": "https://portfolio.test" } }), env);
+    assert.equal(publicRes.status, 200);
+    const publicData = await publicRes.json();
+    assert.equal(publicData.prompt, "Original prompt for this shared chat");
+    assert.equal(publicData.messages.length, 2);
+    assert.equal(publicData.messages[1].content, "A public read-only answer");
+
+    const revokeRes = await worker.fetch(new Request("https://api.test/api/user/chats/" + chat.id + "/share", { method: "DELETE", headers: authHeaders }), env);
+    assert.equal(revokeRes.status, 200);
+    assert.equal((await revokeRes.json()).revoked, true);
+    const revokedRes = await worker.fetch(new Request("https://api.test/api/share/" + share.token, { headers: { "origin": "https://portfolio.test" } }), env);
+    assert.equal(revokedRes.status, 404);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
 test("expired Cloudflare Access JWT is rejected with 401", async () => {
   const now = Math.floor(Date.now() / 1000);
   const { env, token } = await createAccessJwtToken({}, { exp: now - 60 });
@@ -2031,6 +2183,7 @@ test("invalid Access JWT cannot be bypassed using an expired session cookie", as
 
 test("/api/models requires authentication and returns models list with defaultModel", async () => {
   const env = authEnvironment();
+  env.AI = { async run() { return { response: "mock" }; } };
   const userId = randomUUID();
   const token = "c".repeat(64);
   const tokenHash = sha256(token + ":" + (env.SESSION_PEPPER || ""));
@@ -2054,10 +2207,10 @@ test("/api/models requires authentication and returns models list with defaultMo
   assert.ok(data.defaultModel);
   assert.equal(data.available, true);
 
-  // Without env.AI, Workers AI models must be available: false
+  // Workers AI models are available when the binding exists
   const workersAiModel = data.models.find(m => m.id.startsWith("@cf/"));
   if (workersAiModel) {
-    assert.equal(workersAiModel.available, false);
+    assert.equal(workersAiModel.available, true);
   }
   // Without MELEK_AI_SERVICE_URL and training status, experimental must be false
   const experimental = data.models.find(m => m.id === "melek-ai-experimental");

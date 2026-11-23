@@ -1,6 +1,9 @@
 name: Deploy portfolio API
 
 on:
+  push:
+    branches:
+      - feature/native-otp-workers-ai
   workflow_dispatch:
     inputs:
       confirm_workers_free:
@@ -14,7 +17,7 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ inputs.confirm_workers_free == true }}
+    if: ${{ github.event_name == 'push' || inputs.confirm_workers_free == true }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout selected branch
@@ -24,6 +27,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Run Worker regression tests
+        working-directory: worker
+        run: npm test
 
       - name: Install Wrangler
         working-directory: worker
