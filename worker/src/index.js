@@ -1468,14 +1468,33 @@ async function transcribeAudioRequest(request, env) {
 async function loadLongTermConversationMemory(env, identity, question, activeChatId) {
   if (!identity || !identity.email) return "";
   try {
-    const result = await env.DB.prepare(
-      "SELECT chat_id,content,created_at FROM chat_messages WHERE user_email=? AND role='user' ORDER BY created_at DESC LIMIT 500"
+    const stopWords = new Set([
+      "the","and","for","with","that","this","what","when","where","which","who","how","did","does","have","tell","about","from","your","you","are","was","were","les","des","une","pour","avec","dans","est","que","qui","quoi","comment","quand","sur","mon","ma","mes","ton","ta","tes","شنو","شنوة","شنية","علي","على","في","من","كيفاش","وقتاش","هل","هذا","هذي","انا","انت","انتي"
+    ]);
+    const tokens = Array.from(new Set(normalize(question).split(/\s+/)
+      .filter(token => token.length >= 3 && !stopWords.has(token)))).slice(0, 10);
+    const recentPromise = env.DB.prepare(
+      "SELECT chat_id,content,created_at FROM chat_messages WHERE user_email=? AND role='user' ORDER BY created_at DESC LIMIT 100"
     ).bind(identity.email).all();
-    const rows = result.results || [];
+    const matchingPromise = tokens.length
+      ? env.DB.prepare(
+          "SELECT chat_id,content,created_at FROM chat_messages WHERE user_email=? AND role='user' AND (" +
+          tokens.map(() => "content LIKE ?").join(" OR ") +
+          ") ORDER BY created_at DESC LIMIT 120"
+        ).bind(identity.email, ...tokens.map(token => "%" + token + "%")).all()
+      : Promise.resolve({ results: [] });
+    const [recentResult, matchingResult] = await Promise.all([recentPromise, matchingPromise]);
+    const rows = [...(matchingResult.results || []), ...(recentResult.results || [])];
     const blocked = /password|passcode|one.time.code|otp|api[_ -]?key|secret|token|credit.card|bank.account|passport|national.id|كلمة السر|كلمة المرور|رمز التحقق|بطاقة بنكية|رقم بطاقة|جواز سفر|مفتاح سري/i;
-    const tokens = Array.from(new Set(normalize(question).split(/\s+/).filter(token => token.length >= 2))).slice(0, 16);
-    const candidates = rows.filter(row => row.chat_id !== activeChatId && typeof row.content === "string" &&
-      row.content.trim() && row.content.length <= 6000 && !blocked.test(row.content));
+    const candidates = [];
+    const seenRows = new Set();
+    for (const row of rows) {
+      const key = row.chat_id + ":" + row.created_at + ":" + row.content;
+      if (seenRows.has(key) || row.chat_id === activeChatId || typeof row.content !== "string" ||
+          !row.content.trim() || row.content.length > 6000 || blocked.test(row.content)) continue;
+      seenRows.add(key);
+      candidates.push(row);
+    }
     const ranked = candidates.map(row => {
       const content = row.content.slice(0, 1200);
       const normalized = normalize(content);
