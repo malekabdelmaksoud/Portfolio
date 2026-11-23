@@ -68,22 +68,22 @@
     const renderInline = source => {
       const codeTokens = [];
       let line = escapeHTML(source);
-      line = line.replace(/`([^`\\n]+)`/g, (_, code) => {
-        const marker = "\\u0000CODE" + codeTokens.length + "\\u0000";
+      line = line.replace(/`([^`\n]+)`/g, (_, code) => {
+        const marker = "\u0000CODE" + codeTokens.length + "\u0000";
         codeTokens.push("<code>" + code + "</code>");
         return marker;
       });
-      line = line.replace(/\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\s)]+)\\)/gi, (_, label, url) =>
+      line = line.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/gi, (_, label, url) =>
         '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + "</a>"
       );
       line = line
-        .replace(/\\*\\*(.+?)\\*\\*/g, "<strong>$1</strong>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/~~(.+?)~~/g, "<del>$1</del>")
-        .replace(/(^|[^*])\\*([^*\\n]+)\\*(?!\\*)/g, "$1<em>$2</em>");
-      return line.replace(/\\u0000CODE(\\d+)\\u0000/g, (_, index) => codeTokens[Number(index)] || "");
+        .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+      return line.replace(/\u0000CODE(\d+)\u0000/g, (_, index) => codeTokens[Number(index)] || "");
     };
 
-    const lines = String(value ?? "").replace(/\\r\\n?/g, "\\n").split("\\n");
+    const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
     const output = [];
     let paragraph = [];
     let listType = "";
@@ -115,7 +115,7 @@
     const flushBlocks = () => { flushParagraph(); flushList(); flushQuote(); };
 
     for (const line of lines) {
-      const fence = line.match(/^\\s*```([a-z0-9_-]*)\\s*$/i);
+      const fence = line.match(/^\s*```([a-z0-9_-]*)\s*$/i);
       if (fence) {
         if (!inCode) {
           flushBlocks();
@@ -123,7 +123,7 @@
           codeLanguage = fence[1] || "code";
           codeLines = [];
         } else {
-          const code = codeLines.join("\\n");
+          const code = codeLines.join("\n");
           output.push('<div class="code-block"><div class="code-toolbar"><span>' + escapeHTML(codeLanguage) + '</span><button type="button" data-copy-code="' + escapeHTML(code) + '">Copy</button></div><pre><code>' + escapeHTML(code) + "</code></pre></div>");
           inCode = false;
           codeLanguage = "";
@@ -134,22 +134,22 @@
       if (inCode) { codeLines.push(line); continue; }
       if (!line.trim()) { flushBlocks(); continue; }
 
-      const heading = line.match(/^\\s*(#{1,6})\\s+(.+)$/);
+      const heading = line.match(/^\s*(#{1,6})\s+(.+)$/);
       if (heading) {
         flushBlocks();
         const level = heading[1].length;
         output.push("<h" + level + ">" + renderInline(heading[2]) + "</h" + level + ">");
         continue;
       }
-      const quote = line.match(/^\\s*>\\s?(.*)$/);
+      const quote = line.match(/^\s*>\s?(.*)$/);
       if (quote) {
         flushParagraph();
         flushList();
         quoteLines.push(quote[1]);
         continue;
       }
-      const unordered = line.match(/^\\s*[-*+]\\s+(.+)$/);
-      const ordered = line.match(/^\\s*\\d+[.)]\\s+(.+)$/);
+      const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
+      const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
       if (unordered || ordered) {
         flushParagraph();
         flushQuote();
@@ -164,7 +164,7 @@
       paragraph.push(line);
     }
     if (inCode) {
-      const code = codeLines.join("\\n");
+      const code = codeLines.join("\n");
       output.push('<div class="code-block"><div class="code-toolbar"><span>' + escapeHTML(codeLanguage || "code") + '</span><button type="button" data-copy-code="' + escapeHTML(code) + '">Copy</button></div><pre><code>' + escapeHTML(code) + "</code></pre></div>");
     }
     flushBlocks();
