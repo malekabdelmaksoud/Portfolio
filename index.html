@@ -438,4 +438,11 @@
 <script src="cv-manager.js?v=14.0"></script>
 <script src="portfolio-auth-ui.js?v=14.0"></script>
 <script src="chat-crud-store.js?v=14.0"></script>
+<script>
+  if (new URLSearchParams(window.location.search).get("open_cv") === "1") {
+    window.addEventListener("load", () => {
+      if (typeof window.openCvModal === "function") window.openCvModal();
+    }, { once: true });
+  }
+</script>
 </body></html>
