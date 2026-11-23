@@ -65,19 +65,110 @@
   }
 
   function markdown(value) {
-    const text = escapeHTML(value);
-    const blocks = text.split(/```([a-z0-9_-]*)\n?([\s\S]*?)```/gi);
-    let html = "";
-    for (let i = 0; i < blocks.length; i += 3) {
-      html += blocks[i].split("\n").map(line =>
-        line ? "<p>" + line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>") + "</p>" : ""
-      ).join("");
-      if (blocks[i + 1] !== undefined) {
-        const code = blocks[i + 2] || "";
-        html += `<div class="code-block"><div class="code-toolbar"><span>${escapeHTML(blocks[i + 1] || "code")}</span><button type="button" data-copy-code="${escapeHTML(code)}">Copy</button></div><pre><code>${code}</code></pre></div>`;
+    const renderInline = source => {
+      const codeTokens = [];
+      let line = escapeHTML(source);
+      line = line.replace(/`([^`\\n]+)`/g, (_, code) => {
+        const marker = "\\u0000CODE" + codeTokens.length + "\\u0000";
+        codeTokens.push("<code>" + code + "</code>");
+        return marker;
+      });
+      line = line.replace(/\\[([^\\]\\n]+)\\]\\((https?:\\/\\/[^\\s)]+)\\)/gi, (_, label, url) =>
+        '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + "</a>"
+      );
+      line = line
+        .replace(/\\*\\*(.+?)\\*\\*/g, "<strong>$1</strong>")
+        .replace(/~~(.+?)~~/g, "<del>$1</del>")
+        .replace(/(^|[^*])\\*([^*\\n]+)\\*(?!\\*)/g, "$1<em>$2</em>");
+      return line.replace(/\\u0000CODE(\\d+)\\u0000/g, (_, index) => codeTokens[Number(index)] || "");
+    };
+
+    const lines = String(value ?? "").replace(/\\r\\n?/g, "\\n").split("\\n");
+    const output = [];
+    let paragraph = [];
+    let listType = "";
+    let listItems = [];
+    let quoteLines = [];
+    let codeLines = [];
+    let codeLanguage = "";
+    let inCode = false;
+
+    const flushParagraph = () => {
+      if (paragraph.length) {
+        output.push("<p>" + paragraph.map(renderInline).join("<br>") + "</p>");
+        paragraph = [];
       }
+    };
+    const flushList = () => {
+      if (listItems.length) {
+        output.push("<" + listType + ">" + listItems.map(item => "<li>" + renderInline(item) + "</li>").join("") + "</" + listType + ">");
+        listItems = [];
+        listType = "";
+      }
+    };
+    const flushQuote = () => {
+      if (quoteLines.length) {
+        output.push("<blockquote>" + quoteLines.map(renderInline).join("<br>") + "</blockquote>");
+        quoteLines = [];
+      }
+    };
+    const flushBlocks = () => { flushParagraph(); flushList(); flushQuote(); };
+
+    for (const line of lines) {
+      const fence = line.match(/^\\s*```([a-z0-9_-]*)\\s*$/i);
+      if (fence) {
+        if (!inCode) {
+          flushBlocks();
+          inCode = true;
+          codeLanguage = fence[1] || "code";
+          codeLines = [];
+        } else {
+          const code = codeLines.join("\\n");
+          output.push('<div class="code-block"><div class="code-toolbar"><span>' + escapeHTML(codeLanguage) + '</span><button type="button" data-copy-code="' + escapeHTML(code) + '">Copy</button></div><pre><code>' + escapeHTML(code) + "</code></pre></div>");
+          inCode = false;
+          codeLanguage = "";
+          codeLines = [];
+        }
+        continue;
+      }
+      if (inCode) { codeLines.push(line); continue; }
+      if (!line.trim()) { flushBlocks(); continue; }
+
+      const heading = line.match(/^\\s*(#{1,6})\\s+(.+)$/);
+      if (heading) {
+        flushBlocks();
+        const level = heading[1].length;
+        output.push("<h" + level + ">" + renderInline(heading[2]) + "</h" + level + ">");
+        continue;
+      }
+      const quote = line.match(/^\\s*>\\s?(.*)$/);
+      if (quote) {
+        flushParagraph();
+        flushList();
+        quoteLines.push(quote[1]);
+        continue;
+      }
+      const unordered = line.match(/^\\s*[-*+]\\s+(.+)$/);
+      const ordered = line.match(/^\\s*\\d+[.)]\\s+(.+)$/);
+      if (unordered || ordered) {
+        flushParagraph();
+        flushQuote();
+        const nextType = unordered ? "ul" : "ol";
+        if (listType && listType !== nextType) flushList();
+        listType = nextType;
+        listItems.push((unordered || ordered)[1]);
+        continue;
+      }
+      flushList();
+      flushQuote();
+      paragraph.push(line);
     }
-    return html;
+    if (inCode) {
+      const code = codeLines.join("\\n");
+      output.push('<div class="code-block"><div class="code-toolbar"><span>' + escapeHTML(codeLanguage || "code") + '</span><button type="button" data-copy-code="' + escapeHTML(code) + '">Copy</button></div><pre><code>' + escapeHTML(code) + "</code></pre></div>");
+    }
+    flushBlocks();
+    return output.join("");
   }
 
   function formatTime(value) {
