@@ -1431,6 +1431,32 @@ async function performFreeWebSearch(query) {
 }
 
 
+
+// Conservative global circuit breaker for Workers AI. Cloudflare's live Neurons
+// meter is not exposed to this Worker binding, so this limits inference attempts
+// and keeps a safety margin rather than pretending to meter exact Neurons.
+async function reserveDailyAiCall(env) {
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const row = await env.DB.prepare(
+      "INSERT INTO ai_daily_guard(utc_day,requests) VALUES(?,1) " +
+      "ON CONFLICT(utc_day) DO UPDATE SET requests=ai_daily_guard.requests+1 " +
+      "WHERE ai_daily_guard.requests < 6 RETURNING requests"
+    ).bind(day).first();
+    return Boolean(row);
+  } catch (error) {
+    console.error("Workers AI safety guard unavailable:", error?.message || error);
+    return false; // Fail closed: never call a paid inference when the guard is unavailable.
+  }
+}
+
+function aiLimitResponse() {
+  return json({
+    error: "وصل Melek AI للحدّ الوقائي المجاني لليوم. جرّب غدوة؛ ما تمش تشغيل طلب AI إضافي.",
+    code: "DAILY_AI_FREE_LIMIT"
+  }, 429);
+}
+
 async function transcribeAudioRequest(request, env) {
   if (!env.AI || typeof env.AI.run !== "function") return json({ error: "Speech recognition is temporarily unavailable.", code: "AI_UNAVAILABLE" }, 503);
   let form;
@@ -1440,7 +1466,8 @@ async function transcribeAudioRequest(request, env) {
   const contentType = String(file.type || "").toLowerCase().split(";")[0];
   const allowedTypes = new Set(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4", "audio/aac", "audio/flac", "audio/mp3", "audio/x-wav"]);
   if (!allowedTypes.has(contentType)) return json({ error: "Unsupported audio format. Use WebM, MP3, WAV, OGG, AAC or FLAC." }, 415);
-  if (file.size < 256 || file.size > 8 * 1024 * 1024) return json({ error: "Audio chunk must be between 256 bytes and 8 MB. Long recordings are split automatically.", code: "AUDIO_SIZE" }, 413);
+  if (file.size < 256 || file.size > 2 * 1024 * 1024) return json({ error: "Audio chunk must be between 256 bytes and 2 MB. Use shorter audio segments.", code: "AUDIO_SIZE" }, 413);
+  if (!await reserveDailyAiCall(env)) return aiLimitResponse();
   const bytes = new Uint8Array(await file.arrayBuffer());
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, bytes.length)));
@@ -1606,10 +1633,10 @@ async function assistant(request, env, identity) {
     ...history.map(item => item.role + ": " + item.content),
     ...shortContext,
     ...(videoContext ? ["YOUTUBE VIDEO METADATA: " + (videoContext.title || "") + " | " + (videoContext.channel || "") + " | " + (videoContext.description || "") + "\nYOUTUBE TRANSCRIPT: " + (videoContext.transcript || "No accessible captions were retrieved.") + "\nVIDEO URL: https://www.youtube.com/watch?v=" + videoContext.videoId] : [])
-  ].join("\n").slice(-32000);
+  ].join("\n").slice(-16000);
 
   const attachmentText = typeof body.attachmentText === "string"
-    ? body.attachmentText.slice(0, 12000) : "";
+    ? body.attachmentText.slice(0, 8000) : "";
   const attachmentName = typeof body.attachmentName === "string"
     ? body.attachmentName.slice(0, 180) : "";
 
@@ -1735,11 +1762,12 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
   const wantsStream = body.stream === true || (request.headers.get("accept") || "").includes("text/event-stream");
 
   if (wantsStream) {
+    if (!await reserveDailyAiCall(env)) return aiLimitResponse();
     try {
       const aiStream = await env.AI.run(activeModel, {
         messages,
         stream: true,
-        max_tokens: mode === "analyze" ? 1800 : 1200,
+        max_tokens: mode === "analyze" ? 700 : 600,
         temperature: 0.65
       });
       if (aiStream && (typeof aiStream.getReader === "function" || aiStream instanceof ReadableStream)) {
@@ -1753,14 +1781,15 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
         });
       }
     } catch (_) {
-      // Graceful fallback to non-streaming if stream encounters error
+      // A failed streaming attempt still consumes the daily safety allowance.
     }
   }
 
+  if (!await reserveDailyAiCall(env)) return aiLimitResponse();
   try {
     const aiRes = await env.AI.run(activeModel, {
       messages,
-      max_tokens: mode === "analyze" ? 1800 : 1200,
+      max_tokens: mode === "analyze" ? 700 : 600,
       temperature: 0.65
     });
     const rawText = typeof aiRes === "string" ? aiRes
