@@ -600,42 +600,39 @@
         let buffer = "";
         let firstChunk = true;
 
+        const appendStreamLine = line => {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) return;
+          const dataStr = trimmed.slice(5).trim();
+          if (!dataStr || dataStr === "[DONE]") return;
+          let token = "";
+          try {
+            const parsed = JSON.parse(dataStr);
+            token = parsed.response || parsed.text || parsed.choices?.[0]?.delta?.content || "";
+          } catch (_) {
+            token = dataStr;
+          }
+          if (!token) return;
+          if (firstChunk) {
+            answer = "";
+            firstChunk = false;
+          }
+          answer += token;
+          textEl.innerHTML = markdown(answer);
+          $("messages").scrollTop = $("messages").scrollHeight;
+        };
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith("data:")) continue;
-            const dataStr = trimmed.slice(5).trim();
-            if (dataStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              const token = parsed.response || parsed.text || parsed.choices?.[0]?.delta?.content || "";
-              if (token) {
-                if (firstChunk) {
-                  answer = "";
-                  firstChunk = false;
-                }
-                answer += token;
-                textEl.innerHTML = markdown(answer);
-                $("messages").scrollTop = $("messages").scrollHeight;
-              }
-            } catch (_) {
-              if (dataStr && dataStr !== "[DONE]") {
-                if (firstChunk) {
-                  answer = "";
-                  firstChunk = false;
-                }
-                answer += dataStr;
-                textEl.innerHTML = markdown(answer);
-                $("messages").scrollTop = $("messages").scrollHeight;
-              }
-            }
-          }
+          for (const line of lines) appendStreamLine(line);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) {
+          for (const line of buffer.split(/\r?\n/)) appendStreamLine(line);
         }
         if (!answer.trim()) answer = "No response available.";
       } else {
