@@ -86,7 +86,10 @@
 
   function keepLatestMessageVisible(node) {
     if (!node) return;
-    requestAnimationFrame(() => node.scrollIntoView({ behavior: "smooth", block: "end", inline: "nearest" }));
+    requestAnimationFrame(() => {
+      const workspace = document.querySelector(".workspace");
+      if (workspace) workspace.scrollTop = workspace.scrollHeight;
+    });
   }
 
   function addMessage(role, content, withActions = true, createdAt = null, messageId = null) {
@@ -347,7 +350,10 @@
     $("messages").replaceChildren();
     (data.messages || []).forEach(message => addMessage(message.role, message.content, true, message.created_at, message.id));
     renderList();
-    $("messages").scrollTop = $("messages").scrollHeight;
+    requestAnimationFrame(() => {
+      const workspace = document.querySelector(".workspace");
+      if (workspace) workspace.scrollTop = workspace.scrollHeight;
+    });
   }
 
   async function createChat(title = "New chat") {
@@ -816,9 +822,8 @@
       $("status").textContent = "Verified · private history";
       await loadModels();
       await refreshChats();
-      let lastActiveId = null;
-      try { lastActiveId = localStorage.getItem("melek_active_chat_id"); } catch (_) {}
-      const targetChat = (lastActiveId && chats.find(c => c.id === lastActiveId)) || chats[0];
+      // Always resume the most recently updated conversation on sign-in.
+      const targetChat = chats[0];
       if (targetChat) await openChat(targetChat.id);
     } catch (error) {
       showAuth();
