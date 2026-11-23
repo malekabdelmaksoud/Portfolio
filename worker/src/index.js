@@ -108,7 +108,7 @@ function corsHeaders(request, env) {
   return allowed && origin ? {
     "access-control-allow-origin": origin,
     "vary": "Origin",
-    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "access-control-allow-headers": "Content-Type,CF-Access-Jwt-Assertion",
     "access-control-allow-credentials": "true"
   } : {};
