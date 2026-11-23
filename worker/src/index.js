@@ -1430,6 +1430,40 @@ async function performFreeWebSearch(query) {
   return { query: cleanQuery, results: results.slice(0, 6) };
 }
 
+
+async function transcribeAudioRequest(request, env) {
+  if (!env.AI || typeof env.AI.run !== "function") return json({ error: "Speech recognition is temporarily unavailable.", code: "AI_UNAVAILABLE" }, 503);
+  let form;
+  try { form = await request.formData(); } catch (_) { return json({ error: "A multipart audio upload is required." }, 400); }
+  const file = form.get("audio");
+  if (!file || typeof file.arrayBuffer !== "function") return json({ error: "Choose an audio or video recording first." }, 400);
+  const contentType = String(file.type || "").toLowerCase().split(";")[0];
+  const allowedTypes = new Set(["audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4", "audio/aac", "audio/flac", "audio/mp3", "audio/x-wav"]);
+  if (!allowedTypes.has(contentType)) return json({ error: "Unsupported audio format. Use WebM, MP3, WAV, OGG, AAC or FLAC." }, 415);
+  if (file.size < 256 || file.size > 8 * 1024 * 1024) return json({ error: "Audio chunk must be between 256 bytes and 8 MB. Long recordings are split automatically.", code: "AUDIO_SIZE" }, 413);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, bytes.length)));
+  try {
+    const result = await env.AI.run("@cf/openai/whisper-large-v3-turbo", {
+      audio: btoa(binary), task: "transcribe", vad_filter: true, condition_on_previous_text: false
+    });
+    const text = String(result?.text || result?.transcription_info?.text || "").trim().slice(0, 24000);
+    if (!text) return json({ error: "No clear speech was detected in this audio segment.", code: "NO_SPEECH" }, 422);
+    return json({
+      text, language: String(result?.transcription_info?.language || "").slice(0, 24),
+      language_probability: Number(result?.transcription_info?.language_probability || 0),
+      duration: Number(result?.transcription_info?.duration || 0),
+      segments: Array.isArray(result?.segments) ? result.segments.slice(0, 500).map(segment => ({
+        start: Number(segment.start || 0), end: Number(segment.end || 0), text: String(segment.text || "").slice(0, 1000)
+      })) : []
+    });
+  } catch (error) {
+    console.error("Audio transcription failed:", error?.message || error);
+    return json({ error: "Speech recognition could not process this audio. Try a shorter or clearer recording.", code: "TRANSCRIPTION_FAILED" }, 502);
+  }
+}
+
 async function assistant(request, env) {
   let body;
   try { body = await readBody(request, 24000); }
@@ -2457,6 +2491,10 @@ export default {
         let messages = [];
         try { messages = JSON.parse(share.messages_json); } catch (_) {}
         return withCors(json({ title: share.title, prompt: share.prompt, messages, created_at: share.created_at }, 200, { "cache-control": "no-store" }), cors);
+      }
+      if (path === "/api/transcribe" && method === "POST") {
+        await getSession(request, env);
+        return withCors(await transcribeAudioRequest(request, env), cors);
       }
       if (path === "/api/assistant" && method === "POST") return withCors(await assistant(request, env), cors);
       if (path === "/api/search" && (method === "GET" || method === "POST")) {
