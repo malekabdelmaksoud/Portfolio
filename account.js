@@ -1139,7 +1139,7 @@
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("audio/")) {
-      toast("Choose an audio file. For YouTube, use Listen to tab and share the tab's audio.");
+      toast("Choose an audio file, or paste the transcript of a YouTube video.");
       event.target.value = "";
       return;
     }
