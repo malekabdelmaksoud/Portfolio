@@ -441,14 +441,19 @@
 <script>
   const cvParams = new URLSearchParams(window.location.search);
   if (cvParams.get("open_cv") === "1") {
-    window.addEventListener("load", () => {
+    const openRequestedCv = () => {
       if (typeof window.openCvModal === "function") window.openCvModal();
       if (cvParams.get("download_cv") === "1") {
         setTimeout(() => {
           if (typeof window.downloadCvPdf === "function") window.downloadCvPdf();
         }, 650);
       }
-    }, { once: true });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", openRequestedCv, { once: true });
+    } else {
+      openRequestedCv();
+    }
   }
 </script>
 </body></html>
