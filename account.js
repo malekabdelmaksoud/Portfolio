@@ -617,7 +617,7 @@
     const utterance = new SpeechSynthesisUtterance(cleanText);
     const sample = text.slice(0, 2500);
     const languageRules = [
-      [/\u0600-\u06ff/, "ar-TN"], [/[а-яё]/i, "ru-RU"], [/[\u4e00-\u9fff]/, "zh-CN"],
+      [/[\u0600-\u06ff]/, "ar-TN"], [/[а-яё]/i, "ru-RU"], [/[\u4e00-\u9fff]/, "zh-CN"],
       [/[\u3040-\u30ff]/, "ja-JP"], [/[\uac00-\ud7af]/, "ko-KR"], [/[\u0900-\u097f]/, "hi-IN"],
       [/[ñ¿¡]/i, "es-ES"], [/[äöüß]/i, "de-DE"], [/[ãõç]/i, "pt-PT"]
     ];
@@ -1060,6 +1060,87 @@
     }
   }
 
+
+  let micWhisperStream = null;
+  let micWhisperRecorder = null;
+  let micWhisperParts = [];
+  let micWhisperQueue = Promise.resolve();
+  let micWhisperOffset = 0;
+
+  async function stopMicWhisperCapture() {
+    const button = $("mic-button");
+    if (micWhisperRecorder && micWhisperRecorder.state !== "inactive") {
+      button.textContent = "⌛";
+      button.disabled = true;
+      micWhisperRecorder.stop();
+      return;
+    }
+    if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+    micWhisperStream = null;
+    button.disabled = false;
+    button.classList.remove("recording");
+    button.textContent = "🎙";
+  }
+
+  async function startMicWhisperCapture() {
+    const button = $("mic-button");
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      toast("Microphone recording needs a supported browser and HTTPS.");
+      return;
+    }
+    try {
+      micWhisperStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      micWhisperRecorder = new MediaRecorder(micWhisperStream, { mimeType });
+      micWhisperParts = [];
+      micWhisperQueue = Promise.resolve();
+      micWhisperOffset = 0;
+      micWhisperRecorder.ondataavailable = event => {
+        if (!event.data || event.data.size < 256) return;
+        const offset = micWhisperOffset;
+        micWhisperOffset += 20;
+        micWhisperQueue = micWhisperQueue.then(async () => {
+          const result = await transcribeAudioChunk(event.data);
+          if (result.text) micWhisperParts.push(formatTranscriptTime(offset) + (result.language ? " [language: " + result.language + "] " : " ") + result.text);
+        }).catch(error => micWhisperParts.push("[Transcription issue: " + error.message + "]"));
+      };
+      micWhisperRecorder.onstop = async () => {
+        try {
+          await micWhisperQueue;
+          const transcript = micWhisperParts.join("\n").trim();
+          if (!transcript || !micWhisperParts.some(part => !part.startsWith("[Transcription issue"))) {
+            toast(transcript || "No clear speech was recognized.");
+          } else {
+            pendingAttachmentText = transcript.slice(0, 12000);
+            pendingAttachmentName = "Microphone audio transcript";
+            $("chat-input").value = /[\u0600-\u06ff]/.test(transcript)
+              ? "افهم كلامي وحلّل المطلوب وجاوبني بالتونسي إذا نحكي بالتونسي."
+              : /\[language: fr\]/i.test(transcript) ? "Comprends ma demande orale et réponds naturellement en français."
+              : "Understand my spoken request and reply naturally in the language I used.";
+            $("chat-form").requestSubmit();
+          }
+        } catch (error) { toast(error.message); }
+        finally {
+          if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+          micWhisperStream = null;
+          micWhisperRecorder = null;
+          button.disabled = false;
+          button.classList.remove("recording");
+          button.textContent = "🎙";
+        }
+      };
+      micWhisperRecorder.start(20000);
+      button.classList.add("recording");
+      button.textContent = "■";
+      toast("Recording started. Speak naturally in Arabic, Tunisian, French, English or another language; press the microphone again to send.");
+    } catch (error) {
+      if (micWhisperStream) micWhisperStream.getTracks().forEach(track => track.stop());
+      micWhisperStream = null;
+      button.textContent = "🎙";
+      toast(error.message || "Microphone permission is required.");
+    }
+  }
+
   $("listen-tab-audio")?.addEventListener("click", () => {
     if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") stopTabAudioCapture();
     else startTabAudioCapture();
@@ -1213,17 +1294,11 @@
 
   $("mic-button").addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
-    if (!speech) {
-      toast("Speech recognition is unsupported in this browser.");
+    if (micWhisperRecorder && micWhisperRecorder.state !== "inactive") {
+      stopMicWhisperCapture();
       return;
     }
-    if (recognition) { try { recognition.stop(); } catch (_) {} return; }
-    if (voiceSession) {
-      startVoiceCapture();
-      return;
-    }
-    voiceSession = true;
-    startVoiceCapture();
+    startMicWhisperCapture();
   });
 
   $("voice-session")?.addEventListener("click", () => {
