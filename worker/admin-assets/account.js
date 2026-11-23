@@ -171,6 +171,60 @@
     return output.join("");
   }
 
+  function downloadAiGeneratedCv(messageText) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "ai-cv-pdf-export";
+    wrapper.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;padding:42px 48px;background:#fff;color:#172033;z-index:-1;";
+
+    const content = messageText.cloneNode(true);
+    content.querySelectorAll("a,button").forEach(node => {
+      node.replaceWith(document.createTextNode(node.textContent || ""));
+    });
+    content.style.cssText = "display:block;max-width:none;width:100%;color:#172033;background:#fff;font:14px/1.7 Arial,sans-serif;overflow:visible;";
+    content.querySelectorAll("h1,h2,h3,h4,strong,b").forEach(node => { node.style.color = "#172033"; });
+    content.querySelectorAll("p,li,blockquote").forEach(node => { node.style.color = "#334155"; });
+    content.querySelectorAll("code,pre").forEach(node => {
+      node.style.color = "#172033";
+      node.style.background = "#f1f5f9";
+      node.style.whiteSpace = "pre-wrap";
+    });
+    wrapper.append(content);
+    document.body.append(wrapper);
+
+    const filename = "Melek_Abdelmaksoud_CV.pdf";
+    if (typeof html2pdf === "function") {
+      try {
+        const task = html2pdf().set({
+          margin: [12, 14, 12, 14],
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] }
+        }).from(wrapper).save();
+        Promise.resolve(task).then(() => toast("CV PDF generated from Melek AI’s response."))
+          .catch(error => {
+            console.warn("AI CV PDF generation failed:", error);
+            toast("Could not generate the PDF. Please try again.");
+          }).finally(() => wrapper.remove());
+        return;
+      } catch (error) {
+        console.warn("AI CV PDF generation failed:", error);
+      }
+    }
+
+    wrapper.remove();
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast("Allow pop-ups to print the AI-generated CV as PDF.");
+      return;
+    }
+    printWindow.document.write("<!doctype html><html><head><title>" + filename + "</title><style>body{font:14px/1.7 Arial,sans-serif;color:#172033;padding:28px}h1,h2,h3{color:#172033}a{color:inherit;text-decoration:none}pre,code{white-space:pre-wrap;background:#f1f5f9;padding:3px}</style></head><body>" + content.innerHTML + "</body></html>");
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 350);
+  }
+
   function formatTime(value) {
     if (!value) return "";
     const date = new Date(value.endsWith("Z") ? value : value + "Z");
@@ -201,6 +255,14 @@
     const text = document.createElement("div");
     text.className = "message-text";
     text.innerHTML = markdown(content);
+    if (role === "assistant") {
+      text.addEventListener("click", event => {
+        const cvLink = event.target.closest('a[href*="open_cv=1"][href*="download_cv=1"]');
+        if (!cvLink) return;
+        event.preventDefault();
+        downloadAiGeneratedCv(text);
+      });
+    }
     body.append(label, text);
     if (createdAt) {
       const time = document.createElement("time");
