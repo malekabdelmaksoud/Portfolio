@@ -1466,7 +1466,7 @@ async function transcribeAudioRequest(request, env) {
 
 async function assistant(request, env) {
   let body;
-  try { body = await readBody(request, 24000); }
+  try { body = await readBody(request, 80000); }
   catch { return json({ error: "Invalid request body." }, 400); }
 
   const question = String(body.question || "").trim().slice(0, 4000);
@@ -2497,7 +2497,10 @@ export default {
         return withCors(json({ title: share.title, prompt: share.prompt, messages, created_at: share.created_at }, 200, { "cache-control": "no-store" }), cors);
       }
       if (path === "/api/transcribe" && method === "POST") {
-        await getSession(request, env);
+        const identity = await getSession(request, env);
+        if (!await abuseCheck(env, "transcribe-user:" + identity.id, "transcribe-user", 40, 3600)) {
+          return withCors(json({ error: "Audio transcription limit reached for this hour. Please wait and try again.", code: "TRANSCRIBE_LIMIT" }, 429), cors);
+        }
         return withCors(await transcribeAudioRequest(request, env), cors);
       }
       if (path === "/api/assistant" && method === "POST") return withCors(await assistant(request, env), cors);
