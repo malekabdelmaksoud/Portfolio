@@ -52,25 +52,26 @@ after(async () => {
 
 test('AI chat renders safe Markdown links, lists, headings and code blocks', () => {
   const source = fs.readFileSync(path.join(root, 'account.js'), 'utf8');
-  const match = source.match(/function markdown\\(value\\) \\{[\\s\\S]*?\\n  \\}/);
+  const match = source.match(/function markdown\(value\) \{[\s\S]*?\n  \}/);
   assert.ok(match, 'account.js should define the chat Markdown renderer');
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
   const markdown = vm.runInNewContext('(' + match[0] + ')', { escapeHTML });
 
-  const cvHtml = markdown('**Melek CV**\\n[📄 Generate / download Melek’s CV (PDF)](https://portfolio.example/?open_cv=1&download_cv=1)');
-  assert.match(cvHtml, /<strong>Melek CV<\\/strong>/);
-  assert.match(cvHtml, /<a href="https:\\/\\/portfolio\\.example\\/\\?open_cv=1&amp;download_cv=1" target="_blank" rel="noopener noreferrer">/);
+  const cvHtml = markdown('**Melek CV**\n[📄 Generate / download Melek’s CV (PDF)](https://portfolio.example/?open_cv=1&download_cv=1)');
+  assert.match(cvHtml, /<strong>Melek CV<\/strong>/);
+  assert.match(cvHtml, /<a href="https:\/\/portfolio\.example\/\?open_cv=1&amp;download_cv=1" target="_blank" rel="noopener noreferrer">/);
 
-  const formatted = markdown('# Skills\\n- **Java**\\n- `PHP`\\n> Verified details');
-  assert.match(formatted, /<h1>Skills<\\/h1>/);
-  assert.match(formatted, /<ul><li><strong>Java<\\/strong><\\/li><li><code>PHP<\\/code><\\/li><\\/ul>/);
-  assert.match(formatted, /<blockquote>Verified details<\\/blockquote>/);
+  const formatted = markdown('# Skills\n- **Java**\n- ' + String.fromCharCode(96) + 'PHP' + String.fromCharCode(96) + '\n> Verified details');
+  assert.match(formatted, /<h1>Skills<\/h1>/);
+  assert.match(formatted, /<ul><li><strong>Java<\/strong><\/li><li><code>PHP<\/code><\/li><\/ul>/);
+  assert.match(formatted, /<blockquote>Verified details<\/blockquote>/);
 
-  const unsafe = markdown('[unsafe](javascript:alert(1))\\n\\`\\`\\`html\\n<script>alert(1)</script>\\n\\`\\`\\`');
+  const tick = String.fromCharCode(96);
+  const unsafe = markdown('[unsafe](javascript:alert(1))\n' + tick.repeat(3) + 'html\n<script>alert(1)</script>\n' + tick.repeat(3));
   assert.doesNotMatch(unsafe, /<a href="javascript:/i);
-  assert.match(unsafe, /&lt;script&gt;alert\\(1\\)&lt;\\/script&gt;/);
+  assert.match(unsafe, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
 
 test('CV URL opens the published CV modal automatically', async () => {
