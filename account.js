@@ -1249,9 +1249,9 @@
       recognition = new speech();
       const text = $("chat-input").value;
       const browserLanguage = navigator.language || "en-US";
-      recognition.lang = /[\u0600-\u06ff]/.test(text) || browserLanguage.toLowerCase().startsWith("ar")
-        ? "ar-TN"
-        : browserLanguage.toLowerCase().startsWith("fr") ? "fr-FR" : "en-US";
+      const tunisianLatinInput = /\b(chno|chnou|kifech|labes|tawa|nheb|n7eb|3lech|barcha|barsha|wa9tech)\b/i.test(text);
+      recognition.lang = /[\u0600-\u06ff]/.test(text) || tunisianLatinInput || browserLanguage.toLowerCase().startsWith("ar")
+        ? "ar-TN" : browserLanguage;
       recognition.interimResults = true;
       recognition.continuous = false;
       recognition.onstart = () => {
