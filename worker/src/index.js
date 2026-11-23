@@ -1292,18 +1292,18 @@ async function performFreeWebSearch(query) {
       const html = (await searchRes.text()).slice(0, 180000);
       const decode = value => String(value || "").replace(/<[^>]*>/g, " ")
         .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'")
-        .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\\s+/g, " ").trim();
-      const anchors = [...html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi)];
+        .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+      const anchors = [...html.matchAll(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi)];
       for (const match of anchors.slice(0, 5)) {
         let url = match[1].replace(/&amp;/g, "&");
         try {
           const parsed = new URL(url, "https://html.duckduckgo.com");
           if (parsed.hostname.endsWith("duckduckgo.com") && parsed.searchParams.has("uddg")) url = parsed.searchParams.get("uddg") || "";
         } catch (_) {}
-        if (!/^https:\\/\\//i.test(url) || results.some(item => item.url === url)) continue;
+        if (!/^https:\/\//i.test(url) || results.some(item => item.url === url)) continue;
         const title = decode(match[2]);
         const nearby = html.slice(Math.max(0, (match.index || 0) - 120), Math.min(html.length, (match.index || 0) + match[0].length + 1800));
-        const snippetMatch = nearby.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\\s\\S]*?)<\\/[^>]+>/i);
+        const snippetMatch = nearby.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/i);
         const snippet = decode(snippetMatch?.[1] || "");
         if (title) results.push({ title, snippet: snippet || "Web search result", url, source: "Web Search" });
       }
