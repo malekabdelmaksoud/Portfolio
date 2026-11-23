@@ -963,105 +963,6 @@
     return "[" + String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0") + "]";
   }
 
-  let displayAudioStream = null;
-  let tabAudioRecorder = null;
-  let tabTranscriptParts = [];
-  let tabTranscriptionQueue = Promise.resolve();
-  let tabChunkOffset = 0;
-
-  async function stopTabAudioCapture() {
-    const button = $("listen-tab-audio");
-    if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") {
-      button.textContent = "⌛ Processing audio…";
-      button.disabled = true;
-      tabAudioRecorder.stop();
-      return;
-    }
-    if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
-    displayAudioStream = null;
-    button.disabled = false;
-    button.classList.remove("selected");
-    button.textContent = "🌍 Listen to tab";
-  }
-
-  async function startTabAudioCapture() {
-    const button = $("listen-tab-audio");
-    if (!navigator.mediaDevices?.getDisplayMedia || !window.MediaRecorder) {
-      toast("Tab-audio capture is not supported here. Use Chrome or Edge on HTTPS.");
-      return;
-    }
-    try {
-      displayAudioStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      const audioTracks = displayAudioStream.getAudioTracks();
-      if (!audioTracks.length) {
-        displayAudioStream.getTracks().forEach(track => track.stop());
-        displayAudioStream = null;
-        toast("No tab audio was shared. Choose a YouTube browser tab and enable 'Share tab audio'.");
-        return;
-      }
-      const audioOnlyStream = new MediaStream(audioTracks);
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
-      tabAudioRecorder = new MediaRecorder(audioOnlyStream, { mimeType });
-      tabTranscriptParts = [];
-      tabTranscriptionQueue = Promise.resolve();
-      tabChunkOffset = 0;
-      tabAudioRecorder.ondataavailable = event => {
-        if (!event.data || event.data.size < 256) return;
-        const offset = tabChunkOffset;
-        tabChunkOffset += 25;
-        tabTranscriptionQueue = tabTranscriptionQueue.then(async () => {
-          const result = await transcribeAudioChunk(event.data);
-          if (result.text) {
-            const language = result.language ? " [language: " + result.language + "]" : "";
-            tabTranscriptParts.push(formatTranscriptTime(offset) + language + " " + result.text);
-          }
-        }).catch(error => { tabTranscriptParts.push("[Transcription issue at " + formatTranscriptTime(offset) + ": " + error.message + "]"); });
-      };
-      tabAudioRecorder.onerror = () => toast("The browser could not record this tab's audio.");
-      tabAudioRecorder.onstop = async () => {
-        try {
-          await tabTranscriptionQueue;
-          const transcript = tabTranscriptParts.join("\n").trim();
-          if (!transcript || !tabTranscriptParts.some(part => !part.startsWith("[Transcription issue"))) {
-            toast(transcript || "No speech was recognized. Check that the shared tab was playing audio.");
-          } else {
-            pendingAttachmentText = transcript.slice(0, 12000);
-            pendingAttachmentName = "YouTube tab audio transcript";
-            const firstLine = transcript.slice(0, 1200);
-            $("chat-input").value = /[\u0600-\u06ff]/.test(firstLine)
-              ? "حلّل الكلام المسموع في الفيديو، لخّص الأفكار الرئيسية واشرح التفاصيل، وجاوبني بالتونسي إذا الكلام تونسي."
-              : /\[language: fr\]/i.test(firstLine) ? "Analyse le contenu parlé de cette vidéo, résume les idées principales et explique les points importants."
-              : "Analyze this video's spoken content, summarize the key ideas and explain important details.";
-            $("chat-form").requestSubmit();
-          }
-        } catch (error) { toast(error.message); }
-        finally {
-          if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
-          displayAudioStream = null;
-          tabAudioRecorder = null;
-          button.disabled = false;
-          button.classList.remove("selected");
-          button.textContent = "🌍 Listen to tab";
-        }
-      };
-      tabAudioRecorder.start(25000);
-      button.classList.add("selected");
-      button.textContent = "■ Stop listening";
-      toast("Sharing started. Play the YouTube video in the shared tab. Audio is transcribed in 25-second segments; press Stop listening when finished.");
-      const videoTrack = displayAudioStream.getVideoTracks()[0];
-      if (videoTrack) videoTrack.addEventListener("ended", () => {
-        if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") tabAudioRecorder.stop();
-      }, { once: true });
-    } catch (error) {
-      if (displayAudioStream) displayAudioStream.getTracks().forEach(track => track.stop());
-      displayAudioStream = null;
-      button.textContent = "🌍 Listen to tab";
-      button.classList.remove("selected");
-      if (error.name !== "NotAllowedError") toast(error.message || "Could not start tab audio capture.");
-    }
-  }
-
-
   let micWhisperStream = null;
   let micWhisperRecorder = null;
   let micWhisperParts = [];
@@ -1141,11 +1042,6 @@
       toast(error.message || "Microphone permission is required.");
     }
   }
-
-  $("listen-tab-audio")?.addEventListener("click", () => {
-    if (tabAudioRecorder && tabAudioRecorder.state !== "inactive") stopTabAudioCapture();
-    else startTabAudioCapture();
-  });
 
   $("audio-upload-button")?.addEventListener("click", () => $("audio-upload")?.click());
   $("audio-upload")?.addEventListener("change", async event => {
