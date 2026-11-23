@@ -433,7 +433,7 @@
           history.unshift({ role: previous.classList.contains("user") ? "user" : "assistant", content: previous.querySelector(".message-text")?.textContent || "" });
           previous = previous.previousElementSibling;
         }
-        const response = await fetch(base + "/api/assistant", { method: "POST", credentials: "include", headers: { "content-type": "application/json", "accept": "application/json" }, body: JSON.stringify({ question: content, mode, history: history.slice(-12), model_id: selectedModel }) });
+        const response = await fetch(base + "/api/assistant", { method: "POST", credentials: "include", headers: { "content-type": "application/json", "accept": "application/json" }, body: JSON.stringify({ question: content, chat_id: active, mode, history: history.slice(-12), model_id: selectedModel }) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || "The AI service is unavailable.");
         const answer = typeof data.answer === "string" ? data.answer : "No response available.";
@@ -483,6 +483,7 @@
         headers: { "content-type": "application/json", "accept": "text/event-stream, application/json" },
         body: JSON.stringify({
           question,
+          chat_id: active,
           mode,
           history,
           context,
