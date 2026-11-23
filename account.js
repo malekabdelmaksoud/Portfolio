@@ -592,6 +592,7 @@
       $("send-message").disabled = false;
       $("stop-generation").hidden = true;
       input.focus();
+      if (voiceSession && !recognition && !speechSynthesis?.speaking && !speechSynthesis?.pending) setTimeout(startVoiceCapture, 350);
     }
   }
 
@@ -621,7 +622,7 @@
       showStopVocal(false);
       if (voiceSession) setTimeout(startVoiceCapture, 350);
     };
-    utterance.onerror = () => showStopVocal(false);
+    utterance.onerror = () => { showStopVocal(false); if (voiceSession) setTimeout(startVoiceCapture, 700); };
     speechSynthesis.speak(utterance);
   }
 
@@ -1003,7 +1004,10 @@
     try {
       recognition = new speech();
       const text = $("chat-input").value;
-      recognition.lang = /[\\u0600-\\u06ff]/.test(text) || (navigator.language || "").startsWith("ar") ? "ar-TN" : /[a-z]/i.test(text) ? "fr-FR" : "en-US";
+      const browserLanguage = navigator.language || "en-US";
+      recognition.lang = /[\u0600-\u06ff]/.test(text) || browserLanguage.toLowerCase().startsWith("ar")
+        ? "ar-TN"
+        : browserLanguage.toLowerCase().startsWith("fr") ? "fr-FR" : "en-US";
       recognition.interimResults = true;
       recognition.continuous = false;
       recognition.onstart = () => {
