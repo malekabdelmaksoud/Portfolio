@@ -1434,6 +1434,8 @@ async function performFreeWebSearch(query) {
 
 
 async function transcribeAudioRequest(request, env) {
+  const pausedResponse=await aiServicePausedResponse(env);
+  if(pausedResponse) return pausedResponse;
   if (!env.AI || typeof env.AI.run !== "function") return json({ error: "Speech recognition is temporarily unavailable.", code: "AI_UNAVAILABLE" }, 503);
   let form;
   try { form = await request.formData(); } catch (_) { return json({ error: "A multipart audio upload is required." }, 400); }
@@ -1461,6 +1463,9 @@ async function transcribeAudioRequest(request, env) {
       })) : []
     });
   } catch (error) {
+    await pauseAIServiceIfQuotaExhausted(env,error);
+    const pausedResponse=await aiServicePausedResponse(env);
+    if(pausedResponse) return pausedResponse;
     console.error("Audio transcription failed:", error?.message || error);
     return json({ error: "Speech recognition could not process this audio. Try a shorter or clearer recording.", code: "TRANSCRIPTION_FAILED" }, 502);
   }
@@ -1532,6 +1537,41 @@ function estimateTokenCount(text) {
   const value=String(text||"");
   return value ? Math.max(1,Math.ceil(value.length/4)) : 0;
 }
+function isDailyAIQuotaError(error) {
+  const message=String(error?.message||error||"").toLowerCase();
+  const status=Number(error?.status||error?.statusCode||error?.response?.status||0);
+  return status===429 || /(?:daily|free tier|free plan|account).{0,50}(?:quota|limit|exhaust|exceed)|(?:quota|neurons).{0,50}(?:exhaust|exceed|limit|daily)|exceed.{0,50}(?:quota|limit|neurons)|workers ai.{0,50}(?:quota|limit)/i.test(message);
+}
+async function getAIServicePause(env) {
+  try {
+    const row=await env.DB.prepare("SELECT paused_until FROM ai_service_guard WHERE service='workers_ai_global'").first();
+    if(row?.paused_until && row.paused_until>new Date().toISOString()) return row.paused_until;
+  } catch(error) { console.error("AI guard read failed:",error?.message||error); }
+  return null;
+}
+async function aiServicePausedResponse(env) {
+  const pausedUntil=await getAIServicePause(env);
+  return pausedUntil ? json({
+    error:"The free daily AI allowance has been used. AI features will resume automatically after the daily reset.",
+    code:"AI_DAILY_QUOTA_EXHAUSTED", paused_until:pausedUntil, retryable:true
+  },503) : null;
+}
+async function pauseAIServiceIfQuotaExhausted(env,error) {
+  if(!isDailyAIQuotaError(error)) return false;
+  const now=new Date();
+  const nextReset=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1)).toISOString();
+  try {
+    await env.DB.prepare(
+      "INSERT INTO ai_service_guard(service,paused_until,reason,updated_at) VALUES('workers_ai_global',?,'daily_quota_exhausted',CURRENT_TIMESTAMP) " +
+      "ON CONFLICT(service) DO UPDATE SET paused_until=excluded.paused_until,reason=excluded.reason,updated_at=CURRENT_TIMESTAMP"
+    ).bind(nextReset).run();
+    console.warn("Workers AI paused globally after daily quota exhaustion until",nextReset);
+    return true;
+  } catch(dbError) {
+    console.error("Could not persist AI quota pause:",dbError?.message||dbError);
+    return false;
+  }
+}
 async function recordAIUsage(env,identity,model,mode,inputTokens,outputTokens) {
   try {
     const input=Math.max(0,Math.floor(inputTokens||0)),output=Math.max(0,Math.floor(outputTokens||0));
@@ -1572,6 +1612,8 @@ async function listAdminGitHubRepositories(env) {
 }
 
 async function assistant(request, env, identity) {
+  const pausedResponse=await aiServicePausedResponse(env);
+  if(pausedResponse) return pausedResponse;
   let body;
   try { body = await readBody(request, 80000); }
   catch { return json({ error: "Invalid request body." }, 400); }
@@ -1799,7 +1841,10 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
           }
         });
       }
-    } catch (_) {
+    } catch (streamError) {
+      await pauseAIServiceIfQuotaExhausted(env,streamError);
+      const pausedResponse=await aiServicePausedResponse(env);
+      if(pausedResponse) return pausedResponse;
     }
   }
 
@@ -1830,6 +1875,9 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
       grounded_by_portfolio: selected.length > 0 || Boolean(publishedPortfolioContext)
     });
   } catch (error) {
+    await pauseAIServiceIfQuotaExhausted(env,error);
+    const pausedResponse=await aiServicePausedResponse(env);
+    if(pausedResponse) return pausedResponse;
     return json({
       error: "Melek AI could not generate a response right now. Please retry shortly.",
       code: error.code || "WORKERS_AI_FAILED",
