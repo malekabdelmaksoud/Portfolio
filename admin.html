@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#14211e">
-  <title>Administration — Portfolio</title>
+  <meta name="theme-color" content="#0b1220">
+  <title>Admin Studio — Melek Portfolio</title>
   <link rel="stylesheet" href="admin.css">
   <script src="api-config.js"></script>
   <script>if (window.PORTFOLIO_API_BASE && new URL(window.PORTFOLIO_API_BASE, window.location.href).origin !== window.location.origin) window.location.replace(new URL("/admin.html", window.PORTFOLIO_API_BASE).href);</script>
@@ -16,14 +16,14 @@
   <main class="shell">
     <section class="intro"><p class="eyebrow">ESPACE PRIVÉ · CLOUDFLARE ACCESS</p><h1>Content studio</h1><p>Gérez les informations publiques et les projets du portfolio. Une information n'est publiée qu'après validation explicite.</p></section>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button><button class="tab" data-tab="backups">Sauvegardes & Restauration <span id="backupCount">—</span></button></nav>
+    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button><button class="tab" data-tab="learning">Auto-learning web <span id="learningCount">—</span></button></nav>
     <section id="factsPanel" class="panel">
       <div class="panel-head"><div><p class="eyebrow">ASSISTANT PORTFOLIO</p><h2>Informations approuvées</h2><p>Les faits approuvés peuvent être utilisés par l'assistant. Les autres restent privés.</p></div><button id="newFact" class="primary">＋ Nouvelle information</button></div>
       <form id="factForm" class="editor" hidden>
         <div class="form-head"><h3 id="factFormTitle">Nouvelle information</h3><button type="button" class="ghost" data-cancel="fact">Fermer</button></div>
         <div class="fields two">
           <label>ID unique<input name="id" required pattern="[a-zA-Z0-9_-]{2,80}" placeholder="fact-001"></label>
-          <label>Catégorie<select name="category"><option value="profile">Profil</option><option value="education">Formation</option><option value="skills">Compétences</option><option value="experience">Expérience</option><option value="project">Projet</option><option value="languages">Langues</option><option value="contact">Contact</option></select></label>
+          <label>Catégorie<select name="category"><option value="profile">Profil</option><option value="education">Formation</option><option value="skills">Compétences</option><option value="experience">Expérience</option><option value="project">Projet</option><option value="languages">Langues</option><option value="certifications">Certificats</option><option value="achievements">Réalisations</option><option value="contact">Contact</option></select></label>
         </div>
         <div class="fields two"><label>Texte français<textarea name="text_fr" rows="3" required maxlength="3000"></textarea></label><label>English text<textarea name="text_en" rows="3" required maxlength="3000"></textarea></label></div><label>النص العربي<textarea name="text_ar" rows="3" dir="rtl" required maxlength="3000"></textarea></label>
         <label>Alias de recherche (séparés par des virgules)<input name="aliases" placeholder="stage, internship, تربص"></label>
@@ -36,6 +36,11 @@
     </section>
     <section id="projectsPanel" class="panel" hidden>
       <div class="panel-head"><div><p class="eyebrow">PORTFOLIO PUBLIC</p><h2>Projets</h2><p>Les projets visibles apparaissent dans la grille publique du portfolio.</p></div><button id="newProject" class="primary">＋ Nouveau projet</button></div>
+      <section class="github-import" aria-labelledby="githubImportTitle">
+        <div class="github-import-copy"><span class="github-mark">GH</span><div><p class="eyebrow">GITHUB · IMPORT AUTOMATIQUE</p><h3 id="githubImportTitle">Importer un repository</h3><p>Collez le lien GitHub public. Le système lit le README et prépare une fiche projet bilingue que vous pouvez vérifier avant publication.</p></div></div>
+        <div class="github-import-row"><label class="sr-only" for="githubRepoUrl">Lien du repository GitHub</label><input id="githubRepoUrl" type="url" placeholder="https://github.com/username/project" autocomplete="url"><button id="importGithubRepo" class="primary" type="button">Importer depuis GitHub <span aria-hidden="true">↗</span></button></div>
+        <p id="githubImportStatus" class="github-import-status" role="status" aria-live="polite">Les repositories publics sont pris en charge. Vérifiez toujours le texte généré avant de publier.</p>
+      </section>
       <form id="projectForm" class="editor" hidden>
         <div class="form-head"><h3 id="projectFormTitle">Nouveau projet</h3><button type="button" class="ghost" data-cancel="project">Fermer</button></div>
         <div class="fields two"><label>ID unique<input name="id" required pattern="[a-zA-Z0-9_-]{2,80}" placeholder="project-006"></label><label>Nom du projet<input name="title" required maxlength="200"></label></div>
@@ -47,45 +52,10 @@
       </form>
       <div id="projectsList" class="records" aria-live="polite"><p class="muted">Chargement…</p></div>
     </section>
-    <section id="backupsPanel" class="panel" hidden>
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">SÉCURITÉ & CONTINUITÉ</p>
-          <h2>Sauvegardes automatiques & Restauration</h2>
-          <p>Sauvegardes chiffrées (AES-256-GCM) de D1 stockées hors base. Restauration avec contrôle d'intégrité SHA-256.</p>
-        </div>
-        <div class="panel-actions">
-          <button id="triggerBackup" class="primary" type="button">＋ Nouvelle sauvegarde</button>
-        </div>
-      </div>
-      <div class="backup-stats" style="display:flex;gap:1rem;margin:1rem 0;flex-wrap:wrap">
-        <div class="stat-card" style="padding:1rem;border:1px solid #233;border-radius:8px;background:#14211e;flex:1;min-width:180px">
-          <div style="font-size:0.75rem;color:#7aa;letter-spacing:0.05em">DERNIÈRE SAUVEGARDE</div>
-          <div id="backupLatestDate" style="font-weight:600;margin-top:6px;font-size:0.95rem">—</div>
-        </div>
-        <div class="stat-card" style="padding:1rem;border:1px solid #233;border-radius:8px;background:#14211e;flex:1;min-width:180px">
-          <div style="font-size:0.75rem;color:#7aa;letter-spacing:0.05em">STATUT DU SYSTÈME</div>
-          <div id="backupLatestStatus" style="font-weight:600;margin-top:6px;font-size:0.95rem">—</div>
-        </div>
-        <div class="stat-card" style="padding:1rem;border:1px solid #233;border-radius:8px;background:#14211e;flex:1;min-width:180px">
-          <div style="font-size:0.75rem;color:#7aa;letter-spacing:0.05em">STOCKAGE EXTERNE R2</div>
-          <div id="backupR2Status" style="font-weight:600;margin-top:6px;font-size:0.95rem">—</div>
-        </div>
-      </div>
-      <div id="backupsList" class="records" aria-live="polite"><p class="muted">Chargement…</p></div>
-      <div class="editor" style="margin-top:2rem;border-color:#533;background:#1a1414;padding:1.5rem;border-radius:8px">
-        <div class="form-head"><h3 style="color:#f88">Restauration d'urgence (Disaster Recovery)</h3></div>
-        <p style="font-size:0.88rem;color:#ecc;margin-bottom:1rem">La restauration écrasera les données de D1 avec la sauvegarde choisie. Testez obligatoirement en simulation (Dry Run) avant toute exécution réelle.</p>
-        <div class="fields two">
-          <label>Clé de sauvegarde dans R2<input id="restoreKey" placeholder="backup-2026-....enc"></label>
-          <label>Phrase de confirmation requise pour restauration réelle<input id="restoreConfirmation" placeholder="CONFIRM_RESTORE_OVERWRITE_PRODUCTION"></label>
-        </div>
-        <div class="form-actions" style="margin-top:1rem">
-          <button id="btnRestoreDryRun" type="button" class="ghost">Tester la restauration (Dry Run)</button>
-          <button id="btnRestoreLive" type="button" class="primary" style="background:#b33" disabled>Exécuter la restauration réelle</button>
-        </div>
-        <div id="restoreOutput" style="margin-top:1rem;font-family:monospace;font-size:0.85rem;white-space:pre-wrap;color:#aed;background:#0f1514;padding:0.75rem;border-radius:6px" hidden></div>
-      </div>
+    <section id="learningPanel" class="panel" hidden>
+      <div class="panel-head"><div><p class="eyebrow">MELEKGPT · RAG AUTOMATIQUE</p><h2>Apprentissage web</h2><p>Le système actualise quotidiennement des sources publiques de confiance. Les extraits sont utilisés comme références, jamais comme instructions ni comme faits personnels.</p></div><button id="refreshLearning" class="primary">↻ Actualiser maintenant</button></div>
+      <div id="learningSummary" class="learning-summary"><p class="muted">Chargement de l'état d'apprentissage…</p></div>
+      <div id="learningList" class="records" aria-live="polite"><p class="muted">Chargement des sources…</p></div>
     </section>
     <footer>Les modifications sont enregistrées dans Cloudflare D1. L'accès administrateur est contrôlé côté serveur via Cloudflare Access.</footer>
   </main>
