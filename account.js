@@ -7,6 +7,23 @@
     if(response.status===401||response.status===403)throw new Error("Votre session Cloudflare Access n'est pas active. Rechargez la page et terminez la connexion par e-mail.");
     const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Erreur du serveur.");return data;
   };
+  // Appearance: follow the phone by default, with a manual System / Light / Dark cycle.
+  const themeButton=$("theme-toggle");
+  function applyTheme(theme){
+    if(theme==="system"){document.body.removeAttribute("data-theme");}
+    else{document.body.setAttribute("data-theme",theme);}
+    const labels={system:["◐","Thème : système"],light:["☀","Thème : clair"],dark:["☾","Thème : sombre"]};
+    const [symbol,label]=labels[theme]||labels.system;
+    themeButton.textContent=symbol;themeButton.title=label;themeButton.setAttribute("aria-label",label);
+    try{localStorage.setItem("melek-ai-theme",theme);}catch(_){}
+  }
+  let currentTheme="system";
+  try{const saved=localStorage.getItem("melek-ai-theme");if(["system","light","dark"].includes(saved))currentTheme=saved;}catch(_){}
+  applyTheme(currentTheme);
+  themeButton.addEventListener("click",()=>{
+    currentTheme=currentTheme==="system"?"light":currentTheme==="light"?"dark":"system";
+    applyTheme(currentTheme);
+  });
   function toast(message){$("toast").textContent=message;$("toast").classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>$("toast").classList.remove("show"),3000);}
   function escapeHTML(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function renderText(value){return escapeHTML(value).split("\n").map(line=>"<p>"+line+"</p>").join("");}
