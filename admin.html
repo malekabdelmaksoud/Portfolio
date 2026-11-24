@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#14211e">
-  <title>Administration — Portfolio</title>
+  <meta name="theme-color" content="#0b1220">
+  <title>Admin Studio — Melek Portfolio</title>
   <link rel="stylesheet" href="admin.css">
   <script src="api-config.js"></script>
   <script>if (window.PORTFOLIO_API_BASE && new URL(window.PORTFOLIO_API_BASE, window.location.href).origin !== window.location.origin) window.location.replace(new URL("/admin.html", window.PORTFOLIO_API_BASE).href);</script>
@@ -36,6 +36,11 @@
     </section>
     <section id="projectsPanel" class="panel" hidden>
       <div class="panel-head"><div><p class="eyebrow">PORTFOLIO PUBLIC</p><h2>Projets</h2><p>Les projets visibles apparaissent dans la grille publique du portfolio.</p></div><button id="newProject" class="primary">＋ Nouveau projet</button></div>
+      <section class="github-import" aria-labelledby="githubImportTitle">
+        <div class="github-import-copy"><span class="github-mark">GH</span><div><p class="eyebrow">GITHUB · IMPORT AUTOMATIQUE</p><h3 id="githubImportTitle">Importer un repository</h3><p>Collez le lien GitHub public. Le système lit le README et prépare une fiche projet bilingue que vous pouvez vérifier avant publication.</p></div></div>
+        <div class="github-import-row"><label class="sr-only" for="githubRepoUrl">Lien du repository GitHub</label><input id="githubRepoUrl" type="url" placeholder="https://github.com/username/project" autocomplete="url"><button id="importGithubRepo" class="primary" type="button">Importer depuis GitHub <span aria-hidden="true">↗</span></button></div>
+        <p id="githubImportStatus" class="github-import-status" role="status" aria-live="polite">Les repositories publics sont pris en charge. Vérifiez toujours le texte généré avant de publier.</p>
+      </section>
       <form id="projectForm" class="editor" hidden>
         <div class="form-head"><h3 id="projectFormTitle">Nouveau projet</h3><button type="button" class="ghost" data-cancel="project">Fermer</button></div>
         <div class="fields two"><label>ID unique<input name="id" required pattern="[a-zA-Z0-9_-]{2,80}" placeholder="project-006"></label><label>Nom du projet<input name="title" required maxlength="200"></label></div>
