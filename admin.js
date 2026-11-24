@@ -49,9 +49,9 @@ async function importGithubProject(){
  const input=$("#githubRepoUrl"),status=$("#githubImportStatus"),btn=$("#importGithubRepo");
  const raw=input.value.trim();let url;
  try{url=new URL(raw);}catch{status.textContent="Entrez un lien GitHub valide.";status.className="github-import-status error";return;}
- const match=url.hostname==="github.com"&&url.pathname.match(/^\\/([^/]+)\\/([^/]+)\\/?$/);
+ const match=url.hostname==="github.com"&&url.pathname.match(/^\/([^/]+)\/([^/]+)\/?$/);
  if(!match){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
- const owner=match[1],repo=match[2].replace(/\\.git$/,"");
+ const owner=match[1],repo=match[2].replace(/\.git$/,"");
  btn.disabled=true;btn.textContent="Lecture du repository…";status.className="github-import-status";status.textContent="Récupération des informations GitHub et du README…";
  try{
   const headers={Accept:"application/vnd.github+json"};
@@ -61,7 +61,7 @@ async function importGithubProject(){
   if(meta.private)throw new Error("Ce repository est privé. L'import public ne peut pas y accéder.");
   let readme="";
   const readmeResponse=await fetch("https://api.github.com/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo)+"/readme",{headers});
-  if(readmeResponse.ok){const data=await readmeResponse.json();if(data.content)readme=atob(data.content.replace(/\\s/g,""));if(data.encoding==="base64")readme=decodeURIComponent(escape(readme));}
+  if(readmeResponse.ok){const data=await readmeResponse.json();if(data.content)readme=atob(data.content.replace(/\s/g,""));if(data.encoding==="base64")readme=decodeURIComponent(escape(readme));}
   const id=(owner+"-"+repo).toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,70);
   const result=await api("/api/admin/projects/describe",{method:"POST",body:JSON.stringify({name:meta.name||repo,fullName:meta.full_name||owner+"/"+repo,description:meta.description||"",language:meta.language||"",topics:meta.topics||[],url:meta.html_url,homepage:meta.homepage||"",readme:readme.slice(0,12000)})});
   const form=$("#projectForm");form.hidden=false;form.reset();state.editingProject=null;
