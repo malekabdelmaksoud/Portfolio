@@ -1592,7 +1592,10 @@ function trackAIStream(stream,env,identity,model,mode,inputTokens) {
         }
         if(part.value) outputChars+=decoder.decode(part.value,{stream:true}).length;
         controller.enqueue(part.value);
-      } catch(error) { controller.error(error); }
+      } catch(error) {
+        await pauseAIServiceIfQuotaExhausted(env,error);
+        controller.error(error);
+      }
     },
     async cancel(reason) {
       try { await reader.cancel(reason); } catch(_) {}
