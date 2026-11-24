@@ -1566,7 +1566,7 @@ async function listAdminGitHubRepositories(env) {
   const raw=await safeApiFetch("https://api.github.com/users/"+encodeURIComponent(owner)+"/repos?per_page=100&sort=updated&direction=desc",env,"application/vnd.github+json");
   const data=parseJsonText(raw,null);
   if(!Array.isArray(data)) throw apiError("GitHub repositories could not be loaded.","GITHUB_API_FAILURE",502);
-  return data.filter(repo=>repo && repo.private!==true && repo.fork!==true && repo.archived!==true)
+  return data.filter(repo=>repo && repo.private!==true)
     .map(repo=>({name:sanitizeRepositoryText(repo.name,100),full_name:sanitizeRepositoryText(repo.full_name,180),url:"https://github.com/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo.name),language:sanitizeRepositoryText(repo.language||"Repository",60),description:sanitizeRepositoryText(repo.description||"",220),updated_at:String(repo.updated_at||"").slice(0,10)}))
     .filter(repo=>repo.name&&repo.full_name&&repo.url);
 }
