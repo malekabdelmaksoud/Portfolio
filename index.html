@@ -32,12 +32,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=15.0">
+<link rel="stylesheet" href="style.css?v=16.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
 <a class="brand" href="#accueil" aria-label="Melek Abdelmaksoud — Accueil">Melek<span>.</span></a>
-<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
+<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
 <div class="nav-links" id="navLinks">
 <a href="#apropos" data-fr="À propos" data-en="About">À propos</a>
 <a href="#competences" data-fr="Compétences" data-en="Skills">Compétences</a>
@@ -49,7 +55,7 @@
 <button type="button" class="lang-btn active" data-lang="fr" aria-pressed="true">FR</button>
 <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
 </div>
-<button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme">◐</button>
+<button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme: Obsidian / Daylight / Atelier">🌙 Obsidian</button>
 <div id="navUserSlot" style="margin-left:8px"></div>
 </div>
 </nav></header>
@@ -80,7 +86,8 @@
 <article class="skill-card"><div class="skill-icon">⌘</div><h3 data-fr="Langages" data-en="Programming languages">Langages</h3><p id="skillsLangagesList">C · C# · Java · Python · JavaScript · PHP</p></article>
 <article class="skill-card"><div class="skill-icon">▤</div><h3>Web</h3><p id="skillsWebList">HTML · CSS · Angular</p></article>
 <article class="skill-card"><div class="skill-icon">⚙</div><h3 data-fr="Frameworks & outils" data-en="Frameworks & tools">Frameworks & outils</h3><p id="skillsFrameworksList">Laravel · Symfony · Spring Boot · .NET · Android Studio</p></article>
-<article class="skill-card"><div class="skill-icon">⌁</div><h3 data-fr="Systèmes & réseaux" data-en="Systems & networking">Systèmes & réseaux</h3><p id="skillsSystemesList" data-fr="Maintenance informatique · Câblage réseau · OCS Inventory" data-en="IT support · Network cabling · OCS Inventory">Maintenance informatique · Câblage réseau · OCS Inventory</p></article>\n<article class="skill-card"><div class="skill-icon">✧</div><h3 data-fr="IA & applications intelligentes" data-en="AI & intelligent applications">IA & applications intelligentes</h3><p data-fr="Domaine en cours d'exploration · apprentissage par projets" data-en="Area of exploration · learning through projects">Domaine en cours d'exploration · apprentissage par projets</p></article>
+<article class="skill-card"><div class="skill-icon">⌁</div><h3 data-fr="Systèmes & réseaux" data-en="Systems & networking">Systèmes & réseaux</h3><p id="skillsSystemesList" data-fr="Maintenance informatique · Câblage réseau · OCS Inventory" data-en="IT support · Network cabling · OCS Inventory">Maintenance informatique · Câblage réseau · OCS Inventory</p></article>
+<article class="skill-card"><div class="skill-icon">✧</div><h3 data-fr="IA & applications intelligentes" data-en="AI & intelligent applications">IA & applications intelligentes</h3><p data-fr="Domaine en cours d'exploration · apprentissage par projets" data-en="Area of exploration · learning through projects">Domaine en cours d'exploration · apprentissage par projets</p></article>
 </div>
 <div class="soft-skills"><strong data-fr="Qualités professionnelles" data-en="Professional strengths">Qualités professionnelles</strong><span data-fr="Travail en équipe" data-en="Teamwork">Travail en équipe</span><span data-fr="Autonomie" data-en="Autonomy">Autonomie</span><span data-fr="Leadership" data-en="Leadership">Leadership</span><span data-fr="Adaptabilité" data-en="Adaptability">Adaptabilité</span></div></section>
 <section class="section soft-bg" id="experiences"><div class="container"><p class="eyebrow" data-fr="03 / EXPÉRIENCES" data-en="03 / EXPERIENCE">03 / EXPÉRIENCES</p><h2 class="section-title" data-fr="Apprendre sur le terrain." data-en="Learning through experience.">Apprendre sur le terrain.</h2><div class="timeline">
@@ -124,7 +131,7 @@
   <header class="ai-workspace-topbar">
     <span class="ai-workspace-brand"><span aria-hidden="true">✦</span> MELEK AI</span>
     <div class="ai-workspace-tools">
-      <a id="aiWorkspaceNewTab" href="https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/login.html"
+      <a id="aiWorkspaceNewTab" href="https://melek-portfolio-api.melekabdelmaksoud72.workers.dev/account.html"
          target="_blank" rel="noopener noreferrer">Open full page ↗</a>
       <button class="ai-workspace-close" id="aiWorkspaceClose" type="button"
               aria-label="Close AI workspace" title="Close">×</button>

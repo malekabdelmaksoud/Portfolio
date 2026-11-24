@@ -16,46 +16,339 @@
   let autoSpeak = false;
   let usedVoice = false;
   let voiceSession = false;
+  let voiceState = "idle"; // "idle", "listening", "thinking", "speaking", "paused"
+  let isSubmittingVoice = false;
+  let voiceRestartTimer = null;
+  let ttsKeepaliveTimer = null;
+  let ttsWatchdogTimer = null;
+  let ttsGenerationId = 0;
+  let voiceNetworkFailures = 0;
+  let cachedVoices = [];
   let selectedModel = "@cf/meta/llama-3.1-8b-instruct";
   let googleSignInPromise = null;
   try { autoSpeak = localStorage.getItem("portfolio-auto-speak") === "1"; } catch (_) {}
-  if ($("voice-auto")) $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
+  if ($("voice-auto")) {
+    $("voice-auto").setAttribute("aria-pressed", autoSpeak ? "true" : "false");
+    $("voice-auto").classList.toggle("selected", autoSpeak);
+  }
+
+  function refreshVoices() {
+    if (!("speechSynthesis" in window)) return;
+    try { cachedVoices = speechSynthesis.getVoices() || []; } catch (_) {}
+  }
+  if ("speechSynthesis" in window) {
+    refreshVoices();
+    if ("onvoiceschanged" in speechSynthesis) {
+      speechSynthesis.onvoiceschanged = refreshVoices;
+    }
+  }
+
+  function unlockSpeechSynthesis() {
+    if (!("speechSynthesis" in window)) return;
+    try {
+      const unlock = new SpeechSynthesisUtterance("");
+      unlock.volume = 0;
+      speechSynthesis.speak(unlock);
+    } catch (_) {}
+  }
+
+  function cancelSpeech() {
+    ttsGenerationId++;
+    clearInterval(ttsKeepaliveTimer);
+    clearTimeout(ttsWatchdogTimer);
+    if ("speechSynthesis" in window) {
+      try { speechSynthesis.cancel(); } catch (_) {}
+    }
+  }
 
   function showStopVocal(show) {
     const btn = $("stop-vocal");
     if (btn) btn.hidden = !show;
   }
 
-  let accountTheme = "system";
-  try {
-    const savedTheme = localStorage.getItem("portfolio-theme");
-    if (["system", "dark", "light"].includes(savedTheme)) accountTheme = savedTheme;
-  } catch (_) {}
-  const themeButtons = [$("account-theme"), $("mobile-theme")].filter(Boolean);
+  function setVoiceState(state, message) {
+    voiceState = state;
+    const bar = $("voice-bar");
+    const indicator = $("voice-indicator");
+    const stateText = $("voice-state-text");
+    const pauseBtn = $("voice-pause-btn");
+    const resumeBtn = $("voice-resume-btn");
+    const micBtn = $("mic-button");
+    const toggleBtn = $("voice-session-btn");
+
+    if (toggleBtn) {
+      toggleBtn.setAttribute("aria-pressed", voiceSession ? "true" : "false");
+      toggleBtn.classList.toggle("selected", voiceSession);
+    }
+
+    if (!voiceSession) {
+      if (bar) bar.hidden = true;
+      if (micBtn) micBtn.classList.remove("recording");
+      showStopVocal(false);
+      return;
+    }
+
+    if (bar) bar.hidden = false;
+    if (indicator) {
+      indicator.className = "voice-pulse-ring " + (state !== "idle" ? state : "");
+    }
+
+    if (micBtn) {
+      micBtn.classList.toggle("recording", state === "listening");
+    }
+
+    if (pauseBtn && resumeBtn) {
+      if (state === "paused") {
+        pauseBtn.hidden = true;
+        resumeBtn.hidden = false;
+      } else {
+        pauseBtn.hidden = false;
+        resumeBtn.hidden = true;
+      }
+    }
+
+    showStopVocal(state === "speaking");
+
+    if (stateText) {
+      if (message) {
+        stateText.textContent = message;
+      } else if (state === "listening") {
+        stateText.textContent = "🎙 Écoute en cours… Parlez naturellement";
+      } else if (state === "thinking") {
+        stateText.textContent = "⏳ Melek AI réfléchit…";
+      } else if (state === "speaking") {
+        stateText.textContent = "🔊 Melek AI parle… (Cliquez sur le micro pour interrompre)";
+      } else if (state === "paused") {
+        stateText.textContent = "⏸ Mode vocal en pause";
+      } else {
+        stateText.textContent = "Mode vocal actif";
+      }
+    }
+  }
+
+  function detectBestLanguage(sampleText) {
+    const selector = $("voice-lang-select");
+    const manualLang = selector ? selector.value : "auto";
+    if (manualLang && manualLang !== "auto") return manualLang;
+
+    const text = String(sampleText || "").trim();
+    if (/[\u0600-\u06ff]/.test(text)) return "ar-TN";
+    if (/\b(ch(now|nou|nawa)|chnoua|kifech|kifach|labes|lebes|bahi|behi|tawa|taw|nheb|n7eb|3lech|alech|3andi|andi|chbik|chnowa|aaychek|yesser|barsha|barcha|mrigel|mrigla)\b/i.test(text)) return "ar-TN";
+    if (/[éèêëàâçîïôûù]/i.test(text) || /\b(bonjour|salut|comment|pourquoi|merci|projet|qui|est|sont|faire)\b/i.test(text)) return "fr-FR";
+    if (/\b(the|and|with|for|project|skills|experience|hello|what|who|where|how)\b/i.test(text)) return "en-US";
+
+    const navLang = navigator.language || "";
+    if (navLang.startsWith("ar")) return "ar-TN";
+    if (navLang.startsWith("fr")) return "fr-FR";
+    return "en-US";
+  }
+
+  function getRecentConversationText() {
+    const messages = $("messages") ? [...$("messages").querySelectorAll(".message-text")] : [];
+    if (!messages.length) return "";
+    return messages.slice(-3).map(m => m.textContent || "").join(" ");
+  }
+
+  function startVoiceCapture() {
+    if (!speech || !voiceSession || sending || isSubmittingVoice || voiceState === "paused") return;
+    if (recognition) {
+      try { recognition.onend = null; recognition.onerror = null; recognition.stop(); } catch (_) {}
+      recognition = null;
+    }
+    cancelSpeech();
+
+    try {
+      recognition = new speech();
+      const sample = ($("chat-input").value || getRecentConversationText() || "");
+      const chosenLang = detectBestLanguage(sample);
+      recognition.lang = chosenLang;
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+
+      let recognizedSpeech = "";
+      let fatalError = false;
+
+      recognition.onstart = () => {
+        voiceNetworkFailures = 0;
+        setVoiceState("listening");
+      };
+
+      recognition.onresult = event => {
+        let interim = "";
+        let finalChunk = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const trans = event.results[i][0]?.transcript || "";
+          if (event.results[i].isFinal) {
+            finalChunk += trans;
+          } else {
+            interim += trans;
+          }
+        }
+        if (finalChunk) recognizedSpeech = (recognizedSpeech + " " + finalChunk).trim();
+        const display = (recognizedSpeech + (interim ? " " + interim : "")).trim();
+        if (display) $("chat-input").value = display;
+      };
+
+      recognition.onerror = event => {
+        if (["not-allowed", "service-not-allowed", "audio-capture"].includes(event.error)) {
+          fatalError = true;
+          toast("Microphone non disponible ou permission refusée. Autorisez le micro dans votre navigateur.");
+          stopVoiceSession();
+          return;
+        }
+        if (event.error === "network") {
+          voiceNetworkFailures++;
+          if (voiceNetworkFailures >= 2) {
+            fatalError = true;
+            toast("Erreur réseau du service vocal du navigateur. Vérifiez votre connexion ou utilisez Chrome/Edge.");
+            stopVoiceSession();
+            return;
+          }
+        }
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          console.warn("Speech recognition warning:", event.error);
+        }
+      };
+
+      recognition.onend = () => {
+        recognition = null;
+        if (fatalError || !voiceSession || voiceState === "paused") return;
+
+        const captured = ($("chat-input").value || recognizedSpeech || "").trim();
+        if (captured && !isSubmittingVoice && !sending) {
+          $("chat-input").value = captured;
+          isSubmittingVoice = true;
+          usedVoice = true;
+          setVoiceState("thinking");
+          $("chat-form").requestSubmit();
+        } else if (voiceSession && voiceState !== "paused" && !sending) {
+          clearTimeout(voiceRestartTimer);
+          voiceRestartTimer = setTimeout(startVoiceCapture, 350);
+        }
+      };
+
+      recognition.start();
+    } catch (err) {
+      recognition = null;
+      console.warn("Could not start speech recognition:", err);
+      if (voiceSession && !sending && voiceState !== "paused") {
+        clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = setTimeout(startVoiceCapture, 750);
+      }
+    }
+  }
+
+  async function startVoiceSession() {
+    if (!speech) {
+      toast("La reconnaissance vocale n'est pas supportée sur ce navigateur (recommandé: Chrome ou Edge).");
+      return;
+    }
+    if (!("speechSynthesis" in window)) {
+      toast("La synthèse vocale n'est pas disponible sur ce navigateur.");
+      return;
+    }
+    unlockSpeechSynthesis();
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+      } catch (err) {
+        if (err && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError")) {
+          toast("Permission microphone refusée. Autorisez l'accès au micro dans les paramètres du navigateur.");
+          return;
+        }
+        if (err && err.name === "NotFoundError") {
+          toast("Aucun microphone détecté sur cet appareil.");
+          return;
+        }
+      }
+    }
+    voiceNetworkFailures = 0;
+    voiceSession = true;
+    $("voice-disclosure").hidden = false;
+    toast("Mode vocal actif. Parlez naturellement.");
+    setVoiceState("listening");
+    startVoiceCapture();
+  }
+
+  function stopVoiceSession() {
+    voiceSession = false;
+    clearTimeout(voiceRestartTimer);
+    if (recognition) {
+      try { recognition.onend = null; recognition.onerror = null; recognition.stop(); } catch (_) {}
+      recognition = null;
+    }
+    cancelSpeech();
+    isSubmittingVoice = false;
+    setVoiceState("idle");
+    showStopVocal(false);
+  }
+
+  function pauseVoiceSession() {
+    if ("speechSynthesis" in window && speechSynthesis.speaking) {
+      speechSynthesis.pause();
+    }
+    if (recognition) {
+      try { recognition.onend = null; recognition.onerror = null; recognition.stop(); } catch (_) {}
+      recognition = null;
+    }
+    clearTimeout(voiceRestartTimer);
+    clearInterval(ttsKeepaliveTimer);
+    clearTimeout(ttsWatchdogTimer);
+    setVoiceState("paused");
+  }
+
+  function resumeVoiceSession() {
+    unlockSpeechSynthesis();
+    if ("speechSynthesis" in window && speechSynthesis.paused) {
+      speechSynthesis.resume();
+      setVoiceState("speaking");
+      return;
+    }
+    setVoiceState("listening");
+    startVoiceCapture();
+  }
+
+  const THEME_MODES = ["dark", "light", "atelier"];
+  const THEME_LABELS = {
+    dark: { icon: "🌙", label: "Obsidian" },
+    light: { icon: "☀️", label: "Daylight" },
+    atelier: { icon: "✦", label: "Atelier" }
+  };
+
   function applyTheme(theme) {
-    if (!["system", "dark", "light"].includes(theme)) theme = "system";
-    if (theme === "system") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", theme);
-    const labels = {
-      system: ["◐", "Thème : système"],
-      dark: ["☾", "Thème : sombre"],
-      light: ["☀", "Thème : clair"]
-    };
-    const [symbol, label] = labels[theme];
-    themeButtons.forEach(button => {
-      button.textContent = symbol;
-      button.title = label;
-      button.setAttribute("aria-label", label);
-      button.setAttribute("aria-pressed", theme === "system" ? "false" : "true");
-    });
-    try { localStorage.setItem("portfolio-theme", theme); } catch (_) {}
+    const resolved = THEME_MODES.includes(theme) ? theme : (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    document.documentElement.setAttribute("data-theme", resolved);
+    const btn = $("account-theme");
+    const hdrBtn = $("page-theme-toggle");
+    const info = THEME_LABELS[resolved] || THEME_LABELS.dark;
+    if (btn) {
+      btn.textContent = info.icon;
+      btn.title = "Theme: " + info.label + " (click to switch)";
+      btn.setAttribute("aria-label", "Theme: " + info.label);
+    }
+    if (hdrBtn) {
+      hdrBtn.textContent = `${info.icon} ${info.label}`;
+      hdrBtn.title = "Theme: " + info.label + " (click to switch)";
+      hdrBtn.setAttribute("aria-label", "Theme: " + info.label);
+    }
+    try { localStorage.setItem("portfolio-theme", resolved); } catch (_) {}
   }
-  function cycleTheme() {
-    accountTheme = accountTheme === "system" ? "dark" : accountTheme === "dark" ? "light" : "system";
-    applyTheme(accountTheme);
-  }
+  let accountTheme = "dark";
+  try { accountTheme = localStorage.getItem("portfolio-theme") || "dark"; } catch (_) {}
+  if (!THEME_MODES.includes(accountTheme)) accountTheme = "dark";
   applyTheme(accountTheme);
-  themeButtons.forEach(button => button.addEventListener("click", cycleTheme));
+  $("account-theme").addEventListener("click", () => {
+    const idx = THEME_MODES.indexOf(accountTheme);
+    accountTheme = THEME_MODES[(idx + 1) % THEME_MODES.length];
+    applyTheme(accountTheme);
+  });
+  $("page-theme-toggle")?.addEventListener("click", () => {
+    const idx = THEME_MODES.indexOf(accountTheme);
+    accountTheme = THEME_MODES[(idx + 1) % THEME_MODES.length];
+    applyTheme(accountTheme);
+  });
 
   const api = async (path, options = {}) => {
     const response = await fetch(base + path, {
@@ -91,9 +384,13 @@
         codeTokens.push("<code>" + code + "</code>");
         return marker;
       });
-      line = line.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/gi, (_, label, url) =>
-        '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + "</a>"
-      );
+      line = line.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/gi, (_, label, url) => {
+        const isPdf = url.includes("/api/cv.pdf") || url.includes("/cv.pdf") || url.endsWith(".pdf");
+        if (isPdf) {
+          return '<a href="' + url + '" class="cv-download-btn" download="CV_Melek_Abdelmaksoud.pdf" target="_blank" rel="noopener noreferrer">' + label + "</a>";
+        }
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + "</a>";
+      });
       line = line
         .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/~~(.+?)~~/g, "<del>$1</del>")
@@ -751,9 +1048,12 @@
           bodyEl.append(sourcesEl);
         }
       }
-      if (autoSpeak || usedVoice) {
+      const shouldSpeak = voiceSession || autoSpeak || usedVoice;
+      usedVoice = false;
+      sending = false;
+      isSubmittingVoice = false;
+      if (shouldSpeak) {
         speakText(answer);
-        usedVoice = false;
       }
       await refreshChats();
     } catch (error) {
@@ -761,10 +1061,18 @@
       if (![...$("messages").querySelectorAll(".message")].some(m => m.textContent?.includes(question))) {
         input.value = question;
       }
+      sending = false;
+      isSubmittingVoice = false;
+      if (voiceSession && voiceState !== "paused") {
+        setVoiceState("listening");
+        clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = setTimeout(startVoiceCapture, 500);
+      }
       if (error.name !== "AbortError") toast(error.message);
       else toast("Generation stopped.");
     } finally {
       sending = false;
+      isSubmittingVoice = false;
       abortController = null;
       $("send-message").disabled = false;
       $("stop-generation").hidden = true;
@@ -773,46 +1081,159 @@
     }
   }
 
+  function splitSpeechChunks(text) {
+    const sentences = String(text || "").match(/[^.!?؟\n]+[.!?؟\n]*/g) || [text];
+    const chunks = [];
+    let current = "";
+    for (const raw of sentences) {
+      const part = raw.trim();
+      if (!part) continue;
+      if ((current + " " + part).trim().length <= 160) {
+        current = (current + " " + part).trim();
+      } else {
+        if (current) chunks.push(current);
+        if (part.length <= 160) {
+          current = part;
+        } else {
+          const words = part.split(/\s+/);
+          let buf = "";
+          for (const w of words) {
+            if ((buf + " " + w).trim().length > 160 && buf) {
+              chunks.push(buf);
+              buf = w;
+            } else {
+              buf = (buf + " " + w).trim();
+            }
+          }
+          current = buf;
+        }
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks;
+  }
+
+  function resolveTtsVoice(targetLang) {
+    refreshVoices();
+    const voices = cachedVoices;
+    if (!voices.length) return { voice: null, lang: targetLang === "ar-TN" ? "ar-SA" : targetLang };
+    const lower = targetLang.toLowerCase();
+    const prefix = lower.slice(0, 2);
+    const exact = voices.find(v => v.lang.toLowerCase() === lower);
+    if (exact) return { voice: exact, lang: exact.lang };
+    if (prefix === "ar") {
+      const arFallback = voices.find(v => ["ar-sa", "ar-eg", "ar-ae", "ar-001"].includes(v.lang.toLowerCase())) ||
+        voices.find(v => v.lang.toLowerCase().startsWith("ar"));
+      if (arFallback) return { voice: arFallback, lang: arFallback.lang };
+      return { voice: null, lang: "ar-SA" };
+    }
+    const prefixMatch = voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+    if (prefixMatch) return { voice: prefixMatch, lang: prefixMatch.lang };
+    return { voice: null, lang: targetLang };
+  }
+
   function speakText(text) {
     if (!("speechSynthesis" in window)) {
-      toast("Text-to-speech is unavailable in this browser.");
+      toast("Synthèse vocale indisponible sur ce navigateur.");
+      if (voiceSession && voiceState !== "paused") {
+        clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = setTimeout(startVoiceCapture, 400);
+      }
       return;
     }
-    speechSynthesis.cancel();
-    const cleanText = text
-      .replace(/[*_#`~[\]()]/g, "")
+    cancelSpeech();
+    clearTimeout(voiceRestartTimer);
+    const genId = ttsGenerationId;
+
+    const cleanText = String(text || "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .replace(/https?:\/\/\S+/g, "")
-      .replace(/[•–—]/g, ", ");
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    const sample = text.slice(0, 2500);
-    const languageRules = [
-      [/[\u0600-\u06ff]/, "ar-TN"], [/[а-яё]/i, "ru-RU"], [/[\u4e00-\u9fff]/, "zh-CN"],
-      [/[\u3040-\u30ff]/, "ja-JP"], [/[\uac00-\ud7af]/, "ko-KR"], [/[\u0900-\u097f]/, "hi-IN"],
-      [/[ñ¿¡]/i, "es-ES"], [/[äöüß]/i, "de-DE"], [/[ãõç]/i, "pt-PT"]
-    ];
-    let preferredLanguage = "en-US";
-    const frenchWords = /\b(le|la|les|des|une|est|avec|pour|bonjour|merci|je|vous|nous|être|ça)\b/i.test(sample);
-    if (languageRules.some(([pattern]) => pattern.test(sample))) preferredLanguage = languageRules.find(([pattern]) => pattern.test(sample))[1];
-    else if (frenchWords) preferredLanguage = "fr-FR";
-    else if (/\b(hola|gracias|que|para|como|está)\b/i.test(sample)) preferredLanguage = "es-ES";
-    else if (/\b(hello|the|and|with|for|please|what|how)\b/i.test(sample)) preferredLanguage = "en-US";
-    utterance.lang = preferredLanguage;
-    try {
-      const voices = speechSynthesis.getVoices();
-      const baseLanguage = preferredLanguage.slice(0, 2).toLowerCase();
-      const matchVoice = voices.find(v => v.lang.toLowerCase() === preferredLanguage.toLowerCase())
-        || voices.find(v => v.lang.toLowerCase().startsWith(baseLanguage));
-      if (matchVoice) utterance.voice = matchVoice;
-    } catch (_) {}
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onstart = () => showStopVocal(true);
-    utterance.onend = () => {
+      .replace(/```[\s\S]*?```/g, "Code source.")
+      .replace(/[*_#`~[\]()]/g, "")
+      .replace(/[•–—]/g, ", ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!cleanText) {
+      if (voiceSession && voiceState !== "paused") {
+        setVoiceState("listening");
+        voiceRestartTimer = setTimeout(startVoiceCapture, 300);
+      }
+      return;
+    }
+
+    const isArabic = /[\u0600-\u06ff]/.test(cleanText);
+    const isEnglish = /\b(the|and|with|for|project|skills|experience|hello|this|that)\b/i.test(cleanText);
+    const targetLang = isArabic ? "ar-TN" : isEnglish ? "en-US" : "fr-FR";
+    const { voice, lang } = resolveTtsVoice(targetLang);
+    const chunks = splitSpeechChunks(cleanText);
+    let idx = 0;
+
+    function finishSpeaking() {
+      if (genId !== ttsGenerationId) return;
+      clearInterval(ttsKeepaliveTimer);
+      clearTimeout(ttsWatchdogTimer);
       showStopVocal(false);
-      if (voiceSession) setTimeout(startVoiceCapture, 350);
-    };
-    utterance.onerror = () => { showStopVocal(false); if (voiceSession) setTimeout(startVoiceCapture, 700); };
-    speechSynthesis.speak(utterance);
+      if (voiceSession && voiceState !== "paused") {
+        setVoiceState("listening");
+        clearTimeout(voiceRestartTimer);
+        voiceRestartTimer = setTimeout(startVoiceCapture, 350);
+      }
+    }
+
+    function speakNextChunk() {
+      if (genId !== ttsGenerationId) return;
+      if (idx >= chunks.length) {
+        finishSpeaking();
+        return;
+      }
+      const chunk = chunks[idx++];
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.lang = lang;
+      if (voice) utterance.voice = voice;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      let settled = false;
+      const onChunkDone = () => {
+        if (settled || genId !== ttsGenerationId) return;
+        settled = true;
+        clearTimeout(ttsWatchdogTimer);
+        speakNextChunk();
+      };
+
+      utterance.onstart = () => {
+        if (genId !== ttsGenerationId) return;
+        setVoiceState("speaking");
+        showStopVocal(true);
+      };
+      utterance.onend = onChunkDone;
+      utterance.onerror = () => onChunkDone();
+
+      clearTimeout(ttsWatchdogTimer);
+      ttsWatchdogTimer = setTimeout(onChunkDone, Math.max(6000, chunk.length * 110));
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (_) {
+        onChunkDone();
+      }
+    }
+
+    setVoiceState("speaking");
+    showStopVocal(true);
+    ttsKeepaliveTimer = setInterval(() => {
+      if (genId !== ttsGenerationId) {
+        clearInterval(ttsKeepaliveTimer);
+        return;
+      }
+      if ("speechSynthesis" in window && speechSynthesis.speaking && !speechSynthesis.paused) {
+        try { speechSynthesis.resume(); } catch (_) {}
+      }
+    }, 4000);
+
+    setTimeout(() => {
+      if (genId === ttsGenerationId) speakNextChunk();
+    }, 60);
   }
 
   function showAuth() {
@@ -1291,112 +1712,71 @@
     $("chat-input").focus();
   }));
 
-  function stopVoiceSession() {
-    voiceSession = false;
-    if (recognition) {
-      try { recognition.onend = null; recognition.stop(); } catch (_) {}
-      recognition = null;
-    }
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
-    $("mic-button")?.classList.remove("recording");
-    const vs = $("voice-session");
-    if (vs) {
-      vs.classList.remove("selected");
-      vs.setAttribute("aria-pressed", "false");
-      vs.textContent = "Voice chat";
-    }
-    showStopVocal(false);
-  }
-
-  function startVoiceCapture() {
-    if (!speech || !voiceSession || recognition || sending) return;
-    try {
-      recognition = new speech();
-      const text = $("chat-input").value;
-      const browserLanguage = navigator.language || "en-US";
-      const tunisianLatinInput = /\b(chno|chnou|kifech|labes|tawa|nheb|n7eb|3lech|barcha|barsha|wa9tech)\b/i.test(text);
-      recognition.lang = /[\u0600-\u06ff]/.test(text) || tunisianLatinInput || browserLanguage.toLowerCase().startsWith("ar")
-        ? "ar-TN" : browserLanguage;
-      recognition.interimResults = true;
-      recognition.continuous = false;
-      recognition.onstart = () => {
-        $("mic-button")?.classList.add("recording");
-        const vs = $("voice-session");
-        if (vs) vs.textContent = "Listening…";
-      };
-      recognition.onresult = event => {
-        let finalText = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) finalText += event.results[i][0].transcript;
-        }
-        if (finalText) $("chat-input").value = ($("chat-input").value + " " + finalText).trim();
-      };
-      recognition.onerror = event => {
-        toast("Speech recognition error: " + event.error);
-        if (["not-allowed", "service-not-allowed", "audio-capture"].includes(event.error)) stopVoiceSession();
-      };
-      recognition.onend = () => {
-        recognition = null;
-        $("mic-button")?.classList.remove("recording");
-        if (!voiceSession) return;
-        const vs = $("voice-session");
-        if ($("chat-input").value.trim()) {
-          usedVoice = true;
-          if (vs) vs.textContent = "Thinking…";
-          $("chat-form").requestSubmit();
-        } else {
-          if (vs) vs.textContent = "Voice chat on";
-          setTimeout(startVoiceCapture, 500);
-        }
-      };
-      recognition.start();
-    } catch (error) {
-      recognition = null;
-      toast("Could not start the microphone: " + (error.message || "permission unavailable"));
-      stopVoiceSession();
-    }
-  }
-
-  $("mic-button").addEventListener("click", () => {
+  $("mic-button")?.addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
-    if (micWhisperRecorder && micWhisperRecorder.state !== "inactive") {
-      stopMicWhisperCapture();
+    unlockSpeechSynthesis();
+    if (!speech) {
+      toast("La reconnaissance vocale n'est pas supportée sur ce navigateur (recommandé: Chrome ou Edge).");
       return;
     }
-    startMicWhisperCapture();
+    // If AI is currently speaking, user tapping mic interrupts AI immediately!
+    if (voiceState === "speaking" || ("speechSynthesis" in window && speechSynthesis.speaking)) {
+      cancelSpeech();
+      setVoiceState("listening");
+      startVoiceCapture();
+      return;
+    }
+    if (voiceSession) {
+      if (recognition) {
+        try { recognition.stop(); } catch (_) {}
+      } else {
+        startVoiceCapture();
+      }
+      return;
+    }
+    startVoiceSession();
   });
 
-  $("voice-session")?.addEventListener("click", () => {
+  $("voice-session-btn")?.addEventListener("click", () => {
     $("voice-disclosure").hidden = false;
+    unlockSpeechSynthesis();
     if (voiceSession) {
       stopVoiceSession();
-      toast("Voice chat stopped.");
+      toast("Mode vocal désactivé.");
       return;
     }
-    if (!speech) {
-      toast("Hands-free voice chat needs a browser with speech recognition support (Chrome or Edge).");
-      return;
+    startVoiceSession();
+  });
+
+  $("voice-lang-select")?.addEventListener("change", () => {
+    if (voiceSession && voiceState === "listening") {
+      startVoiceCapture();
     }
-    if (!("speechSynthesis" in window)) {
-      toast("Voice replies are unavailable in this browser.");
-      return;
-    }
-    voiceSession = true;
-    const vs = $("voice-session");
-    if (vs) {
-      vs.classList.add("selected");
-      vs.setAttribute("aria-pressed", "true");
-      vs.textContent = "Voice chat on";
-    }
-    toast("Voice chat started. Speak naturally; press Voice chat again to stop.");
-    startVoiceCapture();
+  });
+
+  $("voice-pause-btn")?.addEventListener("click", () => {
+    pauseVoiceSession();
+    toast("Mode vocal en pause.");
+  });
+
+  $("voice-resume-btn")?.addEventListener("click", () => {
+    resumeVoiceSession();
+    toast("Mode vocal repris.");
+  });
+
+  $("voice-stop-btn")?.addEventListener("click", () => {
+    stopVoiceSession();
+    toast("Mode vocal arrêté.");
   });
 
   $("stop-vocal")?.addEventListener("click", () => {
-    if ("speechSynthesis" in window) {
-      speechSynthesis.cancel();
-    }
+    cancelSpeech();
     showStopVocal(false);
+    if (voiceSession && voiceState !== "paused") {
+      setVoiceState("listening");
+      clearTimeout(voiceRestartTimer);
+      voiceRestartTimer = setTimeout(startVoiceCapture, 300);
+    }
     toast("Voix arrêtée.");
   });
 

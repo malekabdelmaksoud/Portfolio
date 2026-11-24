@@ -1,23 +1,24 @@
 /* ── Menu Toggle ── */
 const menuToggle = document.getElementById("menuToggle");
 const navLinks = document.getElementById("navLinks");
-menuToggle.addEventListener("click", () => {
-  const opened = navLinks.classList.toggle("open");
+const MENU_ICON_OPEN = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>';
+const MENU_ICON_CLOSE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+function setMenuOpen(opened) {
+  navLinks.classList.toggle("open", opened);
   menuToggle.setAttribute("aria-expanded", String(opened));
-  menuToggle.textContent = opened ? "✕" : "☰";
+  menuToggle.innerHTML = opened ? MENU_ICON_CLOSE : MENU_ICON_OPEN;
+}
+menuToggle.addEventListener("click", () => {
+  setMenuOpen(!navLinks.classList.contains("open"));
 });
 document.querySelectorAll(".nav-links a").forEach(a => a.addEventListener("click", () => {
-  navLinks.classList.remove("open");
-  menuToggle.setAttribute("aria-expanded", "false");
-  menuToggle.textContent = "☰";
+  setMenuOpen(false);
 }));
 
 /* ── Close menu on outside click ── */
 document.addEventListener("click", (e) => {
   if (!navLinks.contains(e.target) && !menuToggle.contains(e.target) && navLinks.classList.contains("open")) {
-    navLinks.classList.remove("open");
-    menuToggle.setAttribute("aria-expanded", "false");
-    menuToggle.textContent = "☰";
+    setMenuOpen(false);
   }
 });
 
@@ -48,22 +49,44 @@ function setLanguage(language) {
 document.querySelectorAll(".lang-btn").forEach(button => {
   button.addEventListener("click", () => setLanguage(button.dataset.lang));
 });
+const THEME_MODES = ["dark", "light", "atelier"];
+const THEME_META = {
+  dark: { icon: "🌙", label: "Obsidian" },
+  light: { icon: "☀️", label: "Daylight" },
+  atelier: { icon: "✦", label: "Atelier" }
+};
+
 function applyTheme(theme) {
-  if (theme === "system") {
-    document.documentElement.removeAttribute("data-theme");
-  } else {
-    document.documentElement.setAttribute("data-theme", theme);
-  }
+  const resolved = THEME_MODES.includes(theme)
+    ? theme
+    : (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.setAttribute("data-theme", resolved);
+  const meta = THEME_META[resolved] || THEME_META.dark;
   const toggle = document.getElementById("theme-toggle");
-  if (toggle) toggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : theme === "light" ? "Use system theme" : "Switch to dark theme");
-  try { localStorage.setItem("portfolio-theme", theme); } catch (_) {}
+  if (toggle) {
+    toggle.innerHTML = `<span class="theme-icon" aria-hidden="true">${meta.icon}</span><span class="theme-label">${meta.label}</span>`;
+    toggle.setAttribute("aria-label", `Mode: ${meta.label} (cliquer pour changer)`);
+    toggle.setAttribute("title", `Mode: ${meta.label} — Obsidian / Daylight / Atelier`);
+    toggle.dataset.mode = resolved;
+  }
+  document.querySelectorAll("[data-theme-mode]").forEach(btn => {
+    const active = btn.dataset.themeMode === resolved;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  try { localStorage.setItem("portfolio-theme", resolved); } catch (_) {}
 }
-let savedTheme = "system";
-try { savedTheme = localStorage.getItem("portfolio-theme") || "system"; } catch (_) {}
+let savedTheme = "dark";
+try { savedTheme = localStorage.getItem("portfolio-theme") || "dark"; } catch (_) {}
+if (!THEME_MODES.includes(savedTheme)) savedTheme = "dark";
 applyTheme(savedTheme);
 document.getElementById("theme-toggle")?.addEventListener("click", () => {
-  const current = localStorage.getItem("portfolio-theme") || "system";
-  applyTheme(current === "system" ? "dark" : current === "dark" ? "light" : "system");
+  const current = localStorage.getItem("portfolio-theme") || "dark";
+  const idx = THEME_MODES.indexOf(current);
+  applyTheme(THEME_MODES[(idx + 1) % THEME_MODES.length]);
+});
+document.querySelectorAll("[data-theme-mode]").forEach(btn => {
+  btn.addEventListener("click", () => applyTheme(btn.dataset.themeMode));
 });
 let savedLanguage = "fr";
 try { savedLanguage = localStorage.getItem("portfolio-language") || "fr"; } catch (e) {}
@@ -136,7 +159,7 @@ const aiWorkspaceOverlay = document.getElementById("aiWorkspaceOverlay");
 const aiWorkspaceFrame = document.getElementById("aiWorkspaceFrame");
 const aiWorkspaceClose = document.getElementById("aiWorkspaceClose");
 const aiWorkspaceNewTab = document.getElementById("aiWorkspaceNewTab");
-const aiWorkspaceUrl = portfolioApiBase + "/login.html";
+const aiWorkspaceUrl = portfolioApiBase + "/account.html";
 
 if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClose) {
   aiWorkspaceNewTab.href = aiWorkspaceUrl;

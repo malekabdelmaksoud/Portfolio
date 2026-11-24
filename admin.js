@@ -1,6 +1,23 @@
 (() => {
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
+const THEME_MODES=["dark","light","atelier"];
+const THEME_META={dark:{icon:"🌙",label:"Obsidian"},light:{icon:"☀️",label:"Daylight"},atelier:{icon:"✦",label:"Atelier"}};
+function applyAdminTheme(theme){
+  const resolved=THEME_MODES.includes(theme)?theme:"dark";
+  document.documentElement.setAttribute("data-theme",resolved);
+  const btn=$("#admin-theme");
+  if(btn){const m=THEME_META[resolved];btn.textContent=`${m.icon} ${m.label}`;btn.title=`Mode: ${m.label}`;}
+  try{localStorage.setItem("portfolio-theme",resolved);}catch(_){}
+}
+let adminTheme="dark";
+try{adminTheme=localStorage.getItem("portfolio-theme")||"dark";}catch(_){}
+if(!THEME_MODES.includes(adminTheme))adminTheme="dark";
+applyAdminTheme(adminTheme);
+$("#admin-theme")?.addEventListener("click",()=>{
+  adminTheme=THEME_MODES[(THEME_MODES.indexOf(adminTheme)+1)%THEME_MODES.length];
+  applyAdminTheme(adminTheme);
+});
 const state={facts:[],projects:[],learning:null,usage:null,repos:[],editingFact:null,editingProject:null};
 const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};

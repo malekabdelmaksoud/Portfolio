@@ -586,6 +586,28 @@ function getCvPrintStyles() {
 }
 
 function downloadCvPdf() {
+  // 1. Direct official downloadable server-generated PDF
+  try {
+    const apiBase = (typeof API_CONFIG !== "undefined" && API_CONFIG.BASE_URL)
+      ? API_CONFIG.BASE_URL
+      : (typeof API_BASE_URL !== "undefined" ? API_BASE_URL : "");
+    const downloadUrl = (apiBase ? apiBase.replace(/\/$/, "") : "") + "/api/cv.pdf";
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = "CV_Melek_Abdelmaksoud.pdf";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    if (typeof showToast === "function") {
+      showToast("✅ Téléchargement du CV officiel en cours...", "success");
+    }
+    return;
+  } catch (err) {
+    console.warn("Direct download fallback:", err);
+  }
+
   let element = document.getElementById("cvSheetDocument");
   if (!element) {
     CvManager.render(false);

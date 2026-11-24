@@ -3031,3 +3031,39 @@ test("non-admin requests to backup endpoints are strictly rejected with 401", as
   }), env);
   assert.equal(unauthPost.status, 401);
 });
+
+test("CV PDF generation endpoint returns valid PDF-1.4 document with correct headers", async () => {
+  const env = environment();
+  const res = await worker.fetch(new Request("https://api.test/api/cv.pdf"), env);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "application/pdf");
+  assert.match(res.headers.get("content-disposition"), /attachment; filename="CV_Melek_Abdelmaksoud\.pdf"/);
+  
+  const buffer = await res.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  assert.ok(bytes.length > 1000);
+  
+  // Verify PDF magic header
+  const header = String.fromCharCode(...bytes.slice(0, 8));
+  assert.equal(header, "%PDF-1.4");
+  
+  // Verify PDF EOF marker
+  let text = "";
+  for (let i = Math.max(0, bytes.length - 128); i < bytes.length; i++) text += String.fromCharCode(bytes[i]);
+  assert.ok(text.includes("%%EOF"));
+});
+
+test("assistant prompt supplies direct downloadable PDF link when asking for CV", async () => {
+  const env = environment();
+  let capturedPrompt = "";
+  env.AI = {
+    async run(model, options) {
+      capturedPrompt = options.messages[0].content;
+      return { response: "Voici le CV complet de Melek Abdelmaksoud. Vous pouvez le télécharger directement ici : [📄 Télécharger le CV de Melek Abdelmaksoud (PDF)](/api/cv.pdf)" };
+    }
+  };
+  const response = await worker.fetch(request("/api/assistant", { question: "Donne-moi le CV de Melek en PDF" }), env);
+  assert.equal(response.status, 200);
+  assert.match(capturedPrompt, /\/api\/cv\.pdf/);
+});
+

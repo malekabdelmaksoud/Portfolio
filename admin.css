@@ -2,16 +2,16 @@
 
 :root {
   color-scheme: dark;
-  --bg-primary: #090d16;
-  --bg-secondary: #0f172a;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-card-hover: rgba(26, 36, 62, 0.85);
+  --bg-primary: #08090d;
+  --bg-secondary: #0e1118;
+  --bg-card: rgba(14, 17, 24, 0.85);
+  --bg-card-hover: rgba(21, 25, 35, 0.94);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(99, 102, 241, 0.45);
   --border-active: #6366f1;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-dim: #7c8aa0;
   --accent: #6366f1;
   --accent-soft: rgba(99, 102, 241, 0.15);
   --green: #10b981;
@@ -19,6 +19,65 @@
   --danger: #ef4444;
   --danger-soft: rgba(239, 68, 68, 0.15);
 }
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --border-subtle: rgba(15, 23, 42, 0.09);
+  --border-hover: rgba(79, 70, 229, 0.35);
+  --border-active: #4f46e5;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, 0.1);
+}
+
+:root[data-theme="light"] .topbar { background: rgba(255, 255, 255, 0.92); }
+:root[data-theme="light"] .brand { color: #0f172a; }
+:root[data-theme="light"] .brand small { color: #4f46e5; }
+:root[data-theme="light"] .back { color: #4f46e5; }
+:root[data-theme="light"] .back:hover { color: #0f172a; }
+
+:root[data-theme="atelier"] {
+  color-scheme: dark;
+  --bg-primary: #0b0c10;
+  --bg-secondary: #121319;
+  --bg-card: rgba(20, 21, 28, 0.9);
+  --bg-card-hover: rgba(28, 29, 39, 0.96);
+  --border-subtle: rgba(226, 184, 135, 0.15);
+  --border-hover: rgba(226, 184, 135, 0.45);
+  --border-active: #e2b887;
+  --text-main: #f3f3f5;
+  --text-muted: #a6a8b4;
+  --text-dim: #7b7e8c;
+  --accent: #e2b887;
+  --accent-soft: rgba(226, 184, 135, 0.15);
+}
+
+:root[data-theme="atelier"] .topbar { background: rgba(11, 12, 16, 0.94); }
+:root[data-theme="atelier"] .brand small { color: #e2b887; }
+:root[data-theme="atelier"] .back { color: #e2b887; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.theme-toggle:hover { border-color: var(--border-hover); }
 
 * { box-sizing: border-box; }
 

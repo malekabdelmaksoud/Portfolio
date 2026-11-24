@@ -6,31 +6,96 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-:root[data-theme="light"]{--bg-primary:#f8fafc;--bg-secondary:#f1f5f9;--bg-card:rgba(255,255,255,.92);--bg-card-hover:#fff;--bg-glass:rgba(255,255,255,.94);--border-subtle:rgba(15,23,42,.08);--text-main:#0f172a;--text-muted:#475569;--text-dim:#64748b;--text-inverse:#fff;--accent-primary:#4f46e5;--accent-secondary:#7c3aed;--accent-gradient:linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#0284c7 100%)}
-.theme-toggle{width:38px;height:38px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-glass);color:var(--text-main);cursor:pointer}
+/* ── 3-Mode Professional Theme System (Obsidian / Daylight / Atelier) ── */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.94);
+  --bg-card-hover: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.96);
+  --border-subtle: rgba(15, 23, 42, 0.09);
+  --border-hover: rgba(79, 70, 229, 0.35);
+  --border-active: #4f46e5;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --text-inverse: #ffffff;
+  --accent-primary: #4f46e5;
+  --accent-secondary: #7c3aed;
+  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0284c7 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
+  --accent-glow: 0 0 30px rgba(79, 70, 229, 0.18);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 30px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
+}
 
-/* ── Design Tokens: Default Dark Mode ── */
+:root[data-theme="atelier"] {
+  color-scheme: dark;
+  --bg-primary: #0b0c10;
+  --bg-secondary: #121319;
+  --bg-card: rgba(20, 21, 28, 0.88);
+  --bg-card-hover: rgba(28, 29, 39, 0.95);
+  --bg-glass: rgba(18, 19, 25, 0.92);
+  --border-subtle: rgba(226, 184, 135, 0.14);
+  --border-hover: rgba(226, 184, 135, 0.48);
+  --border-active: #e2b887;
+  --text-main: #f3f3f5;
+  --text-muted: #a6a8b4;
+  --text-dim: #7b7e8c;
+  --text-inverse: #0b0c10;
+  --accent-primary: #e2b887;
+  --accent-secondary: #a855f7;
+  --accent-gradient: linear-gradient(135deg, #e2b887 0%, #f3d5b5 45%, #a855f7 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(226, 184, 135, 0.14) 0%, rgba(168, 85, 247, 0.12) 100%);
+  --accent-glow: 0 0 35px rgba(226, 184, 135, 0.25);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--bg-glass);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+}
+.theme-toggle:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.theme-toggle .theme-icon { font-size: 13px; line-height: 1; }
+
+/* ── Design Tokens: Default Obsidian Dark Mode ── */
 :root {
   color-scheme: light dark;
 
-  --bg-primary: #090d16;
-  --bg-secondary: #0f172a;
-  --bg-card: rgba(15, 23, 42, 0.72);
-  --bg-card-hover: rgba(26, 36, 62, 0.85);
-  --bg-glass: rgba(15, 23, 42, 0.82);
+  --bg-primary: #08090d;
+  --bg-secondary: #0e1118;
+  --bg-card: rgba(14, 17, 24, 0.84);
+  --bg-card-hover: rgba(21, 25, 35, 0.94);
+  --bg-glass: rgba(14, 17, 24, 0.9);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(99, 102, 241, 0.45);
   --border-active: #6366f1;
 
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --text-inverse: #090d16;
+  --text-dim: #7c8aa0;
+  --text-inverse: #08090d;
 
   --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
+  --accent-secondary: #06b6d4;
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
-  --accent-gradient-subtle: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(6, 182, 212, 0.12) 100%);
   --accent-glow: 0 0 35px rgba(99, 102, 241, 0.35);
 
   --success: #10b981;
@@ -108,8 +173,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme="atelier"] body {
+  background: radial-gradient(circle at 15% 10%, rgba(226, 184, 135, 0.11) 0, transparent 42%),
+              radial-gradient(circle at 85% 35%, rgba(168, 85, 247, 0.09) 0, transparent 36%),
+              radial-gradient(circle at 50% 82%, rgba(226, 184, 135, 0.06) 0, transparent 42%),
+              var(--bg-primary);
+}
+
+:root[data-theme="light"] body {
+  background: radial-gradient(circle at 15% 10%, rgba(79, 70, 229, 0.06) 0, transparent 40%),
+              radial-gradient(circle at 85% 35%, rgba(124, 58, 237, 0.05) 0, transparent 35%),
+              radial-gradient(circle at 50% 80%, rgba(2, 132, 199, 0.04) 0, transparent 40%),
+              var(--bg-primary);
+}
+
 @media (prefers-color-scheme: light) {
-  body:not([data-theme="dark"]) {
+  :root:not([data-theme="dark"]):not([data-theme="atelier"]) body {
     background: radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.06) 0, transparent 40%),
                 radial-gradient(circle at 85% 35%, rgba(139, 92, 246, 0.05) 0, transparent 35%),
                 radial-gradient(circle at 50% 80%, rgba(6, 182, 212, 0.04) 0, transparent 40%),
@@ -1544,35 +1623,52 @@ body.ai-workspace-open { overflow: hidden; }
 /* ── Responsive Media Queries ── */
 @media (max-width: 992px) {
   .container {
-    width: min(100% - 36px, 1160px);
+    width: min(100% - 32px, 1160px);
   }
   .nav {
-    height: 70px;
+    height: 68px;
   }
   .menu-toggle {
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
   }
   .nav-links {
     display: none;
-    position: absolute;
-    top: 70px;
-    left: 0;
-    right: 0;
-    background: var(--bg-card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    padding: 24px 20px 28px;
+    position: fixed;
+    top: 68px;
+    left: 12px;
+    right: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(26px);
+    -webkit-backdrop-filter: blur(26px);
+    padding: 20px;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    border-bottom: 1px solid var(--border-subtle);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    align-items: stretch;
+    gap: 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    box-shadow: var(--shadow-lg);
     z-index: 99;
+    max-height: calc(100dvh - 84px);
+    overflow-y: auto;
+  }
+  .nav-links a {
+    padding: 10px 12px;
+    border-radius: 10px;
+    width: 100%;
+  }
+  .nav-links a:hover {
+    background: var(--bg-card-hover);
   }
   .nav-links.open {
     display: flex;
+  }
+  .theme-toggle {
+    align-self: flex-start;
   }
   .skills-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1582,12 +1678,14 @@ body.ai-workspace-open { overflow: hidden; }
 @media (max-width: 850px) {
   .hero {
     grid-template-columns: 1fr;
-    gap: 40px;
-    padding-top: 50px;
-    padding-bottom: 70px;
+    gap: 28px;
+    padding-top: 32px;
+    padding-bottom: 56px;
   }
   .hero-card {
-    height: 320px;
+    height: auto;
+    min-height: 220px;
+    padding: 28px 20px;
     max-width: 520px;
     width: 100%;
     margin: 0 auto;
@@ -1595,7 +1693,7 @@ body.ai-workspace-open { overflow: hidden; }
   .two-col,
   .languages {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 28px;
   }
   .timeline-item {
     grid-template-columns: 1fr;
