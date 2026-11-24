@@ -32,12 +32,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=17.0">
+<link rel="stylesheet" href="style.css?v=18.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
 <a class="brand" href="#accueil" aria-label="Melek Abdelmaksoud — Accueil">Melek<span>.</span></a>
-<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
 <div class="nav-links" id="navLinks">
 <a href="#apropos" data-fr="À propos" data-en="About">À propos</a>
 <a href="#competences" data-fr="Compétences" data-en="Skills">Compétences</a>
@@ -50,6 +49,16 @@
 <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
 </div>
 <div id="navUserSlot" style="margin-left:8px"></div>
+</div>
+<div class="nav-end-controls">
+<button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch theme" title="Switch theme: Obsidian / Daylight / Atelier">🌙 Obsidian</button>
+<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+</button>
 </div>
 </nav></header>
 <main>
@@ -79,7 +88,8 @@
 <article class="skill-card"><div class="skill-icon">⌘</div><h3 data-fr="Langages" data-en="Programming languages">Langages</h3><p id="skillsLangagesList">C · C# · Java · Python · JavaScript · PHP</p></article>
 <article class="skill-card"><div class="skill-icon">▤</div><h3>Web</h3><p id="skillsWebList">HTML · CSS · Angular</p></article>
 <article class="skill-card"><div class="skill-icon">⚙</div><h3 data-fr="Frameworks & outils" data-en="Frameworks & tools">Frameworks & outils</h3><p id="skillsFrameworksList">Laravel · Symfony · Spring Boot · .NET · Android Studio</p></article>
-<article class="skill-card"><div class="skill-icon">⌁</div><h3 data-fr="Systèmes & réseaux" data-en="Systems & networking">Systèmes & réseaux</h3><p id="skillsSystemesList" data-fr="Maintenance informatique · Câblage réseau · OCS Inventory" data-en="IT support · Network cabling · OCS Inventory">Maintenance informatique · Câblage réseau · OCS Inventory</p></article>\n<article class="skill-card"><div class="skill-icon">✧</div><h3 data-fr="IA & applications intelligentes" data-en="AI & intelligent applications">IA & applications intelligentes</h3><p data-fr="Domaine en cours d'exploration · apprentissage par projets" data-en="Area of exploration · learning through projects">Domaine en cours d'exploration · apprentissage par projets</p></article>
+<article class="skill-card"><div class="skill-icon">⌁</div><h3 data-fr="Systèmes & réseaux" data-en="Systems & networking">Systèmes & réseaux</h3><p id="skillsSystemesList" data-fr="Maintenance informatique · Câblage réseau · OCS Inventory" data-en="IT support · Network cabling · OCS Inventory">Maintenance informatique · Câblage réseau · OCS Inventory</p></article>
+<article class="skill-card"><div class="skill-icon">✧</div><h3 data-fr="IA & applications intelligentes" data-en="AI & intelligent applications">IA & applications intelligentes</h3><p data-fr="Domaine en cours d'exploration · apprentissage par projets" data-en="Area of exploration · learning through projects">Domaine en cours d'exploration · apprentissage par projets</p></article>
 </div>
 <div class="soft-skills"><strong data-fr="Qualités professionnelles" data-en="Professional strengths">Qualités professionnelles</strong><span data-fr="Travail en équipe" data-en="Teamwork">Travail en équipe</span><span data-fr="Autonomie" data-en="Autonomy">Autonomie</span><span data-fr="Leadership" data-en="Leadership">Leadership</span><span data-fr="Adaptabilité" data-en="Adaptability">Adaptabilité</span></div></section>
 <section class="section soft-bg" id="experiences"><div class="container"><p class="eyebrow" data-fr="03 / EXPÉRIENCES" data-en="03 / EXPERIENCE">03 / EXPÉRIENCES</p><h2 class="section-title" data-fr="Apprendre sur le terrain." data-en="Learning through experience.">Apprendre sur le terrain.</h2><div class="timeline">
@@ -111,9 +121,9 @@
 <section class="section contact-section" id="contact"><div class="container contact-box"><p class="eyebrow" data-fr="06 / CONTACT" data-en="06 / CONTACT">06 / CONTACT</p><h2 data-fr="Un projet ou une opportunité ?" data-en="Have a project or an opportunity?">Un projet ou une opportunité ?<br><span data-fr="Échangeons." data-en="Let's connect.">Échangeons.</span></h2><p data-fr="Je suis ouverte aux opportunités de stage PFE et aux échanges autour du développement web et des applications intelligentes." data-en="I am open to final-year internship opportunities and conversations about web development and intelligent applications.">Je suis ouverte aux échanges autour du développement web, des projets numériques et des opportunités d'apprentissage.</p><a class="button primary" href="mailto:melekabdelmaksoud72@gmail.com" data-fr="Envoyer un e-mail ↗" data-en="Send an email ↗">Envoyer un e-mail ↗</a><div class="contact-links"><a href="https://www.linkedin.com/in/melek-abdelmaksoud-518713436/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://github.com/malekabdelmaksoud" target="_blank" rel="noopener noreferrer">GitHub</a></div></div></section>
 </main>
 
-<!-- Floating button opens the authenticated Melek AI workspace in a first-party tab -->
+<!-- Floating button opens the full Melek AI workspace in an immersive overlay -->
 <button class="ai-chat-toggle" id="aiChatToggle" type="button"
-        aria-label="Open Melek AI workspace">
+        aria-label="Open Melek AI workspace" aria-haspopup="dialog" aria-controls="aiWorkspaceOverlay">
   <span class="ai-btn-icon" aria-hidden="true">✦</span>
   <span class="ai-btn-text" data-fr="Portfolio Assistant" data-en="Portfolio Assistant">Portfolio Assistant</span>
 </button>
@@ -131,7 +141,7 @@
   </header>
   <iframe id="aiWorkspaceFrame" title="Melek AI — New Chat, conversation history and Chat / Analyze modes"
           loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
-          allow="clipboard-read; clipboard-write"></iframe>
+          allow="clipboard-read; clipboard-write; microphone *"></iframe>
 </section>
 
 <!-- Auth Gate Modal (Enforces Login / Register - Vercel & Cloudflare Dark Style) -->
@@ -431,10 +441,28 @@
 
 <footer class="footer"><div class="container"><span>© <span id="year"></span> Melek Abdelmaksoud</span><span data-fr="Portfolio professionnel · Développement Web & Multimédia" data-en="Professional Portfolio · Web Development & Multimedia">Portfolio professionnel · Développement Web & Multimédia</span></div></footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="api-config.js?v=1.0.0"></script>
-<script src="script.js?v=16.0"></script>
+<script src="api-config.js?v=1.1.0"></script>
+<script src="script.js?v=17.0"></script>
 <script src="portfolio-auth-core.js?v=14.0"></script>
 <script src="cv-manager.js?v=14.0"></script>
 <script src="portfolio-auth-ui.js?v=14.0"></script>
 <script src="chat-crud-store.js?v=14.0"></script>
+<script>
+  const cvParams = new URLSearchParams(window.location.search);
+  if (cvParams.get("open_cv") === "1") {
+    const openRequestedCv = () => {
+      if (typeof window.openCvModal === "function") window.openCvModal();
+      if (cvParams.get("download_cv") === "1") {
+        setTimeout(() => {
+          if (typeof window.downloadCvPdf === "function") window.downloadCvPdf();
+        }, 650);
+      }
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", openRequestedCv, { once: true });
+    } else {
+      openRequestedCv();
+    }
+  }
+</script>
 </body></html>
