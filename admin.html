@@ -16,8 +16,20 @@
   <main class="shell">
     <section class="intro"><p class="eyebrow">ESPACE PRIVÉ · CLOUDFLARE ACCESS</p><h1>Content studio</h1><p>Gérez les informations publiques et les projets du portfolio. Une information n'est publiée qu'après validation explicite.</p></section>
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
-    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button><button class="tab" data-tab="learning">Auto-learning web <span id="learningCount">—</span></button></nav>
-    <section id="factsPanel" class="panel">
+    <nav class="tabs" aria-label="Sections d'administration"><button class="tab active" data-tab="overview">Vue générale</button><button class="tab" data-tab="usage">AI Usage</button><button class="tab" data-tab="facts">Base de connaissance <span id="factCount">—</span></button><button class="tab" data-tab="projects">Projets <span id="projectCount">—</span></button><button class="tab" data-tab="learning">Auto-learning web <span id="learningCount">—</span></button></nav>
+    <section id="overviewPanel" class="panel">
+ <div class="panel-head"><div><p class="eyebrow">ADMIN CONTROL CENTER</p><h2>Vue générale</h2><p>Un aperçu rapide de l'activité, des utilisateurs et du contenu publié.</p></div><button id="refreshDashboard" class="primary">↻ Actualiser</button></div>
+ <div id="overviewStats" class="overview-grid"><div class="overview-card skeleton">Chargement des statistiques…</div></div>
+ <div class="overview-bottom"><div><p class="eyebrow">ACTIVITÉ AI</p><h3>Consommation estimée</h3><p id="overviewUsageNote" class="muted">Les estimations sont calculées à partir des messages traités par l'application.</p></div><button class="ghost" type="button" data-go-tab="usage">Voir tous les utilisateurs ↗</button></div>
+</section>
+<section id="usagePanel" class="panel" hidden>
+ <div class="panel-head"><div><p class="eyebrow">AI OBSERVABILITY</p><h2>AI Usage & Tokens</h2><p>Suivi estimatif par utilisateur, sur le mois en cours. Ce n'est pas le solde officiel de Cloudflare.</p></div><button id="refreshUsage" class="primary">↻ Actualiser</button></div>
+ <div id="usageSummary" class="overview-grid"></div>
+ <div class="usage-toolbar"><div><h3>Utilisateurs</h3><p class="muted">Utilisation estimée · requêtes · quota mensuel configuré</p></div><input id="usageFilter" type="search" placeholder="Filtrer par e-mail…" aria-label="Filtrer les utilisateurs"></div>
+ <div id="usageTable" class="usage-table"><p class="muted">Chargement des données…</p></div>
+ <p class="usage-disclaimer">Les tokens sont estimés à partir du texte (environ 4 caractères par token). Le quota restant s'affiche uniquement si AI_USER_MONTHLY_TOKEN_LIMIT est configuré côté Worker. Le solde global du compte Cloudflare doit être vérifié dans Cloudflare Dashboard.</p>
+</section>
+<section id="factsPanel" class="panel" hidden>
       <div class="panel-head"><div><p class="eyebrow">ASSISTANT PORTFOLIO</p><h2>Informations approuvées</h2><p>Les faits approuvés peuvent être utilisés par l'assistant. Les autres restent privés.</p></div><button id="newFact" class="primary">＋ Nouvelle information</button></div>
       <form id="factForm" class="editor" hidden>
         <div class="form-head"><h3 id="factFormTitle">Nouvelle information</h3><button type="button" class="ghost" data-cancel="fact">Fermer</button></div>
@@ -38,8 +50,8 @@
       <div class="panel-head"><div><p class="eyebrow">PORTFOLIO PUBLIC</p><h2>Projets</h2><p>Les projets visibles apparaissent dans la grille publique du portfolio.</p></div><button id="newProject" class="primary">＋ Nouveau projet</button></div>
       <section class="github-import" aria-labelledby="githubImportTitle">
         <div class="github-import-copy"><span class="github-mark">GH</span><div><p class="eyebrow">GITHUB · IMPORT AUTOMATIQUE</p><h3 id="githubImportTitle">Importer un repository</h3><p>Collez le lien GitHub public. Le système lit le README et prépare une fiche projet bilingue que vous pouvez vérifier avant publication.</p></div></div>
-        <div class="github-import-row"><label class="sr-only" for="githubRepoUrl">Lien du repository GitHub</label><input id="githubRepoUrl" type="url" placeholder="https://github.com/username/project" autocomplete="url"><button id="importGithubRepo" class="primary" type="button">Importer depuis GitHub <span aria-hidden="true">↗</span></button></div>
-        <p id="githubImportStatus" class="github-import-status" role="status" aria-live="polite">Les repositories publics sont pris en charge. Vérifiez toujours le texte généré avant de publier.</p>
+        <div class="github-import-row"><label class="sr-only" for="githubRepoSelect">Choisir un repository GitHub</label><select id="githubRepoSelect" aria-label="Choisir un repository GitHub"><option value="">Chargement des repositories…</option></select><button id="refreshGithubRepos" class="ghost" type="button" title="Actualiser la liste">↻</button><button id="importGithubRepo" class="primary" type="button" disabled>Importer le projet ↗</button></div>
+        <p id="githubImportStatus" class="github-import-status" role="status" aria-live="polite">Choisissez un repository dans votre compte GitHub. Aucun lien URL à saisir.</p>
       </section>
       <form id="projectForm" class="editor" hidden>
         <div class="form-head"><h3 id="projectFormTitle">Nouveau projet</h3><button type="button" class="ghost" data-cancel="project">Fermer</button></div>
