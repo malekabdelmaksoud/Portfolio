@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
-const state={facts:[],projects:[],learning:null,editingFact:null,editingProject:null};
+const state={facts:[],projects:[],learning:null,usage:null,repos:[],editingFact:null,editingProject:null};
 const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};
 async function api(path,options={}) {
@@ -45,19 +45,65 @@ function renderLearning(){
  }
 }
 
-async function importGithubProject(){
- const input=$("#githubRepoUrl"),status=$("#githubImportStatus"),btn=$("#importGithubRepo");
- const raw=input.value.trim();
- let parsed;
- try{parsed=new URL(raw);}catch{status.textContent="Entrez un lien GitHub valide.";status.className="github-import-status error";return;}
- if(parsed.hostname!=="github.com"||parsed.pathname.split("/").filter(Boolean).length!==2){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
- btn.disabled=true;btn.textContent="Importation en cours…";status.className="github-import-status";status.textContent="Lecture du repository et création automatique de la description bilingue…";
+
+function statCard(label,value,hint){const card=node("div","overview-card"),k=node("div","kicker",label),v=node("div","value",String(value)),h=node("div","hint",hint||"");card.append(k,v,h);return card;}
+function renderOverview(){
+ const root=$("#overviewStats");root.replaceChildren();
+ const u=state.usage||{},s=u.summary||{};
+ root.append(statCard("Utilisateurs",s.users??"—","Comptes enregistrés"));
+ root.append(statCard("Projets publiés",state.projects.filter(p=>p.visible).length,"Sur le portfolio public"));
+ root.append(statCard("Requêtes AI ce mois",s.requests_month??"—","Demandes traitées par l'assistant"));
+ root.append(statCard("Tokens estimés ce mois",Number(s.tokens_month||0).toLocaleString(),"Entrée + sortie estimées"));
+ $("#overviewUsageNote").textContent=u.quota_per_user_month?("Quota par utilisateur : "+Number(u.quota_per_user_month).toLocaleString()+" tokens estimés / mois."):("Quota individuel non configuré. Les statistiques affichent la consommation estimée, sans inventer un solde restant.");
+}
+function renderUsage(){
+ const u=state.usage||{},s=u.summary||{},root=$("#usageSummary");root.replaceChildren();
+ root.append(statCard("Total utilisateurs",s.users??"—","Comptes enregistrés"));
+ root.append(statCard("Tokens utilisés",Number(s.tokens_month||0).toLocaleString(),"Estimation ce mois"));
+ root.append(statCard("Tokens restants",s.remaining_all===null||s.remaining_all===undefined?"Non configuré":Number(s.remaining_all).toLocaleString(),u.quota_per_user_month?"Quota app estimé, pas Cloudflare":"Définir AI_USER_MONTHLY_TOKEN_LIMIT"));
+ root.append(statCard("Requêtes AI",Number(s.requests_month||0).toLocaleString(),"Ce mois"));
+ const filter=($("#usageFilter")?.value||"").toLowerCase();
+ const rows=(u.users||[]).filter(x=>String(x.email).toLowerCase().includes(filter));
+ const host=$("#usageTable");host.replaceChildren();
+ if(!rows.length){host.append(node("p","muted","Aucun utilisateur correspondant."));return;}
+ const table=node("table"),thead=node("thead"),tr=node("tr");
+ ["Utilisateur","Requêtes","Tokens utilisés","Tokens restants","Dernière activité"].forEach(x=>tr.append(node("th","",x)));
+ thead.append(tr);table.append(thead);const tbody=node("tbody");
+ for(const user of rows){
+  const row=node("tr");
+  row.append(node("td","",user.email),node("td","num",Number(user.requests||0).toLocaleString()),node("td","num",Number(user.tokens_used||0).toLocaleString()),node("td","num",user.tokens_remaining===null?"—":Number(user.tokens_remaining).toLocaleString()),node("td","",user.last_activity?new Date(user.last_activity+"Z").toLocaleString():"—"));
+  tbody.append(row);
+ }
+ table.append(tbody);host.append(table);
+}
+async function refreshUsage(){
+ try{state.usage=await api("/api/admin/ai/usage");renderUsage();renderOverview();}
+ catch(e){notice("Impossible de charger les statistiques AI : "+e.message,true);}
+}
+async function loadGithubRepos(){
+ const select=$("#githubRepoSelect"),status=$("#githubImportStatus"),btn=$("#importGithubRepo"),refresh=$("#refreshGithubRepos");
+ refresh.disabled=true;select.replaceChildren(new Option("Chargement des repositories…",""));
  try{
-  const result=await api("/api/admin/projects/import",{method:"POST",body:JSON.stringify({url:raw,provider:"github"})});
-  status.textContent="Projet importé et publié : "+(result.project?.title||"repository")+" · description FR/EN générée automatiquement.";
-  status.className="github-import-status success";input.value="";await load();
+  const data=await api("/api/admin/github/repos");state.repos=data.repositories||[];
+  select.replaceChildren(new Option(state.repos.length?"Choisir un repository…":"Aucun repository public trouvé",""));
+  for(const repo of state.repos){const option=new Option(repo.name+" · "+(repo.language||"Repository")+" · "+repo.updated_at.slice(0,10),repo.url);option.dataset.repo=repo.full_name;select.append(option);}
+  status.textContent=state.repos.length?state.repos.length+" repositories publics chargés. Choisissez-en un puis cliquez sur Importer.":"Aucun repository public disponible.";
+  btn.disabled=true;
+ }catch(e){select.replaceChildren(new Option("Erreur de chargement",""));status.textContent=e.message;status.className="github-import-status error";}
+ finally{refresh.disabled=false;}
+}
+
+async function importGithubProject(){
+ const select=$("#githubRepoSelect"),status=$("#githubImportStatus"),btn=$("#importGithubRepo");
+ const selected=state.repos.find(r=>r.url===select.value);
+ if(!selected){status.textContent="Choisissez un repository dans la liste.";status.className="github-import-status error";return;}
+ btn.disabled=true;btn.textContent="Importation…";status.className="github-import-status";status.textContent="Lecture du repository et préparation de la fiche projet…";
+ try{
+  const result=await api("/api/admin/projects/import",{method:"POST",body:JSON.stringify({url:selected.url,provider:"github"})});
+  status.textContent="Projet importé et publié : "+(result.project?.title||selected.name)+".";
+  status.className="github-import-status success";select.value="";await Promise.all([load(),loadGithubRepos()]);
  }catch(error){status.textContent=error.message||"Échec de l'import.";status.className="github-import-status error";}
- finally{btn.disabled=false;btn.textContent="Importer depuis GitHub ↗";}
+ finally{btn.disabled=!select.value;btn.textContent="Importer le projet ↗";}
 }
 function renderProjects(){
  const root=$("#projectsList");root.replaceChildren();$("#projectCount").textContent=String(state.projects.length);
@@ -73,7 +119,7 @@ function renderProjects(){
 async function load(){
  try{
   const [session,facts,projects]=await Promise.all([api("/api/admin/session"),api("/api/admin/facts"),api("/api/admin/projects")]);
-  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;renderFacts();renderProjects();
+  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;renderFacts();renderProjects();renderOverview();await Promise.allSettled([refreshUsage(),loadGithubRepos()]);
   try{state.learning=await api("/api/admin/learning");renderLearning();}catch(_){$("#learningSummary").textContent="La migration web_knowledge n'est pas encore déployée.";} 
  }catch(e){$("#identity").textContent="Accès non vérifié";notice(e.message+" Vérifiez que Cloudflare Access protège /admin.html et que l'API est configurée.",true);}
 }
@@ -102,9 +148,9 @@ async function toggleFact(f){try{const payload={id:f.id,category:f.category,text
 async function toggleProject(p){try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"PUT",body:JSON.stringify({...p,visible:!p.visible})});notice("Visibilité du projet mise à jour.");await load();}catch(e){notice(e.message,true);}}
 async function deleteFact(f){if(!confirm("Supprimer définitivement "+f.id+" ?"))return;try{await api("/api/admin/facts/"+encodeURIComponent(f.id),{method:"DELETE"});notice("Information supprimée.");await load();}catch(e){notice(e.message,true);}}
 async function deleteProject(p){if(!confirm("Supprimer définitivement "+p.title+" ?"))return;try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"DELETE"});notice("Projet supprimé.");await load();}catch(e){notice(e.message,true);}}
-document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";$("#learningPanel").hidden=tab.dataset.tab!=="learning";}));
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));["overview","usage","facts","projects","learning"].forEach(name=>$("#"+name+"Panel").hidden=tab.dataset.tab!==name);}));document.querySelectorAll("[data-go-tab]").forEach(b=>b.addEventListener("click",()=>document.querySelector(`[data-tab="${b.dataset.goTab}"]`).click()));
 $("#refreshLearning").addEventListener("click",async()=>{const b=$("#refreshLearning");b.disabled=true;b.textContent="Actualisation…";try{const result=await api("/api/admin/learning/refresh",{method:"POST",body:"{}"});notice("Actualisation terminée : "+result.saved+" sources enregistrées, "+result.failed.length+" flux en erreur.");state.learning=await api("/api/admin/learning");renderLearning();}catch(e){notice(e.message,true);}finally{b.disabled=false;b.textContent="↻ Actualiser maintenant";}});
-$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));$("#importGithubRepo").addEventListener("click",importGithubProject);$("#githubRepoUrl").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();importGithubProject();}});
+$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));$("#importGithubRepo").addEventListener("click",importGithubProject);$("#githubRepoSelect").addEventListener("change",e=>$("#importGithubRepo").disabled=!e.target.value);$("#refreshGithubRepos").addEventListener("click",loadGithubRepos);$("#refreshDashboard").addEventListener("click",()=>{load();refreshUsage();});$("#refreshUsage").addEventListener("click",refreshUsage);$("#usageFilter").addEventListener("input",renderUsage);
 $("#factForm").addEventListener("submit",saveFact);$("#projectForm").addEventListener("submit",saveProject);
 document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.cancel+"Form").hidden=true));
 load();
