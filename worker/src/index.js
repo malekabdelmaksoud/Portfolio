@@ -155,14 +155,14 @@ async function assistant(request, env, identity) {
   }).filter(x=>x.matched>0).sort((a,b)=>b.score-a.score||b.matched-a.matched);
   const selected=[];
   for(const row of ranked){if(!selected.some(f=>f.id===row.fact.id))selected.push(row.fact);if(selected.length>=6)break;}
-  const history=Array.isArray(body.history)?body.history.slice(-8).filter(x=>x&&["user","assistant"].includes(x.role)&&typeof x.content==="string")
-    .map(x=>({role:x.role,content:x.content.slice(0,1800)})):[];
+  const history=Array.isArray(body.history)?body.history.slice(-6).filter(x=>x&&["user","assistant"].includes(x.role)&&typeof x.content==="string")
+    .map(x=>({role:x.role,content:x.content.slice(0,1200)})):[];
   const portfolioIntent=isPortfolioQuestion(question+" "+attachmentText.slice(0,1500));
   if(portfolioIntent&&!selected.length) return json({answer:abstentionFor(question),mode:body.mode==="analyze"?"analyze":"chat",model:selectedModel.id,sources:[],webSources:[]});
   let webSources=[];
   if(!portfolioIntent) {
     // Free automatic learning only: retrieve from the daily RSS index, never paid live-search providers.
-    const {results:webRows=[]}=await env.DB.prepare("SELECT title,url,source_name,source_host,summary,published_at,fetched_at FROM web_knowledge WHERE status='active' ORDER BY COALESCE(published_at,fetched_at) DESC LIMIT 120").all();
+    const {results:webRows=[]}=await env.DB.prepare("SELECT title,url,source_name,source_host,summary,published_at,fetched_at FROM web_knowledge WHERE status='active' ORDER BY COALESCE(published_at,fetched_at) DESC LIMIT 80").all();
     const rankedWeb=webRows.map(item=>{
       const hay=terms(item.title+" "+item.summary+" "+item.source_name);
       const matched=[...queryTerms].filter(t=>hay.has(t));
@@ -204,7 +204,7 @@ async function assistant(request, env, identity) {
       answer=String(result?.choices?.[0]?.message?.content??result?.answer??"").trim();
     }else{
       if(!env.AI || typeof env.AI.run!=="function") return json({error:"The Cloudflare AI service is not configured yet."},503);
-      const result=await env.AI.run(selectedModel.id,{messages,max_tokens:1100,temperature:0.35});
+      const result=await env.AI.run(selectedModel.id,{messages,max_tokens:body.mode==="analyze"?900:420,temperature:0.25});
       answer=String(result?.response??result?.output_text??result?.choices?.[0]?.message?.content??"").trim();
     }
     if(!answer)return json({error:"The AI model returned an empty response. Please try again."},502);
