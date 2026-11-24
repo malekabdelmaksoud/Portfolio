@@ -8,7 +8,8 @@ function setMenuOpen(opened) {
   menuToggle.setAttribute("aria-expanded", String(opened));
   menuToggle.innerHTML = opened ? MENU_ICON_CLOSE : MENU_ICON_OPEN;
 }
-menuToggle.addEventListener("click", () => {
+menuToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
   setMenuOpen(!navLinks.classList.contains("open"));
 });
 document.querySelectorAll(".nav-links a").forEach(a => a.addEventListener("click", () => {
