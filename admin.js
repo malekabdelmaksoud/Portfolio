@@ -50,7 +50,7 @@ async function importGithubProject(){
  const raw=input.value.trim();
  let parsed;
  try{parsed=new URL(raw);}catch{status.textContent="Entrez un lien GitHub valide.";status.className="github-import-status error";return;}
- if(parsed.hostname!=="github.com"||!/^\\/[^/]+\\/[^/]+\\/?$/.test(parsed.pathname)){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
+ if(parsed.hostname!=="github.com"||parsed.pathname.split("/").filter(Boolean).length!==2){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
  btn.disabled=true;btn.textContent="Importation en cours…";status.className="github-import-status";status.textContent="Lecture du repository et création automatique de la description bilingue…";
  try{
   const result=await api("/api/admin/projects/import",{method:"POST",body:JSON.stringify({url:raw,provider:"github"})});
