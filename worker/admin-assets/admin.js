@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $=(s,root=document)=>root.querySelector(s);
-const state={facts:[],projects:[],backups:[],editingFact:null,editingProject:null};
+const state={facts:[],projects:[],learning:null,editingFact:null,editingProject:null};
 const API_BASE=String(window.PORTFOLIO_API_BASE||"").replace(/\/$/,"");
 const notice=(message,error=false)=>{const n=$("#notice");n.textContent=message;n.className="notice show"+(error?" error":"");};
 async function api(path,options={}) {
@@ -24,6 +24,58 @@ function renderFacts(){
   card.append(top,fr,en,ar,actions);root.append(card);
  }
 }
+function renderLearning(){
+ const data=state.learning,summary=$("#learningSummary"),root=$("#learningList");summary.replaceChildren();root.replaceChildren();
+ if(!data){summary.append(node("p","muted","Aucune donnée de synchronisation disponible."));return;}
+ $("#learningCount").textContent=String(data.total||0);
+ const stats=node("div","learning-stats");
+ stats.append(node("div","learning-stat",String(data.total||0)+" sources indexées"));
+ const latest=(data.runs||[])[0];
+ stats.append(node("div","learning-stat",latest?"Dernière actualisation : "+new Date(latest.finished_at+"Z").toLocaleString():"Aucune actualisation exécutée"));
+ stats.append(node("div","learning-stat",latest?latest.saved+" entrées enregistrées · "+latest.fetched+" trouvées":"Planification quotidienne à 03:00 UTC"));
+ stats.append(node("div","learning-stat",data.liveSearchEnabled?"Recherche web en direct : activée":"Recherche web en direct : non configurée"));
+ stats.append(node("div","learning-stat","Budget maximum : "+(data.searchLimitPerMonth||5000)+" recherches par mois"));
+ summary.append(stats);
+ if(!data.items?.length){root.append(node("p","muted","Aucune source indexée pour le moment. Lancez une actualisation."));return;}
+ for(const item of data.items){
+  const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",item.title),meta=node("div","meta",item.source_name+" · "+item.source_host+" · "+(item.published_at||"date non fournie"));
+  left.append(title,meta);const status=node("span","status on","INDEXÉ");top.append(left,status);
+  const excerpt=node("p","",item.url);const link=node("a","learning-link","Ouvrir la source ↗");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";
+  card.append(top,excerpt,link);root.append(card);
+ }
+}
+
+async function importGithubProject(){
+ const input=$("#githubRepoUrl"),status=$("#githubImportStatus"),btn=$("#importGithubRepo");
+ const raw=input.value.trim();let url;
+ try{url=new URL(raw);}catch{status.textContent="Entrez un lien GitHub valide.";status.className="github-import-status error";return;}
+ const match=url.hostname==="github.com"&&url.pathname.match(/^\/([^/]+)\/([^/]+)\/?$/);
+ if(!match){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
+ const owner=match[1],repo=match[2].replace(/\.git$/,"");
+ btn.disabled=true;btn.textContent="Lecture du repository…";status.className="github-import-status";status.textContent="Récupération des informations GitHub et du README…";
+ try{
+  const headers={Accept:"application/vnd.github+json"};
+  const metaResponse=await fetch("https://api.github.com/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo),{headers});
+  if(!metaResponse.ok)throw new Error(metaResponse.status===404?"Repository introuvable ou privé.":"GitHub a refusé la requête ("+metaResponse.status+").");
+  const meta=await metaResponse.json();
+  if(meta.private)throw new Error("Ce repository est privé. L'import public ne peut pas y accéder.");
+  let readme="";
+  const readmeResponse=await fetch("https://api.github.com/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo)+"/readme",{headers});
+  if(readmeResponse.ok){const data=await readmeResponse.json();if(data.content)readme=atob(data.content.replace(/\s/g,""));if(data.encoding==="base64")readme=decodeURIComponent(escape(readme));}
+  const id=(owner+"-"+repo).toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,70);
+  const result=await api("/api/admin/projects/describe",{method:"POST",body:JSON.stringify({name:meta.name||repo,fullName:meta.full_name||owner+"/"+repo,description:meta.description||"",language:meta.language||"",topics:meta.topics||[],url:meta.html_url,homepage:meta.homepage||"",readme:readme.slice(0,12000)})});
+  const form=$("#projectForm");form.hidden=false;form.reset();state.editingProject=null;
+  form.elements.id.value=id;form.elements.title.value=result.title||meta.name||repo;
+  form.elements.type.value=result.type||[meta.language,...(meta.topics||[]).slice(0,3)].filter(Boolean).join(" · ")||"Development";
+  form.elements.description_fr.value=result.description_fr||meta.description||"Projet importé depuis GitHub.";
+  form.elements.description_en.value=result.description_en||meta.description||"Project imported from GitHub.";
+  form.elements.url.value=meta.html_url;form.elements.sort_order.value=String(state.projects.length*10);form.elements.visible.checked=false;
+  form.elements.id.readOnly=false;$("#projectFormTitle").textContent="Vérifier le projet importé";
+  status.textContent="Import réussi. Description générée : relisez les deux langues, puis enregistrez et publiez quand vous êtes prêt.";status.className="github-import-status success";
+  form.scrollIntoView({behavior:"smooth",block:"center"});
+ }catch(error){status.textContent=error.message||"Échec de l'import.";status.className="github-import-status error";}
+ finally{btn.disabled=false;btn.textContent="Importer depuis GitHub ↗";}
+}
 function renderProjects(){
  const root=$("#projectsList");root.replaceChildren();$("#projectCount").textContent=String(state.projects.length);
  if(!state.projects.length){root.append(node("p","muted","Aucun projet enregistré."));return;}
@@ -35,42 +87,11 @@ function renderProjects(){
   card.append(top,desc,url,actions);root.append(card);
  }
 }
-function renderBackups(backupData) {
- const root=$("#backupsList");root.replaceChildren();const backups=backupData?.backups||state.backups||[];
- $("#backupCount").textContent=String(backups.length);
- $("#backupLatestDate").textContent=backupData?.latest?.created_at?new Date(backupData.latest.created_at).toLocaleString():"Aucune sauvegarde";
- const latestStatus=backupData?.latest?.status;
- $("#backupLatestStatus").textContent=latestStatus==="stored"?"Stocké dans R2 (Opérationnel)":latestStatus==="not_stored"?"Non Stocké (R2 Déconnecté)":latestStatus==="failed"?"Échoué":(latestStatus||"En attente");
- $("#backupR2Status").textContent=backupData?.r2_bound?"R2 Actif & Connecté":"Non lié (Stockage en mémoire uniquement)";
- if(!backups.length){root.append(node("p","muted","Aucune sauvegarde enregistrée pour le moment."));return;}
- for(const b of backups){
-  const card=node("article","record"),top=node("div","record-top"),left=node("div"),title=node("h3","",b.key);
-  const sizeKb=b.size_bytes?(b.size_bytes/1024).toFixed(1)+" Ko":"—";
-  const meta=node("div","meta","Taille: "+sizeKb+" · Date: "+(b.created_at?new Date(b.created_at).toLocaleString():"Inconnue"));
-  left.append(title,meta);
-  const bStatus=b.status==="stored"?"STOCKÉ (R2)":b.status==="not_stored"?"NON STOCKÉ (MÉMOIRE)":"ÉCHOUÉ";
-  const statusClass=b.status==="stored"?"status on":"status off";
-  const status=node("span",statusClass,bStatus);top.append(left,status);
-  const hashP=node("p","",b.sha256?"SHA-256 (plaintext): "+b.sha256:"");
-  const actions=node("div","record-actions");
-  actions.append(
-   button("Télécharger",()=>downloadBackup(b.key),"ghost"),
-   button("Vérifier l'intégrité",()=>verifyBackup(b.key),"ghost"),
-   button("Sélectionner pour restauration",()=>selectForRestore(b.key),"")
-  );
-  card.append(top,hashP,actions);root.append(card);
- }
-}
 async function load(){
  try{
-  const [session,facts,projects,backups]=await Promise.all([
-   api("/api/admin/session"),
-   api("/api/admin/facts"),
-   api("/api/admin/projects"),
-   api("/api/admin/backups").catch(()=>({backups:[],latest:null,r2_bound:false}))
-  ]);
-  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;state.backups=backups.backups||[];
-  renderFacts();renderProjects();renderBackups(backups);
+  const [session,facts,projects]=await Promise.all([api("/api/admin/session"),api("/api/admin/facts"),api("/api/admin/projects")]);
+  $("#identity").textContent=session.user.email;state.facts=facts.facts;state.projects=projects.projects;renderFacts();renderProjects();
+  try{state.learning=await api("/api/admin/learning");renderLearning();}catch(_){$("#learningSummary").textContent="La migration web_knowledge n'est pas encore déployée.";} 
  }catch(e){$("#identity").textContent="Accès non vérifié";notice(e.message+" Vérifiez que Cloudflare Access protège /admin.html et que l'API est configurée.",true);}
 }
 function formData(form){return Object.fromEntries(new FormData(form).entries());}
@@ -98,83 +119,10 @@ async function toggleFact(f){try{const payload={id:f.id,category:f.category,text
 async function toggleProject(p){try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"PUT",body:JSON.stringify({...p,visible:!p.visible})});notice("Visibilité du projet mise à jour.");await load();}catch(e){notice(e.message,true);}}
 async function deleteFact(f){if(!confirm("Supprimer définitivement "+f.id+" ?"))return;try{await api("/api/admin/facts/"+encodeURIComponent(f.id),{method:"DELETE"});notice("Information supprimée.");await load();}catch(e){notice(e.message,true);}}
 async function deleteProject(p){if(!confirm("Supprimer définitivement "+p.title+" ?"))return;try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"DELETE"});notice("Projet supprimé.");await load();}catch(e){notice(e.message,true);}}
-
-async function triggerManualBackup(){
- try{
-  notice("Création de la sauvegarde en cours…");
-  const res=await api("/api/admin/backups/create",{method:"POST",body:"{}"});
-  if(res.backup?.stored_to_r2){
-    notice("Sauvegarde chiffrée créée et stockée dans R2 avec succès ("+res.backup.key+").");
-  } else {
-    notice("Sauvegarde chiffrée créée en mémoire ("+res.backup.key+") mais NON stockée dans R2 (R2 non connecté).", true);
-  }
-  await load();
- }catch(e){notice(e.message,true);}
-}
-function downloadBackup(key){
- window.open(API_BASE+"/api/admin/backups/download?key="+encodeURIComponent(key),"_blank");
-}
-async function verifyBackup(key){
- try{
-  notice("Vérification cryptographique de l'intégrité…");
-  const res=await api("/api/admin/backups/verify",{method:"POST",body:JSON.stringify({key})});
-  notice("Sauvegarde "+res.key+" intègre et valide (SHA-256: "+res.sha256_plain.slice(0,16)+"…).");
- }catch(e){notice("Échec de vérification: "+e.message,true);}
-}
-function selectForRestore(key){
- $("#restoreKey").value=key;
- $("#restoreKey").scrollIntoView({behavior:"smooth",block:"center"});
-}
-async function dryRunRestore(){
- const key=$("#restoreKey").value.trim();
- if(!key){notice("Veuillez spécifier la clé de sauvegarde à tester.",true);return;}
- try{
-  notice("Simulation de restauration (Dry Run) en cours…");
-  const res=await api("/api/admin/backups/restore",{method:"POST",body:JSON.stringify({key,dry_run:true})});
-  $("#restoreOutput").hidden=false;
-  $("#restoreOutput").textContent="=== RÉSULTAT DU DRY RUN (AUCUNE MODIFICATION) ===\n" +
-   "Valide: "+res.valid+"\nDate de source: "+res.backup_date+"\nLignes détectées:\n" +
-   JSON.stringify(res.row_counts,null,2);
-  notice("Dry run réussi. Les données sont intègres.");
- }catch(e){
-  $("#restoreOutput").hidden=false;
-  $("#restoreOutput").textContent="ERREUR DRY RUN:\n"+e.message;
-  notice(e.message,true);
- }
-}
-async function liveRestore(){
- const key=$("#restoreKey").value.trim();
- const confirmation=$("#restoreConfirmation").value.trim();
- if(!key){notice("Spécifiez la clé de sauvegarde.",true);return;}
- if(!confirm("ATTENTION: Cette action va écraser les données de production. Êtes-vous absolument sûr ?")) return;
- try{
-  notice("Restauration réelle en cours…");
-  const res=await api("/api/admin/backups/restore",{method:"POST",body:JSON.stringify({key,dry_run:false,confirmation})});
-  $("#restoreOutput").hidden=false;
-  $("#restoreOutput").textContent="=== RESTAURATION RÉELLE TERMINÉE ===\n"+JSON.stringify(res,null,2);
-  notice("Restauration terminée avec succès.");
-  await load();
- }catch(e){
-  $("#restoreOutput").hidden=false;
-  $("#restoreOutput").textContent="ERREUR DE RESTAURATION:\n"+e.message;
-  notice(e.message,true);
- }
-}
-
-document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{
- document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));
- $("#factsPanel").hidden=tab.dataset.tab!=="facts";
- $("#projectsPanel").hidden=tab.dataset.tab!=="projects";
- $("#backupsPanel").hidden=tab.dataset.tab!=="backups";
-}));
-$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";$("#learningPanel").hidden=tab.dataset.tab!=="learning";}));
+$("#refreshLearning").addEventListener("click",async()=>{const b=$("#refreshLearning");b.disabled=true;b.textContent="Actualisation…";try{const result=await api("/api/admin/learning/refresh",{method:"POST",body:"{}"});notice("Actualisation terminée : "+result.saved+" sources enregistrées, "+result.failed.length+" flux en erreur.");state.learning=await api("/api/admin/learning");renderLearning();}catch(e){notice(e.message,true);}finally{b.disabled=false;b.textContent="↻ Actualiser maintenant";}});
+$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));$("#importGithubRepo").addEventListener("click",importGithubProject);$("#githubRepoUrl").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();importGithubProject();}});
 $("#factForm").addEventListener("submit",saveFact);$("#projectForm").addEventListener("submit",saveProject);
 document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.cancel+"Form").hidden=true));
-$("#triggerBackup").addEventListener("click",triggerManualBackup);
-$("#btnRestoreDryRun").addEventListener("click",dryRunRestore);
-$("#btnRestoreLive").addEventListener("click",liveRestore);
-$("#restoreConfirmation").addEventListener("input",e=>{
- $("#btnRestoreLive").disabled=e.target.value.trim()!=="CONFIRM_RESTORE_OVERWRITE_PRODUCTION";
-});
 load();
 })();
