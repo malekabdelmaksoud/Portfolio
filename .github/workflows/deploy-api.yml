@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ github.event_name == 'push' || inputs.confirm_workers_free == true }}
+    # Never deploy AI-enabled Worker code unless the owner explicitly confirms the account is on Workers Free.
+    if: ${{ (github.event_name == 'push' && vars.CLOUDFLARE_WORKERS_FREE_CONFIRMED == 'true') || (github.event_name == 'workflow_dispatch' && inputs.confirm_workers_free == true) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout selected branch
