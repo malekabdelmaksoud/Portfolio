@@ -26,18 +26,36 @@
     if (btn) btn.hidden = !show;
   }
 
+  let accountTheme = "system";
+  try {
+    const savedTheme = localStorage.getItem("portfolio-theme");
+    if (["system", "dark", "light"].includes(savedTheme)) accountTheme = savedTheme;
+  } catch (_) {}
+  const themeButtons = [$("account-theme"), $("mobile-theme")].filter(Boolean);
   function applyTheme(theme) {
+    if (!["system", "dark", "light"].includes(theme)) theme = "system";
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
     else document.documentElement.setAttribute("data-theme", theme);
+    const labels = {
+      system: ["◐", "Thème : système"],
+      dark: ["☾", "Thème : sombre"],
+      light: ["☀", "Thème : clair"]
+    };
+    const [symbol, label] = labels[theme];
+    themeButtons.forEach(button => {
+      button.textContent = symbol;
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.setAttribute("aria-pressed", theme === "system" ? "false" : "true");
+    });
     try { localStorage.setItem("portfolio-theme", theme); } catch (_) {}
   }
-  let accountTheme = "system";
-  try { accountTheme = localStorage.getItem("portfolio-theme") || "system"; } catch (_) {}
-  applyTheme(accountTheme);
-  $("account-theme").addEventListener("click", () => {
+  function cycleTheme() {
     accountTheme = accountTheme === "system" ? "dark" : accountTheme === "dark" ? "light" : "system";
     applyTheme(accountTheme);
-  });
+  }
+  applyTheme(accountTheme);
+  themeButtons.forEach(button => button.addEventListener("click", cycleTheme));
 
   const api = async (path, options = {}) => {
     const response = await fetch(base + path, {
