@@ -104,3 +104,42 @@ body[data-theme="light"] .composer-card textarea{color:#202b3b}
 body[data-theme="light"] .model-control select{background:#f7f9fc;color:#2b3850;border-color:#e3e8f0}
 body[data-theme="light"] .tool-btn{background:#f5f7fa;color:#53627a;border-color:#e8ecf2}
 body[data-theme="light"] .suggestion{background:#fff;color:#273247;border-color:#e1e6ee}
+
+/* Preserve the complete desktop AI toolset on phones; only rearrange it. */
+@media (max-width:760px){
+  .mobile-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .mobile-top #mobile-menu{flex:0 0 42px}
+  .mobile-brand{flex:1;min-width:0}
+  .mode-indicator{flex:0 0 auto}
+  .theme-toggle{flex:0 0 38px}
+  .sidebar{height:100dvh;overflow-y:auto;overscroll-behavior:contain;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+  .sidebar.mobile-open{transform:translateX(0);z-index:15}
+  .sidebar .chat-list{min-height:110px}
+  .workspace{min-height:0;flex:1;overflow-y:auto;padding-bottom:8px}
+  .conversation{width:100%;min-height:0;flex:1;padding:14px 16px 20px}
+  .messages{min-width:0;overflow-wrap:anywhere}
+  .composer-wrap{flex:0 0 auto;width:100%;padding:8px 10px max(10px,env(safe-area-inset-bottom))}
+  .composer-card{width:100%;padding:10px 11px 11px}
+  .mode-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .mode-btn{flex:0 0 auto;min-height:36px;padding:8px 11px;font-size:12px}
+  .mode-hint{display:block;flex:1 1 100%;order:2;margin:0 2px 2px;font-size:10px;line-height:1.35}
+  .model-control{display:flex;flex:1 1 100%;width:100%;min-width:0;order:3;gap:8px;margin:2px 0 0;font-size:11px}
+  .model-control span{flex:0 0 auto}
+  .model-control select{display:block;flex:1 1 auto;width:1%;min-width:0;max-width:none;height:40px;min-height:40px;padding:7px 30px 7px 10px;font-size:12px}
+  #chat-form{min-width:0}
+  #chat-input{width:100%;min-width:0;min-height:48px;max-height:120px;padding:10px 3px;font-size:16px}
+  .composer-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;min-width:0}
+  .composer-tools{display:flex;flex:0 1 auto;min-width:0;gap:6px}
+  .tool-btn{display:inline-grid;place-items:center;flex:0 0 38px;width:38px;height:38px;min-width:38px;min-height:38px;font-size:16px}
+  .composer-note{display:none}
+  .send-btn{flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px}
+  .attachment-chip{max-width:100%;white-space:normal}
+  .disclaimer{font-size:9px;line-height:1.4;margin:7px 8px 0}
+}
+@media(max-width:380px){
+  .composer-wrap{padding-left:7px;padding-right:7px}
+  .composer-card{padding-left:9px;padding-right:9px}
+  .mode-btn{padding-left:9px;padding-right:9px}
+  .tool-btn{flex-basis:35px;width:35px;min-width:35px;height:36px;min-height:36px}
+  .send-btn{flex-basis:42px;width:42px;min-width:42px;height:42px;min-height:42px}
+}
