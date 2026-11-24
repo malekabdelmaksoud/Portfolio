@@ -1695,3 +1695,87 @@ body.ai-workspace-open { overflow: hidden; }
     color: #1e293b !important;
   }
 }
+
+
+/* Portfolio responsive polish — mobile, tablet, desktop */
+html{scroll-padding-top:84px}
+body{overflow-x:clip}
+.container{width:min(1160px,calc(100% - 48px))}
+img,svg,video,iframe{max-width:100%}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--accent-primary,#818cf8);outline-offset:3px}
+.contact-section{position:relative;isolation:isolate;overflow:hidden}
+.contact-box{position:relative;z-index:1}
+.contact-box .eyebrow,.contact-box h2,.contact-box p,.contact-links,.contact-links a{opacity:1!important;filter:none!important;-webkit-text-fill-color:initial}
+.contact-box h2{color:#fff!important}
+.contact-box p:not(.eyebrow){color:#d3dbea!important}
+.contact-links,.contact-links a{color:#aebbd0!important}
+.contact-box p:not(.eyebrow){line-height:1.75}
+.footer .container{min-width:0}
+.footer .container>*{min-width:0;overflow-wrap:anywhere}
+.ai-chat-toggle{max-width:calc(100vw - 28px);white-space:normal}
+.cv-modal-backdrop,.project-modal-backdrop,.profile-modal-backdrop{overscroll-behavior:contain}
+@media(max-width:992px){
+ .container{width:calc(100% - 40px)}
+ .nav{position:relative;z-index:100}
+ .nav-links{max-height:calc(100dvh - 80px);overflow-y:auto}
+ .hero,.two-col,.languages{min-width:0}
+ .hero>*{min-width:0}
+ .timeline-item{min-width:0}
+ .cv-layout{grid-template-columns:1.35fr 1fr;gap:22px}
+}
+@media(max-width:700px){
+ html{scroll-padding-top:72px}
+ .container{width:calc(100% - 32px)}
+ .nav{height:66px}
+ .nav-links{top:66px;padding:18px 18px 22px;gap:13px}
+ .hero{grid-template-columns:minmax(0,1fr);gap:28px;padding-top:34px;padding-bottom:48px}
+ .hero h1{font-size:clamp(34px,9.5vw,46px);line-height:1.08;overflow-wrap:anywhere}
+ .hero-card{height:auto;min-height:260px;max-width:440px}
+ .section{padding-top:58px;padding-bottom:58px}
+ .section h2,.contact-box h2{font-size:clamp(30px,8vw,42px);letter-spacing:-1.3px;overflow-wrap:anywhere}
+ .skills-grid,.projects-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+ .project-visual{height:150px}
+ .project-body{padding:19px}
+ .project-body p:not(.project-type){min-height:0}
+ .two-col,.languages{grid-template-columns:minmax(0,1fr);gap:24px}
+ .timeline-item{grid-template-columns:minmax(0,1fr);gap:8px;padding-left:20px}
+ .contact-section{padding:72px 0}
+ .contact-box{width:100%;padding-inline:2px}
+ .contact-box h2{line-height:1.12;margin:13px 0 17px}
+ .contact-box p:not(.eyebrow){font-size:14px;line-height:1.75;margin-bottom:23px}
+ .contact-links{flex-wrap:wrap;gap:18px;margin-top:20px}
+ .contact-links a{min-height:44px}
+ .footer{padding:22px 0 84px}
+ .footer .container{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+ .ai-chat-toggle{right:12px;bottom:max(12px,env(safe-area-inset-bottom));padding:10px 15px;min-height:46px;font-size:12px}
+ .cv-modal-backdrop{padding:10px 8px}
+ .cv-modal-window{border-radius:12px}
+ .cv-top-toolbar{padding:10px 12px;align-items:flex-start}
+ .cv-toolbar-actions{width:100%;gap:6px}
+ .cv-printable-area{padding:10px;overflow-x:auto;justify-content:flex-start}
+ .cv-sheet{min-width:0;width:100%;min-height:0;padding:22px 17px}
+ .cv-name{font-size:22px}
+ .cv-layout{grid-template-columns:minmax(0,1fr);gap:18px}
+ .cv-col-side{border-left:0;border-top:1px solid #e2e8f0;padding:16px 0 0}
+ .cv-contact-bar{gap:8px;overflow-wrap:anywhere}
+ .cv-toolbar-actions>*{max-width:100%}
+ .cv-modal-backdrop,.project-modal-backdrop,.profile-modal-backdrop{align-items:flex-start;overflow-y:auto}
+}
+@media(max-width:380px){
+ .container{width:calc(100% - 26px)}
+ .nav{height:60px}
+ .nav-links{top:60px}
+ .section{padding-top:48px;padding-bottom:48px}
+ .hero h1{font-size:34px}
+ .contact-section{padding:58px 0}
+ .contact-links{gap:14px}
+ .ai-chat-toggle{right:9px;padding-inline:12px}
+}
+@media(min-width:701px) and (max-width:1100px){
+ .projects-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .skills-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(hover:none){
+ .project-card:hover,.suggestion:hover,.ai-chat-toggle:hover{transform:none}
+}
