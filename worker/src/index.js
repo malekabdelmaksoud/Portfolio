@@ -1527,6 +1527,50 @@ async function loadLongTermConversationMemory(env, identity, question, activeCha
   }
 }
 
+
+function estimateTokenCount(text) {
+  const value=String(text||"");
+  return value ? Math.max(1,Math.ceil(value.length/4)) : 0;
+}
+async function recordAIUsage(env,identity,model,mode,inputTokens,outputTokens) {
+  try {
+    const input=Math.max(0,Math.floor(inputTokens||0)),output=Math.max(0,Math.floor(outputTokens||0));
+    await env.DB.prepare("INSERT INTO ai_usage(id,user_email,model,mode,input_tokens_est,output_tokens_est,total_tokens_est) VALUES(?,?,?,?,?,?,?)")
+      .bind(crypto.randomUUID(),String(identity?.email||"anonymous").toLowerCase().slice(0,254),String(model||"unknown").slice(0,120),String(mode||"chat").slice(0,24),input,output,input+output).run();
+  } catch(error) { console.error("AI usage telemetry write failed:",error?.message||error); }
+}
+function trackAIStream(stream,env,identity,model,mode,inputTokens) {
+  const reader=stream.getReader();let outputChars=0;const decoder=new TextDecoder();
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        const part=await reader.read();
+        if(part.done) {
+          outputChars+=decoder.decode().length;
+          await recordAIUsage(env,identity,model,mode,inputTokens,estimateTokenCount(outputChars));
+          controller.close();return;
+        }
+        if(part.value) outputChars+=decoder.decode(part.value,{stream:true}).length;
+        controller.enqueue(part.value);
+      } catch(error) { controller.error(error); }
+    },
+    async cancel(reason) {
+      try { await reader.cancel(reason); } catch(_) {}
+      await recordAIUsage(env,identity,model,mode,inputTokens,estimateTokenCount(outputChars));
+    }
+  });
+}
+async function listAdminGitHubRepositories(env) {
+  const owner=String(env.GITHUB_OWNER||"malekabdelmaksoud").trim();
+  if(!/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(owner)) throw apiError("GitHub owner configuration is invalid.","GITHUB_CONFIG",500);
+  const raw=await safeApiFetch("https://api.github.com/users/"+encodeURIComponent(owner)+"/repos?per_page=100&sort=updated&direction=desc",env,"application/vnd.github+json");
+  const data=parseJsonText(raw,null);
+  if(!Array.isArray(data)) throw apiError("GitHub repositories could not be loaded.","GITHUB_API_FAILURE",502);
+  return data.filter(repo=>repo && repo.private!==true && repo.fork!==true && repo.archived!==true)
+    .map(repo=>({name:sanitizeRepositoryText(repo.name,100),full_name:sanitizeRepositoryText(repo.full_name,180),url:"https://github.com/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo.name),language:sanitizeRepositoryText(repo.language||"Repository",60),description:sanitizeRepositoryText(repo.description||"",220),updated_at:String(repo.updated_at||"").slice(0,10)}))
+    .filter(repo=>repo.name&&repo.full_name&&repo.url);
+}
+
 async function assistant(request, env, identity) {
   let body;
   try { body = await readBody(request, 80000); }
@@ -1745,7 +1789,8 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
         temperature: 0.65
       });
       if (aiStream && (typeof aiStream.getReader === "function" || aiStream instanceof ReadableStream)) {
-        return new Response(aiStream, {
+        const trackedStream=trackAIStream(aiStream,env,identity,activeModel,mode,estimateTokenCount(JSON.stringify(messages)));
+        return new Response(trackedStream, {
           headers: {
             "content-type": "text/event-stream; charset=utf-8",
             "cache-control": "no-cache, no-transform",
@@ -1770,6 +1815,7 @@ ${publishedPortfolioContext || "The live public portfolio site could not be retr
     if (typeof rawText !== "string" || !rawText.trim()) {
       throw Object.assign(new Error("The AI model returned an empty response."), { code: "EMPTY_AI_RESPONSE" });
     }
+    await recordAIUsage(env,identity,activeModel,mode,estimateTokenCount(JSON.stringify(messages)),estimateTokenCount(rawText));
     return json({
       answer: rawText.trim(),
       mode,
@@ -2306,6 +2352,31 @@ async function restoreD1Database(env, bundleBytes, { dry_run = true, confirmatio
 async function adminRoute(request, env, path, method) {
   const actor = await verifyAdmin(request, env);
   if (path === "/api/admin/session" && method === "GET") return json({ authenticated: true, user: actor });
+  if (path === "/api/admin/github/repos" && method === "GET") {
+    const repositories=await listAdminGitHubRepositories(env);
+    return json({ owner:String(env.GITHUB_OWNER||"malekabdelmaksoud"),repositories });
+  }
+  if (path === "/api/admin/ai/usage" && method === "GET") {
+    const quota=Math.max(0,Number.parseInt(env.AI_USER_MONTHLY_TOKEN_LIMIT||"0",10)||0);
+    const { results: users=[] }=await env.DB.prepare(
+      "SELECT u.email,u.created_at,COALESCE(x.requests,0) AS requests,COALESCE(x.tokens_used,0) AS tokens_used,x.last_activity " +
+      "FROM users u LEFT JOIN (SELECT user_email,COUNT(*) AS requests,SUM(total_tokens_est) AS tokens_used,MAX(created_at) AS last_activity " +
+      "FROM ai_usage WHERE created_at>=strftime('%Y-%m-01 00:00:00','now') GROUP BY user_email) x ON lower(x.user_email)=lower(u.email) " +
+      "ORDER BY tokens_used DESC,u.email"
+    ).all();
+    const totals=users.reduce((acc,user)=>({requests:acc.requests+Number(user.requests||0),tokens:acc.tokens+Number(user.tokens_used||0)}),{requests:0,tokens:0});
+    const registered=Number((await env.DB.prepare("SELECT COUNT(*) AS count FROM users").first())?.count||0);
+    const anonymous=await env.DB.prepare("SELECT COUNT(*) AS requests,COALESCE(SUM(total_tokens_est),0) AS tokens FROM ai_usage WHERE user_email='anonymous' AND created_at>=strftime('%Y-%m-01 00:00:00','now')").first();
+    return json({
+      period:"current_month_utc",quota_per_user_month:quota||null,
+      summary:{users:registered,requests_month:totals.requests+Number(anonymous?.requests||0),tokens_month:totals.tokens+Number(anonymous?.tokens||0),
+        remaining_all:quota?Math.max(0,registered*quota-totals.tokens):null,
+        anonymous_requests:Number(anonymous?.requests||0),anonymous_tokens:Number(anonymous?.tokens||0)},
+      users:users.map(user=>({email:user.email,created_at:user.created_at,requests:Number(user.requests||0),tokens_used:Number(user.tokens_used||0),
+        tokens_remaining:quota?Math.max(0,quota-Number(user.tokens_used||0)):null,last_activity:user.last_activity||null}))
+    });
+  }
+
   if (path === "/api/admin/projects/import" && method === "POST") {
     let body;
     try { body = await readBody(request, 4000); } catch (_) {
