@@ -44,6 +44,38 @@ function renderLearning(){
   card.append(top,excerpt,link);root.append(card);
  }
 }
+
+async function importGithubProject(){
+ const input=$("#githubRepoUrl"),status=$("#githubImportStatus"),btn=$("#importGithubRepo");
+ const raw=input.value.trim();let url;
+ try{url=new URL(raw);}catch{status.textContent="Entrez un lien GitHub valide.";status.className="github-import-status error";return;}
+ const match=url.hostname==="github.com"&&url.pathname.match(/^\/([^/]+)\/([^/]+)\/?$/);
+ if(!match){status.textContent="Format attendu : https://github.com/owner/repository";status.className="github-import-status error";return;}
+ const owner=match[1],repo=match[2].replace(/\.git$/,"");
+ btn.disabled=true;btn.textContent="Lecture du repository…";status.className="github-import-status";status.textContent="Récupération des informations GitHub et du README…";
+ try{
+  const headers={Accept:"application/vnd.github+json"};
+  const metaResponse=await fetch("https://api.github.com/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo),{headers});
+  if(!metaResponse.ok)throw new Error(metaResponse.status===404?"Repository introuvable ou privé.":"GitHub a refusé la requête ("+metaResponse.status+").");
+  const meta=await metaResponse.json();
+  if(meta.private)throw new Error("Ce repository est privé. L'import public ne peut pas y accéder.");
+  let readme="";
+  const readmeResponse=await fetch("https://api.github.com/repos/"+encodeURIComponent(owner)+"/"+encodeURIComponent(repo)+"/readme",{headers});
+  if(readmeResponse.ok){const data=await readmeResponse.json();if(data.content)readme=atob(data.content.replace(/\s/g,""));if(data.encoding==="base64")readme=decodeURIComponent(escape(readme));}
+  const id=(owner+"-"+repo).toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,70);
+  const result=await api("/api/admin/projects/describe",{method:"POST",body:JSON.stringify({name:meta.name||repo,fullName:meta.full_name||owner+"/"+repo,description:meta.description||"",language:meta.language||"",topics:meta.topics||[],url:meta.html_url,homepage:meta.homepage||"",readme:readme.slice(0,12000)})});
+  const form=$("#projectForm");form.hidden=false;form.reset();state.editingProject=null;
+  form.elements.id.value=id;form.elements.title.value=result.title||meta.name||repo;
+  form.elements.type.value=result.type||[meta.language,...(meta.topics||[]).slice(0,3)].filter(Boolean).join(" · ")||"Development";
+  form.elements.description_fr.value=result.description_fr||meta.description||"Projet importé depuis GitHub.";
+  form.elements.description_en.value=result.description_en||meta.description||"Project imported from GitHub.";
+  form.elements.url.value=meta.html_url;form.elements.sort_order.value=String(state.projects.length*10);form.elements.visible.checked=false;
+  form.elements.id.readOnly=false;$("#projectFormTitle").textContent="Vérifier le projet importé";
+  status.textContent="Import réussi. Description générée : relisez les deux langues, puis enregistrez et publiez quand vous êtes prêt.";status.className="github-import-status success";
+  form.scrollIntoView({behavior:"smooth",block:"center"});
+ }catch(error){status.textContent=error.message||"Échec de l'import.";status.className="github-import-status error";}
+ finally{btn.disabled=false;btn.textContent="Importer depuis GitHub ↗";}
+}
 function renderProjects(){
  const root=$("#projectsList");root.replaceChildren();$("#projectCount").textContent=String(state.projects.length);
  if(!state.projects.length){root.append(node("p","muted","Aucun projet enregistré."));return;}
@@ -89,7 +121,7 @@ async function deleteFact(f){if(!confirm("Supprimer définitivement "+f.id+" ?")
 async function deleteProject(p){if(!confirm("Supprimer définitivement "+p.title+" ?"))return;try{await api("/api/admin/projects/"+encodeURIComponent(p.id),{method:"DELETE"});notice("Projet supprimé.");await load();}catch(e){notice(e.message,true);}}
 document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===tab));$("#factsPanel").hidden=tab.dataset.tab!=="facts";$("#projectsPanel").hidden=tab.dataset.tab!=="projects";$("#learningPanel").hidden=tab.dataset.tab!=="learning";}));
 $("#refreshLearning").addEventListener("click",async()=>{const b=$("#refreshLearning");b.disabled=true;b.textContent="Actualisation…";try{const result=await api("/api/admin/learning/refresh",{method:"POST",body:"{}"});notice("Actualisation terminée : "+result.saved+" sources enregistrées, "+result.failed.length+" flux en erreur.");state.learning=await api("/api/admin/learning");renderLearning();}catch(e){notice(e.message,true);}finally{b.disabled=false;b.textContent="↻ Actualiser maintenant";}});
-$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));
+$("#newFact").addEventListener("click",()=>editFact(null));$("#newProject").addEventListener("click",()=>editProject(null));$("#importGithubRepo").addEventListener("click",importGithubProject);$("#githubRepoUrl").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();importGithubProject();}});
 $("#factForm").addEventListener("submit",saveFact);$("#projectForm").addEventListener("submit",saveProject);
 document.querySelectorAll("[data-cancel]").forEach(b=>b.addEventListener("click",()=>$("#"+b.dataset.cancel+"Form").hidden=true));
 load();
