@@ -491,7 +491,77 @@ textarea:focus-visible {
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* ── Hero Section ── */
+/* ── Hero Mini Cards ── */
+.hero-mini-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+.mini-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.mini-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+.mini-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--text-main);
+}
+.mini-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+/* ── Project Filter Tabs ── */
+.project-filter-tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.filter-tab {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.filter-tab.active {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+.filter-tab:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+}
+
+.hero-greeting {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(44px,5.8vw,68px);
+  font-weight: 700;
+  line-height: 1.08;
+  margin: 18px 0 16px;
+  color: var(--text-main);
+}
+.hero-greeting .hero-name {
+  display: inline;
+}
+.hero-name-accent {
+  color: var(--accent-primary);
+}
+
 .hero {
   min-height: 680px;
   display: grid;

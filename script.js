@@ -182,3 +182,20 @@ if (aiWorkspaceEntry && aiWorkspaceOverlay && aiWorkspaceFrame && aiWorkspaceClo
     aiWorkspaceNewTab.textContent = english ? "Open full page ↗" : "Ouvrir en pleine page ↗";
   });
 }
+
+// ── Project filter tabs functionality ──
+const filterTabs = document.querySelectorAll('.filter-tab');
+filterTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    filterTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const filter = tab.dataset.filter;
+    document.querySelectorAll('.project-card').forEach(card => {
+      if (filter === 'all' || card.dataset.category === filter) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+});
