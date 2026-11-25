@@ -52,6 +52,8 @@ function setLanguage(language) {
     } else if (typeof ProjectsManager.updateSkills === "function") {
       ProjectsManager.updateSkills();
     }
+  } else {
+    syncStaticSpotlight();
   }
   window.dispatchEvent(new Event("portfolio:languagechange"));
 }
@@ -60,12 +62,21 @@ document.querySelectorAll(".lang-btn").forEach(button => {
   button.addEventListener("click", () => setLanguage(button.dataset.lang));
 });
 
-/* ── 3-Mode Theme Switcher (Obsidian / Daylight / Atelier) ── */
+/* ── 3-Mode Theme Switcher (Obsidian / Daylight / Atelier) with Crisp Vector Icons ── */
 const THEME_MODES = ["dark", "light", "atelier"];
 const THEME_META = {
-  dark: { icon: "🌙", label: "Obsidian" },
-  light: { icon: "☀️", label: "Daylight" },
-  atelier: { icon: "✦", label: "Atelier" }
+  dark: {
+    label: "Obsidian",
+    svg: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>'
+  },
+  light: {
+    label: "Daylight",
+    svg: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-15.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2m-15.07 7.07 1.41-1.41m11.32-11.32 1.41-1.41"/></svg>'
+  },
+  atelier: {
+    label: "Atelier",
+    svg: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
+  }
 };
 
 function applyTheme(theme) {
@@ -76,7 +87,7 @@ function applyTheme(theme) {
   const meta = THEME_META[resolved] || THEME_META.dark;
   const toggle = document.getElementById("theme-toggle");
   if (toggle) {
-    toggle.innerHTML = `<span class="theme-icon" aria-hidden="true">${meta.icon}</span><span class="theme-label">${meta.label}</span>`;
+    toggle.innerHTML = `<span class="theme-icon" aria-hidden="true">${meta.svg}</span><span class="theme-label">${meta.label}</span>`;
     toggle.setAttribute("aria-label", `Mode: ${meta.label} (cliquer pour changer)`);
     toggle.setAttribute("title", `Mode: ${meta.label} — Obsidian / Daylight / Atelier`);
     toggle.dataset.mode = resolved;
@@ -104,9 +115,18 @@ document.querySelectorAll("[data-theme-mode]").forEach(btn => {
   btn.addEventListener("click", () => applyTheme(btn.dataset.themeMode));
 });
 
-/* ── Shared Project Card V2 Metadata, Mockup Builder & Filter ── */
+/* ── Safe DOM Element Helper ── */
+function el(tag, className, textContent) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (textContent !== undefined) node.textContent = textContent;
+  return node;
+}
+
+/* ── Shared Project Metadata, Bespoke Architectural Canvas & Workbench Controller ── */
 let activeProjectFilter = "all";
 let currentRenderedProjects = [];
+let activeSpotlightIndex = 0;
 
 function getProjectMetadata(project, index) {
   const title = String(project.title || project.name || "Project");
@@ -122,135 +142,349 @@ function getProjectMetadata(project, index) {
   if (/\b(c#|csharp|\.net|dotnet)\b/.test(blob)) categories.push("csharp", "desktop");
   if (categories.length === 0) categories.push("web");
 
-  let emoji = "💡";
-  let mockupKind = "browser";
-  let badgeShort = type.split("·")[0].trim() || "App";
-
-  if (/\blaravel\b/.test(blob)) {
-    emoji = "🚀"; mockupKind = "lms"; badgeShort = "laravel-mvc.app";
-  } else if (/\bsymfony\b/.test(blob)) {
-    emoji = "⚡"; mockupKind = "lms"; badgeShort = "symfony.twig";
-  } else if (/\bphp\b/.test(blob)) {
-    emoji = "🌐"; mockupKind = "browser"; badgeShort = "projet-php.local";
-  } else if (/\belearning\b/.test(blob)) {
-    emoji = "🎓"; mockupKind = "lms"; badgeShort = "elearning.java";
-  } else if (/\bmagasin\b|\bstore\b/.test(blob)) {
-    emoji = "🛒"; mockupKind = "table"; badgeShort = "StoreManager.java";
-  } else if (/\bpoo\b|\boop\b/.test(blob)) {
-    emoji = "♦"; mockupKind = "code"; badgeShort = "OOP_Hierarchy.java";
-  } else if (/\bhunter\b|\bmcp\b|\bworkers\b|\btypescript\b/.test(blob)) {
-    emoji = "🔎"; mockupKind = "code"; badgeShort = "workers-mcp.ts";
-  } else if (/\bc#\b|\bfirstapp\b|\b\.net\b/.test(blob)) {
-    emoji = "🖥️"; mockupKind = "browser"; badgeShort = "FirstApp.cs";
-  } else if (/\bjava\b/.test(blob)) {
-    emoji = "☕"; mockupKind = "code"; badgeShort = `${title.slice(0, 14)}.java`;
-  }
+  let domainKind = "architecture";
+  if (/\belearning\b/.test(blob)) domainKind = "elearning";
+  else if (/\blaravel\b/.test(blob)) domainKind = "laravel";
+  else if (/\bsymfony\b/.test(blob)) domainKind = "symfony";
+  else if (/\bmagasin\b|\bstore\b/.test(blob)) domainKind = "store";
+  else if (/\bpoo\b|\boop\b/.test(blob)) domainKind = "oop";
+  else if (/\bhunter\b|\bmcp\b|\bworkers\b/.test(blob)) domainKind = "mcp";
+  else if (/\bc#\b|\bfirstapp\b|\b\.net\b/.test(blob)) domainKind = "dotnet";
+  else if (/\bphp\b/.test(blob)) domainKind = "php";
 
   const techRules = [
-    { regex: /\blaravel\b/i, label: "Laravel", dot: "dot-laravel" },
-    { regex: /\bsymfony\b/i, label: "Symfony", dot: "dot-symfony" },
-    { regex: /\bangular\b/i, label: "Angular", dot: "dot-angular" },
-    { regex: /\btypescript\b/i, label: "TypeScript", dot: "dot-js" },
-    { regex: /\bjavascript\b/i, label: "JavaScript", dot: "dot-js" },
-    { regex: /\bphp\b/i, label: "PHP", dot: "dot-php" },
-    { regex: /\bjava\b(?!script)/i, label: "Java", dot: "dot-java" },
-    { regex: /\bpython\b/i, label: "Python", dot: "dot-python" },
-    { regex: /\bc#\b|csharp/i, label: "C#", dot: "dot-csharp" },
-    { regex: /\bworkers\b/i, label: "Workers", dot: "" },
-    { regex: /\bmcp\b/i, label: "MCP", dot: "" },
-    { regex: /\.net\b/i, label: ".NET", dot: "" },
-    { regex: /\bweb\b/i, label: "Web", dot: "" }
+    { regex: /\blaravel\b/i, label: "Laravel" },
+    { regex: /\bsymfony\b/i, label: "Symfony" },
+    { regex: /\bangular\b/i, label: "Angular" },
+    { regex: /\btypescript\b/i, label: "TypeScript" },
+    { regex: /\bjavascript\b/i, label: "JavaScript" },
+    { regex: /\bphp\b/i, label: "PHP" },
+    { regex: /\bjava\b(?!script)/i, label: "Java" },
+    { regex: /\bpython\b/i, label: "Python" },
+    { regex: /\bc#\b|csharp/i, label: "C#" },
+    { regex: /\bworkers\b/i, label: "Cloudflare Workers" },
+    { regex: /\bmcp\b/i, label: "MCP" },
+    { regex: /\.net\b/i, label: ".NET" },
+    { regex: /\bdoctrine\b/i, label: "Doctrine" },
+    { regex: /\bweb\b/i, label: "Web" }
   ];
 
   const chips = [];
   techRules.forEach(rule => {
     if (rule.regex.test(blob) && chips.length < 3) {
-      chips.push({ label: rule.label, dot: rule.dot });
+      chips.push(rule.label);
     }
   });
-  if (chips.length === 0) chips.push({ label: type.split("·")[0].trim() || "Project", dot: "" });
+  if (chips.length === 0) chips.push(type.split("·")[0].trim() || "Software");
 
-  const visualClasses = ["visual-one", "visual-two", "visual-three", "visual-four", "visual-five", "visual-six", "visual-seven", "visual-eight"];
+  let repoSlug = title;
+  const ghMatch = url.match(/github\.com\/([^/?#]+\/[^/?#]+)/i);
+  if (ghMatch) repoSlug = ghMatch[1];
+
   return {
+    index,
+    indexLabel: String(index + 1).padStart(2, "0"),
     title,
     type,
     url,
-    emoji,
-    mockupKind,
-    badgeShort,
+    repoSlug,
+    domainKind,
     chips,
-    visualClass: visualClasses[index % visualClasses.length],
     categories: Array.from(new Set(categories)).join(" ")
   };
 }
 
-function createMockupNode(meta) {
-  const frame = document.createElement("div");
-  frame.className = "mockup-frame mockup-" + meta.mockupKind;
+function createArchNodeRow(label, value, toneClass) {
+  const row = el("div", "arch-kv-row");
+  row.append(el("span", "arch-k", label), el("strong", "arch-v" + (toneClass ? " " + toneClass : ""), value));
+  return row;
+}
 
-  const bar = document.createElement("div");
-  bar.className = "mockup-bar";
-  bar.append(document.createElement("span"), document.createElement("span"), document.createElement("span"));
-  const fileTag = document.createElement("small");
-  fileTag.textContent = meta.badgeShort;
-  bar.append(fileTag);
-  frame.append(bar);
+/* Bespoke domain-tailored architectural preview builder (shared by Live Stage & Modal) */
+function createBespokeStageCanvas(meta, language) {
+  const isEn = language === "en";
+  const shell = el("div", "arch-preview arch-preview--" + meta.domainKind);
 
-  if (meta.mockupKind === "lms") {
-    const content = document.createElement("div");
-    content.className = "mockup-content";
-    const sidebar = document.createElement("div");
-    sidebar.className = "mockup-sidebar";
-    sidebar.append(document.createElement("i"), document.createElement("i"), document.createElement("i"));
-    const main = document.createElement("div");
-    main.className = "mockup-main";
-    const kpi = document.createElement("div");
-    kpi.className = "mockup-kpi-row";
-    meta.chips.slice(0, 3).forEach(ch => {
-      const b = document.createElement("b");
-      b.textContent = ch.label;
-      kpi.append(b);
+  if (meta.domainKind === "elearning") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "LMS Studio · Core Engine"), el("span", "arch-badge-ok", "JAVA SE"));
+    const body = el("div", "arch-split-lms");
+
+    const nav = el("div", "arch-lms-rail");
+    nav.append(el("div", "arch-rail-head", isEn ? "CURRICULUM" : "PROGRAMME"));
+    const modules = isEn
+      ? [["01", "OOP Foundations", true], ["02", "Collections & Generics", true], ["03", "JDBC Persistence", false]]
+      : [["01", "Bases POO Java", true], ["02", "Collections & Flux", true], ["03", "Persistance JDBC", false]];
+    modules.forEach(([num, name, active]) => {
+      const item = el("div", "arch-rail-item" + (active ? " done" : ""));
+      item.append(el("em", "", num), el("span", "", name));
+      nav.append(item);
     });
-    const c1 = document.createElement("div"); c1.className = "mockup-chart-bar";
-    const f1 = document.createElement("i"); f1.style.width = "84%"; c1.append(f1);
-    const c2 = document.createElement("div"); c2.className = "mockup-chart-bar";
-    const f2 = document.createElement("i"); f2.style.width = "64%"; c2.append(f2);
-    main.append(kpi, c1, c2);
-    content.append(sidebar, main);
-    frame.append(content);
-  } else if (meta.mockupKind === "table") {
-    const rows = document.createElement("div");
-    rows.className = "mockup-rows";
-    rows.append(document.createElement("i"), document.createElement("i"), document.createElement("i"));
-    frame.append(rows);
-  } else if (meta.mockupKind === "code") {
-    const codeBox = document.createElement("div");
-    codeBox.className = "mockup-code-lines";
-    const lines = meta.categories.includes("typescript")
-      ? ["GET /mcp/search?q=PFE", "status: 200 OK", "edge: Cloudflare Workers"]
-      : [`class ${meta.title.replace(/[^a-zA-Z0-9]/g, "")} {}`, "extends CoreModule", "@Override run()"];
-    lines.forEach(line => {
-      const i = document.createElement("i");
-      i.textContent = line;
-      codeBox.append(i);
+
+    const main = el("div", "arch-lms-main");
+    const metricRow = el("div", "arch-stat-grid");
+    [
+      [isEn ? "LEARNERS" : "APPRENANTS", "148"],
+      [isEn ? "MODULES" : "MODULES", "12"],
+      [isEn ? "COMPLETION" : "COMPLÉTION", "92%"]
+    ].forEach(([k, v]) => {
+      const box = el("div", "arch-stat-box");
+      box.append(el("small", "", k), el("strong", "", v));
+      metricRow.append(box);
     });
-    frame.append(codeBox);
-  } else {
-    const web = document.createElement("div");
-    web.className = "mockup-web-hero";
-    const pill = document.createElement("div");
-    pill.className = "mockup-web-pill";
-    pill.textContent = meta.chips.map(c => c.label).join(" · ");
-    const wlines = document.createElement("div");
-    wlines.className = "mockup-web-lines";
-    const l1 = document.createElement("i");
-    const l2 = document.createElement("i"); l2.className = "short";
-    wlines.append(l1, l2);
-    const wbtn = document.createElement("div"); wbtn.className = "mockup-web-btn";
-    web.append(pill, wlines, wbtn);
-    frame.append(web);
+    const progWrap = el("div", "arch-progress-card");
+    const pHead = el("div", "arch-phead");
+    pHead.append(el("span", "", isEn ? "Java Enterprise Track" : "Parcours Java Avancé"), el("strong", "", "86%"));
+    const track = el("div", "arch-pbar");
+    const fill = el("i"); fill.style.width = "86%";
+    track.append(fill);
+    progWrap.append(pHead, track);
+    main.append(metricRow, progWrap);
+    body.append(nav, main);
+    shell.append(top, body);
+    return shell;
   }
-  return frame;
+
+  if (meta.domainKind === "laravel") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "artisan serve · localhost:8000"), el("span", "arch-badge-ok", "MVC · AUTH"));
+    const pipe = el("div", "arch-pipeline");
+    [
+      ["routes/web.php", "GET /dashboard"],
+      ["AuthController", "Middleware · Auth"],
+      ["Eloquent ORM", "Schema Migrations"],
+      ["Blade Engine", "Responsive UI"]
+    ].forEach(([node, sub], idx) => {
+      const card = el("div", "arch-pipe-node" + (idx === 1 ? " focus" : ""));
+      card.append(el("strong", "", node), el("small", "", sub));
+      pipe.append(card);
+    });
+    const foot = el("div", "arch-telemetry-strip");
+    foot.append(
+      el("span", "ok", "200 OK"),
+      el("span", "", "Laravel MVC"),
+      el("span", "", isEn ? "Migrations Synced" : "Migrations synchronisées"),
+      el("span", "", "CSRF Active")
+    );
+    shell.append(top, pipe, foot);
+    return shell;
+  }
+
+  if (meta.domainKind === "store") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "StoreManager.java · ERP Stock"), el("span", "arch-badge-ok", "INVENTORY"));
+    const kpis = el("div", "arch-stat-grid");
+    [
+      [isEn ? "CATALOG SKUS" : "RÉFÉRENCES", "84"],
+      [isEn ? "IN STOCK" : "EN STOCK", "1,240"],
+      [isEn ? "LOW STOCK" : "ALERTES", "03"]
+    ].forEach(([k, v]) => {
+      const box = el("div", "arch-stat-box");
+      box.append(el("small", "", k), el("strong", "", v));
+      kpis.append(box);
+    });
+    const table = el("div", "arch-erp-table");
+    const rows = isEn
+      ? [["SKU-104", "Mechanical Keyboard", "42 u.", "Optimal"], ["SKU-208", "27\" Studio Display", "06 u.", "Reorder"], ["SKU-312", "USB-C Dock Hub", "19 u.", "Optimal"]]
+      : [["SKU-104", "Clavier Mécanique", "42 u.", "En stock"], ["SKU-208", "Écran Studio 27\"", "06 u.", "Alerte"], ["SKU-312", "Station USB-C", "19 u.", "En stock"]];
+    rows.forEach(([sku, label, qty, status]) => {
+      const r = el("div", "arch-erp-row");
+      const low = status === "Alerte" || status === "Reorder";
+      r.append(
+        el("code", "", sku),
+        el("span", "arch-erp-name", label),
+        el("em", "", qty),
+        el("b", low ? "warn" : "good", status)
+      );
+      table.append(r);
+    });
+    shell.append(top, kpis, table);
+    return shell;
+  }
+
+  if (meta.domainKind === "oop") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "UML Hierarchy · OOP Design"), el("span", "arch-badge-ok", "@OVERRIDE"));
+    const uml = el("div", "arch-uml-canvas");
+    const parent = el("div", "arch-uml-node parent");
+    parent.append(el("small", "", "«abstract»"), el("strong", "", "EntiteBase"), el("code", "", "+ afficherProfil(): void"));
+    const branch = el("div", "arch-uml-branch");
+    const c1 = el("div", "arch-uml-node");
+    c1.append(el("small", "", "extends EntiteBase"), el("strong", "", "Etudiant"), el("code", "", "@Override + afficherProfil()"));
+    const c2 = el("div", "arch-uml-node");
+    c2.append(el("small", "", "implements Evaluable"), el("strong", "", "ModuleCours"), el("code", "", "+ calculerMoyenne(): double"));
+    branch.append(c1, c2);
+    uml.append(parent, el("div", "arch-uml-connectors"), branch);
+    shell.append(top, uml);
+    return shell;
+  }
+
+  if (meta.domainKind === "symfony") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "Symfony 6 · Controller & Twig"), el("span", "arch-badge-ok", "DOCTRINE ORM"));
+    const grid = el("div", "arch-two-pane");
+    const left = el("div", "arch-code-pane");
+    ["#[Route('/app', name: 'app_home')]", "public function index(Repo $repo):", "  return $this->render('index.html.twig');"].forEach(l => {
+      left.append(el("code", "", l));
+    });
+    const right = el("div", "arch-kv-card");
+    right.append(
+      createArchNodeRow("Template", "Twig v3 Engine"),
+      createArchNodeRow("Mapping", "Doctrine Entity"),
+      createArchNodeRow("Router", "Attribute Routes", "ok")
+    );
+    grid.append(left, right);
+    const bar = el("div", "arch-telemetry-strip");
+    bar.append(el("span", "ok", "200 OK"), el("span", "", "GET /catalog"), el("span", "", "Doctrine: 3 req · 2.1ms"), el("span", "", "Twig 3"));
+    shell.append(top, grid, bar);
+    return shell;
+  }
+
+  if (meta.domainKind === "mcp") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "Cloudflare Workers · MCP Protocol"), el("span", "arch-badge-ok", "EDGE 11ms"));
+    const req = el("div", "arch-code-pane compact");
+    req.append(
+      el("code", "", "TOOL CALL  mcp.search_opportunities({ query: \"PFE Full-Stack\", limit: 12 })"),
+      el("code", "", "STATUS     200 OK · Edge Node CDG · Schema Validated")
+    );
+    const list = el("div", "arch-erp-table");
+    const items = isEn
+      ? [["PFE", "Full-Stack Developer · Laravel / Angular", "Tunisia", "Verified"], ["JOB", "TypeScript Edge Engineer · Junior", "Remote", "Live"]]
+      : [["PFE", "Développeur Full-Stack · Laravel / Angular", "Sfax / Tunis", "Vérifié"], ["ALT", "Ingénieur TypeScript & Workers", "Hybride", "Actif"]];
+    items.forEach(([tag, role, loc, st]) => {
+      const r = el("div", "arch-erp-row");
+      r.append(el("code", "", tag), el("span", "arch-erp-name", role), el("em", "", loc), el("b", "good", st));
+      list.append(r);
+    });
+    shell.append(top, req, list);
+    return shell;
+  }
+
+  if (meta.domainKind === "dotnet") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "FirstApp.exe · .NET Desktop"), el("span", "arch-badge-ok", "C# / .NET"));
+    const grid = el("div", "arch-two-pane");
+    const nav = el("div", "arch-lms-rail");
+    [isEn ? "Overview" : "Vue générale", isEn ? "Components" : "Composants", isEn ? "Runtime" : "Exécution"].forEach((t, idx) => {
+      const row = el("div", "arch-rail-item" + (idx === 0 ? " done" : ""));
+      row.append(el("em", "", "0" + (idx + 1)), el("span", "", t));
+      nav.append(row);
+    });
+    const kv = el("div", "arch-kv-card");
+    kv.append(
+      createArchNodeRow("Runtime", ".NET Managed UI"),
+      createArchNodeRow("Namespace", "FirstApp.Views"),
+      createArchNodeRow("Build", "Release Ready", "ok")
+    );
+    grid.append(nav, kv);
+    shell.append(top, grid);
+    return shell;
+  }
+
+  if (meta.domainKind === "php") {
+    const top = el("div", "arch-win-bar");
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "localhost:8000/index.php"), el("span", "arch-badge-ok", "PHP 8 · CSS"));
+    const grid = el("div", "arch-two-pane");
+    const code = el("div", "arch-code-pane");
+    ["session_start();", "$stmt = $pdo->prepare('SELECT ...');", "require 'views/layout.php';"].forEach(l => code.append(el("code", "", l)));
+    const kv = el("div", "arch-kv-card");
+    kv.append(
+      createArchNodeRow(isEn ? "Rendering" : "Rendu", "Server-Side PHP"),
+      createArchNodeRow("Layout", "Custom CSS3 Grid"),
+      createArchNodeRow("Latency", "4.2ms Local", "ok")
+    );
+    grid.append(code, kv);
+    shell.append(top, grid);
+    return shell;
+  }
+
+  /* Clean Dynamic Fallback for Custom / API-Loaded Projects */
+  const top = el("div", "arch-win-bar");
+  top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", meta.repoSlug), el("span", "arch-badge-ok", meta.chips[0] || "APP"));
+  const grid = el("div", "arch-two-pane");
+  const code = el("div", "arch-code-pane");
+  [
+    `module: "${meta.title}"`,
+    `stack:  [${meta.chips.map(c => `"${c}"`).join(", ")}]`,
+    `status: "production-verified"`
+  ].forEach(line => code.append(el("code", "", line)));
+  const kv = el("div", "arch-kv-card");
+  kv.append(
+    createArchNodeRow(isEn ? "Category" : "Catégorie", meta.type),
+    createArchNodeRow("Stack", meta.chips.join(" · ")),
+    createArchNodeRow("Repository", "GitHub", "ok")
+  );
+  grid.append(code, kv);
+  shell.append(top, grid);
+  return shell;
+}
+
+function updateSpotlightStage(projectOrIndex) {
+  const stagePanel = document.getElementById("projectSpotlightStage");
+  if (!stagePanel) return;
+
+  if (!currentRenderedProjects || currentRenderedProjects.length === 0) {
+    stagePanel.hidden = true;
+    return;
+  }
+  stagePanel.hidden = false;
+
+  const idx = typeof projectOrIndex === "number"
+    ? Math.max(0, Math.min(currentRenderedProjects.length - 1, projectOrIndex))
+    : Math.max(0, currentRenderedProjects.findIndex(p => String(p.id) === String(projectOrIndex)));
+
+  activeSpotlightIndex = idx;
+  const project = currentRenderedProjects[idx];
+  if (!project) return;
+
+  const language = document.documentElement.lang === "en" ? "en" : "fr";
+  const meta = getProjectMetadata(project, idx);
+  const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
+
+  document.querySelectorAll("#projets .project-ledger-row").forEach((row, i) => {
+    const active = i === idx;
+    row.classList.toggle("is-active", active);
+    row.setAttribute("aria-current", active ? "true" : "false");
+  });
+
+  const stageIndex = document.getElementById("stageIndex");
+  const stageCat = document.getElementById("stageCategory");
+  const stageRepo = document.getElementById("stageRepoSlug");
+  const stageCanvas = document.getElementById("stageCanvas");
+  const stageTitle = document.getElementById("stageTitle");
+  const stageChips = document.getElementById("stageChips");
+  const stageSummary = document.getElementById("stageSummary");
+  const stageInspect = document.getElementById("stageInspectBtn");
+  const stageGh = document.getElementById("stageGithubLink");
+
+  if (stageIndex) stageIndex.textContent = `${meta.indexLabel} / ${totalStr}`;
+  if (stageCat) stageCat.textContent = meta.type;
+  if (stageRepo) stageRepo.textContent = meta.repoSlug;
+  if (stageTitle) stageTitle.textContent = meta.title;
+  if (stageSummary) {
+    stageSummary.textContent = language === "en"
+      ? (project.description_en || project.description || "")
+      : (project.description_fr || project.description || "");
+  }
+  if (stageGh) stageGh.href = meta.url;
+  if (stageInspect) stageInspect.onclick = () => window.openProjectPreviewModal(idx);
+  if (stageChips) {
+    stageChips.replaceChildren(...meta.chips.map(label => el("span", "tech-tag", label)));
+  }
+  if (stageCanvas) {
+    stageCanvas.replaceChildren(createBespokeStageCanvas(meta, language));
+  }
+}
+
+function updateProjectsCountLabel(visibleCount) {
+  const label = document.getElementById("projectsCountLabel");
+  if (!label) return;
+  const isEn = document.documentElement.lang === "en";
+  const padded = String(visibleCount).padStart(2, "0");
+  label.textContent = isEn
+    ? `${padded} ${visibleCount === 1 ? "project shown" : "curated works"}`
+    : `${padded} ${visibleCount === 1 ? "projet affiché" : "projets sélectionnés"}`;
 }
 
 function applyProjectFilter(filterValue) {
@@ -258,52 +492,88 @@ function applyProjectFilter(filterValue) {
   document.querySelectorAll(".filter-tab").forEach(tab => {
     tab.classList.toggle("active", tab.dataset.filter === activeProjectFilter);
   });
-  document.querySelectorAll("#projets .project-card").forEach(card => {
+  let firstVisibleIndex = -1;
+  let visibleCount = 0;
+  let currentStillVisible = false;
+
+  document.querySelectorAll("#projets .project-card").forEach((card, i) => {
     const cats = String(card.dataset.category || "").split(/\s+/).filter(Boolean);
     const visible = activeProjectFilter === "all" || cats.includes(activeProjectFilter);
     card.style.display = visible ? "" : "none";
+    if (visible) {
+      visibleCount += 1;
+      if (firstVisibleIndex === -1) firstVisibleIndex = i;
+      if (i === activeSpotlightIndex) currentStillVisible = true;
+    }
   });
+
+  updateProjectsCountLabel(visibleCount);
+  const stagePanel = document.getElementById("projectSpotlightStage");
+  if (visibleCount === 0) {
+    if (stagePanel) stagePanel.hidden = true;
+  } else {
+    if (stagePanel) stagePanel.hidden = false;
+    if (!currentStillVisible && firstVisibleIndex !== -1) {
+      updateSpotlightStage(firstVisibleIndex);
+    }
+  }
+}
+
+function syncStaticSpotlight() {
+  const staticCards = Array.from(document.querySelectorAll("#projets .project-card"));
+  if (staticCards.length === 0) return;
+  currentRenderedProjects = staticCards.map((card, idx) => {
+    const titleEl = card.querySelector("h3");
+    const typeEl = card.querySelector(".project-type");
+    const descEl = card.querySelector("p:not(.project-type)");
+    const linkEl = card.querySelector("a[href]");
+    const idAttr = card.id ? card.id.replace(/^card_/, "") : `p_${idx + 1}`;
+    card.addEventListener("mouseenter", () => updateSpotlightStage(idx));
+    card.addEventListener("focusin", () => updateSpotlightStage(idx));
+    card.addEventListener("click", (e) => {
+      if (!e.target.closest("a, button")) updateSpotlightStage(idx);
+    });
+    return {
+      id: idAttr,
+      title: titleEl ? titleEl.textContent : "Project",
+      type: typeEl ? typeEl.textContent : "PROJECT",
+      description: descEl ? descEl.textContent : "",
+      url: linkEl ? linkEl.href : "#"
+    };
+  });
+  updateProjectsCountLabel(currentRenderedProjects.length);
+  updateSpotlightStage(0);
 }
 
 window.openProjectPreviewModal = function(projectOrIndex) {
   const backdrop = document.getElementById("projectPreviewBackdrop");
   if (!backdrop) return;
-  let entry = null;
+  let idx = 0;
   if (typeof projectOrIndex === "number") {
-    entry = currentRenderedProjects[projectOrIndex];
+    idx = projectOrIndex;
   } else {
-    entry = currentRenderedProjects.find(p => String(p.id) === String(projectOrIndex));
+    idx = Math.max(0, currentRenderedProjects.findIndex(p => String(p.id) === String(projectOrIndex)));
   }
+  const entry = currentRenderedProjects[idx];
   if (!entry) return;
 
   const language = document.documentElement.lang === "en" ? "en" : "fr";
-  const idx = Math.max(0, currentRenderedProjects.indexOf(entry));
   const meta = getProjectMetadata(entry, idx);
   const descText = language === "en"
     ? (entry.description_en || entry.description || "")
     : (entry.description_fr || entry.description || "");
 
   document.getElementById("ppType").textContent = meta.type;
-  document.getElementById("ppTitle").textContent = `${meta.emoji} ${meta.title}`;
+  document.getElementById("ppTitle").textContent = meta.title;
   document.getElementById("ppDesc").textContent = descText;
   document.getElementById("ppGithubLink").href = meta.url;
 
   const visualSlot = document.getElementById("ppVisual");
-  visualSlot.className = "pp-visual " + meta.visualClass;
-  visualSlot.replaceChildren(createMockupNode(meta));
+  visualSlot.className = "pp-visual";
+  visualSlot.replaceChildren(createBespokeStageCanvas(meta, language));
 
   const tagsSlot = document.getElementById("ppTags");
-  tagsSlot.replaceChildren(...meta.chips.map(ch => {
-    const span = document.createElement("span");
-    span.className = "b-chip";
-    if (ch.dot) {
-      const dot = document.createElement("i");
-      dot.className = ch.dot;
-      span.append(dot);
-    }
-    span.append(document.createTextNode(ch.label));
-    return span;
-  }));
+  tagsSlot.replaceChildren(...meta.chips.map(label => el("span", "tech-tag", label)));
 
   backdrop.classList.add("active");
 };
@@ -330,102 +600,95 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
   currentRenderedProjects.forEach((project, index) => {
     const meta = getProjectMetadata(project, index);
     const card = document.createElement("article");
-    card.className = "project-card project-card-v2";
+    card.className = "project-card project-ledger-row";
     card.dataset.category = meta.categories;
+    card.tabIndex = 0;
     if (project.id) card.id = "card_" + project.id;
 
-    const visual = document.createElement("div");
-    visual.className = "project-visual " + meta.visualClass;
-    const num = document.createElement("span");
-    num.textContent = String(index + 1).padStart(2, "0");
-    visual.append(createMockupNode(meta), num);
+    const indexEl = el("span", "ledger-index", meta.indexLabel);
+    const main = el("div", "ledger-main");
 
-    if (isAdmin && project.id) {
-      const adminWrap = document.createElement("div");
-      adminWrap.className = "admin-proj-actions";
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "admin-act-btn edit";
-      editBtn.title = "Modifier";
-      editBtn.textContent = "✏️";
-      editBtn.addEventListener("click", () => {
-        if (typeof openEditProjectModal === "function") openEditProjectModal(project.id);
-      });
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "admin-act-btn del";
-      delBtn.title = "Supprimer";
-      delBtn.textContent = "✕";
-      delBtn.addEventListener("click", () => {
-        if (typeof deleteProjectDirect === "function") deleteProjectDirect(project.id);
-      });
-      adminWrap.append(editBtn, delBtn);
-      visual.append(adminWrap);
-    }
+    const metaTop = el("div", "ledger-meta-top");
+    const typeEl = el("p", "project-type", meta.type);
+    const chipsWrap = el("div", "ledger-chips");
+    meta.chips.forEach(ch => chipsWrap.append(el("span", "tech-tag", ch)));
+    metaTop.append(typeEl, chipsWrap);
 
-    const body = document.createElement("div");
-    body.className = "project-body";
+    const titleRow = el("div", "ledger-title-row");
+    const h3 = el("h3", "", meta.title);
+    const indicator = el("span", "ledger-indicator", "→");
+    indicator.setAttribute("aria-hidden", "true");
+    titleRow.append(h3, indicator);
 
-    const typeEl = document.createElement("p");
-    typeEl.className = "project-type";
-    typeEl.textContent = meta.type;
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "pcard-title-row";
-    const emojiEl = document.createElement("span");
-    emojiEl.className = "pcard-emoji";
-    emojiEl.textContent = meta.emoji;
-    const h3 = document.createElement("h3");
-    h3.textContent = meta.title;
-    titleRow.append(emojiEl, h3);
-
-    const descEl = document.createElement("p");
-    descEl.textContent = language === "en"
+    const descEl = el("p", "ledger-desc", language === "en"
       ? (project.description_en || project.description || "")
-      : (project.description_fr || project.description || "");
+      : (project.description_fr || project.description || ""));
 
-    const techList = document.createElement("div");
-    techList.className = "pcard-tech-list";
-    meta.chips.forEach(ch => {
-      const chip = document.createElement("span");
-      chip.className = "b-chip";
-      if (ch.dot) {
-        const dot = document.createElement("i");
-        dot.className = ch.dot;
-        chip.append(dot);
-      }
-      chip.append(document.createTextNode(ch.label));
-      techList.append(chip);
+    const actions = el("div", "ledger-actions");
+    const viewBtn = el("button", "btn-pcard-view", language === "en" ? "Inspect" : "Aperçu");
+    viewBtn.type = "button";
+    viewBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      updateSpotlightStage(index);
+      window.openProjectPreviewModal(index);
     });
 
-    const actions = document.createElement("div");
-    actions.className = "pcard-actions";
-    const viewBtn = document.createElement("button");
-    viewBtn.type = "button";
-    viewBtn.className = "btn-pcard-view";
-    viewBtn.textContent = language === "en" ? "View Project →" : "Voir le Projet →";
-    viewBtn.addEventListener("click", () => window.openProjectPreviewModal(index));
-
-    const githubLink = document.createElement("a");
-    githubLink.className = "btn-pcard-github";
+    const githubLink = el("a", "btn-pcard-github", "GitHub ↗");
     githubLink.href = meta.url;
     githubLink.target = "_blank";
     githubLink.rel = "noopener noreferrer";
-    githubLink.textContent = "GitHub ↗";
+    githubLink.addEventListener("click", (e) => e.stopPropagation());
 
     actions.append(viewBtn, githubLink);
-    body.append(typeEl, titleRow, descEl, techList, actions);
-    card.append(visual, body);
+
+    if (isAdmin && project.id) {
+      const adminWrap = el("div", "admin-proj-actions");
+      const editBtn = el("button", "admin-act-btn edit", "Edit");
+      editBtn.type = "button";
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof openEditProjectModal === "function") openEditProjectModal(project.id);
+      });
+      const delBtn = el("button", "admin-act-btn del", "×");
+      delBtn.type = "button";
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof deleteProjectDirect === "function") deleteProjectDirect(project.id);
+      });
+      adminWrap.append(editBtn, delBtn);
+      actions.append(adminWrap);
+    }
+
+    main.append(metaTop, titleRow, descEl, actions);
+    card.append(indexEl, main);
+
+    card.addEventListener("mouseenter", () => updateSpotlightStage(index));
+    card.addEventListener("focusin", () => updateSpotlightStage(index));
+    card.addEventListener("click", (e) => {
+      if (!e.target.closest("a, button")) updateSpotlightStage(index);
+    });
+
     grid.append(card);
   });
 
+  if (currentRenderedProjects.length === 0) {
+    updateProjectsCountLabel(0);
+    updateSpotlightStage(0);
+    return;
+  }
+
+  activeSpotlightIndex = Math.min(activeSpotlightIndex, currentRenderedProjects.length - 1);
   applyProjectFilter(activeProjectFilter);
+  updateSpotlightStage(activeSpotlightIndex);
 };
 
 /* ── Filter Tabs Setup ── */
 document.querySelectorAll(".filter-tab").forEach(tab => {
   tab.addEventListener("click", () => applyProjectFilter(tab.dataset.filter));
 });
+
+/* ── Initialize static spotlight immediately on first load ── */
+syncStaticSpotlight();
 
 /* ── Language initialization after shared helper is defined ── */
 let savedLanguage = "fr";
@@ -492,8 +755,8 @@ if ("IntersectionObserver" in window && navAnchorMap.size > 0) {
     });
   }, { rootMargin: "-35% 0px -55% 0px" });
   sectionIds.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) navObserver.observe(el);
+    const elNode = document.getElementById(id);
+    if (elNode) navObserver.observe(elNode);
   });
 }
 

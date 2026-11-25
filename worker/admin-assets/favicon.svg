@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111526"/>
+      <stop offset="100%" stop-color="#070910"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6E7BF2" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#38BDF8" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="12" y1="18" x2="52" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="55%" stop-color="#A5B4FC"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="16" stroke="url(#rim)" stroke-width="2"/>
+  <path d="M23 23L13 32L23 41" stroke="url(#mark)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M41 23L51 32L41 41" stroke="url(#mark)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M35.5 19L28.5 45" stroke="#818CF8" stroke-width="4.4" stroke-linecap="round"/>
+</svg>
