@@ -35,6 +35,7 @@ const ProjectsManager = {
         name: "elearning-platform",
         type: "JAVA · APPLICATION",
         description: "Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.",
+        description_en: "E-learning platform built in Java: course management, enrolment, and learner progress tracking.",
         github: "https://github.com/malekabdelmaksoud/elearning-platform"
       },
       {
@@ -42,6 +43,7 @@ const ProjectsManager = {
         name: "projet-php",
         type: "PHP · CSS · WEB",
         description: "Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur.",
+        description_en: "A web application built with PHP and CSS to practise server-side web development fundamentals.",
         github: "https://github.com/malekabdelmaksoud/projetphp"
       },
       {
@@ -49,6 +51,7 @@ const ProjectsManager = {
         name: "projet-laravel",
         type: "PHP · LARAVEL · FRAMEWORK",
         description: "Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification.",
+        description_en: "Full-stack web application built with Laravel (PHP), applying MVC architecture, migrations, and authentication.",
         github: "https://github.com/malekabdelmaksoud/laravel"
       },
       {
@@ -56,6 +59,7 @@ const ProjectsManager = {
         name: "tp-magasin",
         type: "JAVA · GESTION",
         description: "Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente.",
+        description_en: "Java store management app: product inventory, stock management, and sales operations.",
         github: "https://github.com/malekabdelmaksoud/tpmagasin"
       },
       {
@@ -63,6 +67,7 @@ const ProjectsManager = {
         name: "tp-poo",
         type: "JAVA · POO",
         description: "Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation.",
+        description_en: "Java lab exercises applying OOP concepts: inheritance, polymorphism, and encapsulation.",
         github: "https://github.com/malekabdelmaksoud/tp-poo"
       },
       {
@@ -70,6 +75,7 @@ const ProjectsManager = {
         name: "projet-symfony",
         type: "SYMFONY · PHP · WEB",
         description: "Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.",
+        description_en: "Web application built with Symfony, exploring routing, Twig controllers, and Doctrine ORM.",
         github: "https://github.com/malekabdelmaksoud/projet-symfony"
       },
       {
@@ -77,6 +83,7 @@ const ProjectsManager = {
         name: "first-app-csharp",
         type: "C# · APPLICATION",
         description: "Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.",
+        description_en: "First C# project exploring the .NET environment, language fundamentals, and UI creation.",
         github: "https://github.com/malekabdelmaksoud/firstApp"
       },
       {
@@ -84,6 +91,7 @@ const ProjectsManager = {
         name: "Opportunity Hunter",
         type: "TYPESCRIPT · CLOUDFLARE WORKERS · MCP",
         description: "Serveur MCP sur Cloudflare Workers pour rechercher des offres publiques de stage, PFE, alternance et postes junior.",
+        description_en: "MCP server deployed on Cloudflare Workers to search public internship, final-year project, apprenticeship, and junior job listings.",
         github: "https://github.com/malekabdelmaksoud/opportunity-hunter"
       }
     ];
@@ -348,35 +356,9 @@ const ProjectsManager = {
     // Automatically synchronize section 02 (COMPÉTENCES) with current projects!
     this.updateSkills(projects);
 
-    const symbols = ["⌘", "‹/›", "◆", "☰", "♦", "♪", "▶", "⚡", "★", "✦"];
-    const visualClasses = ["visual-one", "visual-two", "visual-three", "visual-four", "visual-five", "visual-six", "visual-seven"];
-
-    grid.innerHTML = projects.map((p, idx) => {
-      const sym = symbols[idx % symbols.length];
-      const visClass = visualClasses[idx % visualClasses.length];
-      const num = String(idx + 1).padStart(2, '0');
-
-      return `
-        <article class="project-card" id="card_${p.id}">
-          <div class="project-visual ${visClass}">
-            <span>${num}</span>
-            <div class="project-symbol">${sym}</div>
-            ${isAdmin ? `
-              <div class="admin-proj-actions">
-                <button type="button" class="admin-act-btn edit" onclick="openEditProjectModal('${p.id}')" title="Modifier">✏️</button>
-                <button type="button" class="admin-act-btn del" onclick="deleteProjectDirect('${p.id}')" title="Supprimer">✕</button>
-              </div>
-            ` : ''}
-          </div>
-          <div class="project-body">
-            <p class="project-type">${p.type}</p>
-            <h3>${p.name}</h3>
-            <p>${p.description}</p>
-            <a href="${p.github}" target="_blank" rel="noopener noreferrer">Voir le projet sur GitHub ↗</a>
-          </div>
-        </article>
-      `;
-    }).join("");
+    if (typeof window.renderPortfolioProjectsV2 === "function") {
+      window.renderPortfolioProjectsV2(grid, projects, { isAdmin });
+    }
   }
 };
 
