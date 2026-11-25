@@ -32,7 +32,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=21.0">
+<link rel="stylesheet" href="style.css?v=22.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -135,42 +135,44 @@
     </div>
 
     <div class="hero-visual">
-      <!-- Organic glowing wave backdrop like Image 1 -->
+      <!-- Subtle IDE code backdrop matching the studio showcase vibe -->
+      <div class="hero-code-backdrop" aria-hidden="true">
+        <pre><code><span class="c-kw">const</span> <span class="c-var">developer</span> = {
+  <span class="c-key">name</span>: <span class="c-str">"Melek Abdelmaksoud"</span>,
+  <span class="c-key">role</span>: <span class="c-str">"Full Stack &amp; AI"</span>,
+  <span class="c-key">school</span>: <span class="c-str">"ISET Sidi Bouzid"</span>,
+  <span class="c-key">stack</span>: [<span class="c-str">"Laravel"</span>, <span class="c-str">"Angular"</span>, <span class="c-str">"Java"</span>]
+};</code></pre>
+      </div>
+
+      <!-- Organic glowing wave backdrop -->
       <div class="hero-blob-wrap" aria-hidden="true">
         <svg viewBox="0 0 420 420" class="hero-blob-svg">
           <defs>
             <linearGradient id="heroBlobGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="50%" stop-color="#6366f1"/>
-              <stop offset="100%" stop-color="#9333ea"/>
+              <stop offset="0%" style="stop-color: var(--blob-stop-1, #38bdf8)"/>
+              <stop offset="50%" style="stop-color: var(--blob-stop-2, #6366f1)"/>
+              <stop offset="100%" style="stop-color: var(--blob-stop-3, #9333ea)"/>
             </linearGradient>
           </defs>
           <path fill="url(#heroBlobGrad)" d="M357.5,248.5Q329,337,239,356.5Q149,376,92,299.5Q35,223,82,135Q129,47,230.5,58.5Q332,70,359,155Q386,240,357.5,248.5Z"/>
         </svg>
       </div>
 
-      <!-- Stylish IDE & Developer Showcase Card -->
-      <div class="hero-card">
-        <div class="orb orb-one"></div>
-        <div class="orb orb-two"></div>
-        <div class="hero-ide-bar">
-          <span class="dot red"></span>
-          <span class="dot amber"></span>
-          <span class="dot green"></span>
-          <span class="hero-ide-title">melek.portfolio.ts</span>
-        </div>
-        <div class="monogram" aria-label="Développement web">&lt;/&gt;</div>
-        <div class="hero-ide-code" aria-hidden="true">
-          <code><span class="c-kw">const</span> <span class="c-var">profile</span> = {</code>
-          <code>  <span class="c-key">school</span>: <span class="c-str">"ISET Sidi Bouzid"</span>,</code>
-          <code>  <span class="c-key">focus</span>: [<span class="c-str">"Web"</span>, <span class="c-str">"AI"</span>, <span class="c-str">"Backend"</span>]</code>
-          <code>};</code>
-        </div>
-        <p class="hero-card-label" data-fr="EN APPRENTISSAGE CONTINU" data-en="ALWAYS LEARNING">EN APPRENTISSAGE CONTINU</p>
-        <div class="mini-tags" id="heroMiniTags"><span>Java</span><span>PHP</span><span>Laravel</span><span>C#</span><span>Web</span></div>
+      <!-- Melek's Hero Portrait Cutout -->
+      <div class="hero-portrait-wrap">
+        <img
+          src="melek-portrait.png"
+          alt="Melek Abdelmaksoud — Full Stack Developer"
+          class="hero-portrait-img"
+          width="581"
+          height="554"
+          decoding="sync"
+          fetchpriority="high"
+        >
       </div>
 
-      <!-- Floating handwritten annotation matching Image 1 -->
+      <!-- Floating handwritten annotation matching Reference Showcase -->
       <div class="hero-annotation" aria-hidden="true">
         <span data-fr="Developer" data-en="Developer">Developer</span>
         <span data-fr="&amp; Problem Solver" data-en="&amp; Problem Solver">&amp; Problem Solver</span>
