@@ -206,20 +206,59 @@ const DOMAIN_ACCENTS = {
   architecture: { h1: "#818cf8", h2: "#38bdf8" }
 };
 
+const DOMAIN_HIGHLIGHTS = {
+  elearning: {
+    fr: ["Gestion cours & quiz", "Inscriptions multi-rôles", "Persistance Java / SQL"],
+    en: ["Course & quiz engine", "Multi-role enrolment", "Java / SQL persistence"]
+  },
+  laravel: {
+    fr: ["Pattern MVC strict", "Middleware Auth & CSRF", "Migrations & Eloquent ORM"],
+    en: ["Clean MVC pattern", "Auth & CSRF guards", "Migrations & Eloquent ORM"]
+  },
+  store: {
+    fr: ["Suivi temps réel des SKU", "Alertes seuil de stock", "Modules vente & inventaire"],
+    en: ["Real-time SKU tracking", "Low-stock alert rules", "Sales & inventory core"]
+  },
+  oop: {
+    fr: ["Hiérarchies abstraites", "Polymorphisme dynamique", "Contrats & interfaces Java"],
+    en: ["Abstract hierarchies", "Dynamic polymorphism", "Java interface contracts"]
+  },
+  symfony: {
+    fr: ["Contrôleurs & attributs", "Vues modulaires Twig 3", "Entités Doctrine ORM"],
+    en: ["Attribute controllers", "Modular Twig 3 views", "Doctrine ORM entities"]
+  },
+  mcp: {
+    fr: ["Protocole MCP JSON-RPC", "Déploiement Edge Workers", "Recherche stages & PFE"],
+    en: ["JSON-RPC MCP server", "Cloudflare Edge runtime", "Internship & job discovery"]
+  },
+  dotnet: {
+    fr: ["Runtime C# / .NET", "Architecture orientée UI", "Compilation native rapide"],
+    en: ["C# / .NET runtime", "Event-driven desktop UI", "Fast native build"]
+  },
+  php: {
+    fr: ["Rendu PHP côté serveur", "Requêtes préparées PDO", "Design CSS3 responsive"],
+    en: ["Server-side PHP engine", "Prepared PDO queries", "Responsive CSS3 grid"]
+  },
+  architecture: {
+    fr: ["Architecture modulaire", "Code propre & maintenable", "Prêt pour production"],
+    en: ["Modular architecture", "Clean maintainable code", "Production-ready build"]
+  }
+};
+
 function createArchNodeRow(label, value, toneClass) {
   const row = el("div", "arch-kv-row");
   row.append(el("span", "arch-k", label), el("strong", "arch-v" + (toneClass ? " " + toneClass : ""), value));
   return row;
 }
 
-/* Bespoke domain-tailored architectural preview builder (shared by Live Stage & Modal) */
+/* Bespoke animated SVG + interactive HTML mini-app showcase builder */
 function createBespokeStageCanvas(meta, language) {
   const isEn = language === "en";
   const shell = el("div", "arch-preview arch-preview--" + meta.domainKind);
 
   if (meta.domainKind === "elearning") {
     const top = el("div", "arch-win-bar");
-    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "LMS Studio · Core Engine"), el("span", "arch-badge-ok", "JAVA SE"));
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "LMS Studio · Core Engine"), el("span", "arch-badge-ok", "LIVE TRACK"));
     const body = el("div", "arch-split-lms");
 
     const nav = el("div", "arch-lms-rail");
@@ -234,16 +273,24 @@ function createBespokeStageCanvas(meta, language) {
     });
 
     const main = el("div", "arch-lms-main");
-    const metricRow = el("div", "arch-stat-grid");
+    const ringHero = el("div", "arch-ring-card");
+    ringHero.innerHTML = `<svg class="arch-svg-ring" viewBox="0 0 88 88" aria-hidden="true">
+      <defs><linearGradient id="lmsRingGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="var(--stage-hue-1, #6366f1)"/><stop offset="100%" stop-color="var(--stage-hue-2, #38bdf8)"/></linearGradient></defs>
+      <circle class="ring-track" cx="44" cy="44" r="34"/>
+      <circle class="ring-fill" cx="44" cy="44" r="34" stroke="url(#lmsRingGrad)"/>
+      <text x="44" y="48" text-anchor="middle" class="ring-val">92%</text>
+    </svg>`;
+    const ringStats = el("div", "arch-ring-stats");
     [
-      [isEn ? "LEARNERS" : "APPRENANTS", "148"],
-      [isEn ? "MODULES" : "MODULES", "12"],
-      [isEn ? "COMPLETION" : "COMPLÉTION", "92%"]
+      [isEn ? "ACTIVE LEARNERS" : "APPRENANTS", "148"],
+      [isEn ? "MODULES READY" : "MODULES PRÊTS", "12 / 14"]
     ].forEach(([k, v]) => {
       const box = el("div", "arch-stat-box");
       box.append(el("small", "", k), el("strong", "", v));
-      metricRow.append(box);
+      ringStats.append(box);
     });
+    ringHero.append(ringStats);
+
     const progWrap = el("div", "arch-progress-card");
     const pHead = el("div", "arch-phead");
     pHead.append(el("span", "", isEn ? "Java Enterprise Track" : "Parcours Java Avancé"), el("strong", "", "86%"));
@@ -251,7 +298,7 @@ function createBespokeStageCanvas(meta, language) {
     const fill = el("i"); fill.style.width = "86%";
     track.append(fill);
     progWrap.append(pHead, track);
-    main.append(metricRow, progWrap);
+    main.append(ringHero, progWrap);
     body.append(nav, main);
     shell.append(top, body);
     return shell;
@@ -259,7 +306,16 @@ function createBespokeStageCanvas(meta, language) {
 
   if (meta.domainKind === "laravel") {
     const top = el("div", "arch-win-bar");
-    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "artisan serve · localhost:8000"), el("span", "arch-badge-ok", "MVC · AUTH"));
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "artisan serve · MVC Request Flow"), el("span", "arch-badge-ok", "MVC · AUTH"));
+    const svgFlow = el("div", "arch-bezier-flow");
+    svgFlow.innerHTML = `<svg class="arch-flow-svg" viewBox="0 0 420 52" aria-hidden="true">
+      <path class="flow-path" d="M 28 26 C 95 6, 130 46, 210 26 C 290 6, 325 46, 392 26"/>
+      <circle class="flow-dot" r="4" cx="28" cy="26"><animateMotion dur="2.2s" repeatCount="indefinite" path="M 28 26 C 95 6, 130 46, 210 26 C 290 6, 325 46, 392 26"/></circle>
+      <circle class="flow-dot dim" r="3" cx="28" cy="26"><animateMotion dur="2.2s" begin="1.1s" repeatCount="indefinite" path="M 28 26 C 95 6, 130 46, 210 26 C 290 6, 325 46, 392 26"/></circle>
+      <circle class="flow-node" cx="28" cy="26" r="5"/>
+      <circle class="flow-node" cx="210" cy="26" r="5"/>
+      <circle class="flow-node" cx="392" cy="26" r="5"/>
+    </svg>`;
     const pipe = el("div", "arch-pipeline");
     [
       ["routes/web.php", "GET /dashboard"],
@@ -278,23 +334,21 @@ function createBespokeStageCanvas(meta, language) {
       el("span", "", isEn ? "Migrations Synced" : "Migrations synchronisées"),
       el("span", "", "CSRF Active")
     );
-    shell.append(top, pipe, foot);
+    shell.append(top, svgFlow, pipe, foot);
     return shell;
   }
 
   if (meta.domainKind === "store") {
     const top = el("div", "arch-win-bar");
-    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "StoreManager.java · ERP Stock"), el("span", "arch-badge-ok", "INVENTORY"));
-    const kpis = el("div", "arch-stat-grid");
-    [
-      [isEn ? "CATALOG SKUS" : "RÉFÉRENCES", "84"],
-      [isEn ? "IN STOCK" : "EN STOCK", "1,240"],
-      [isEn ? "LOW STOCK" : "ALERTES", "03"]
-    ].forEach(([k, v]) => {
-      const box = el("div", "arch-stat-box");
-      box.append(el("small", "", k), el("strong", "", v));
-      kpis.append(box);
-    });
+    top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "StoreManager.java · ERP Telemetry"), el("span", "arch-badge-ok", "INVENTORY"));
+    const chartWrap = el("div", "arch-spark-card");
+    chartWrap.innerHTML = `<div class="arch-spark-head"><span>${isEn ? "STOCK VELOCITY · 30D" : "FLUX STOCK · 30J"}</span><strong class="ok">+24.8%</strong></div>
+      <svg class="arch-spark-svg" viewBox="0 0 360 66" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="erpArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--stage-hue-2, #10b981)" stop-opacity="0.38"/><stop offset="100%" stop-color="var(--stage-hue-2, #10b981)" stop-opacity="0"/></linearGradient></defs>
+        <path class="spark-area" d="M0 54 L48 44 L96 48 L144 30 L192 34 L240 18 L288 22 L360 8 L360 66 L0 66 Z" fill="url(#erpArea)"/>
+        <path class="spark-line" d="M0 54 L48 44 L96 48 L144 30 L192 34 L240 18 L288 22 L360 8"/>
+        <circle class="spark-pulse" cx="360" cy="8" r="4"/>
+      </svg>`;
     const table = el("div", "arch-erp-table");
     const rows = isEn
       ? [["SKU-104", "Mechanical Keyboard", "42 u.", "Optimal"], ["SKU-208", "27\" Studio Display", "06 u.", "Reorder"], ["SKU-312", "USB-C Dock Hub", "19 u.", "Optimal"]]
@@ -302,15 +356,10 @@ function createBespokeStageCanvas(meta, language) {
     rows.forEach(([sku, label, qty, status]) => {
       const r = el("div", "arch-erp-row");
       const low = status === "Alerte" || status === "Reorder";
-      r.append(
-        el("code", "", sku),
-        el("span", "arch-erp-name", label),
-        el("em", "", qty),
-        el("b", low ? "warn" : "good", status)
-      );
+      r.append(el("code", "", sku), el("span", "arch-erp-name", label), el("em", "", qty), el("b", low ? "warn" : "good", status));
       table.append(r);
     });
-    shell.append(top, kpis, table);
+    shell.append(top, chartWrap, table);
     return shell;
   }
 
@@ -321,7 +370,11 @@ function createBespokeStageCanvas(meta, language) {
     const parent = el("div", "arch-uml-node parent");
     parent.append(el("small", "", "«abstract»"), el("strong", "", "EntiteBase"), el("code", "", "+ afficherProfil(): void"));
     const svgWrap = el("div", "arch-uml-svg-wrap");
-    svgWrap.innerHTML = '<svg class="arch-uml-svg" viewBox="0 0 260 28" preserveAspectRatio="none" aria-hidden="true"><path class="uml-line" d="M130 0 V14 H55 V28 M130 14 H205 V28"/><circle class="uml-pulse" r="2.6" cx="130" cy="0"><animateMotion dur="2.2s" repeatCount="indefinite" path="M130 0 V14 H55 V28"/></circle><circle class="uml-pulse" r="2.6" cx="130" cy="0"><animateMotion dur="2.2s" begin="1.1s" repeatCount="indefinite" path="M130 0 V14 H205 V28"/></circle></svg>';
+    svgWrap.innerHTML = `<svg class="arch-uml-svg" viewBox="0 0 280 34" preserveAspectRatio="none" aria-hidden="true">
+      <path class="uml-line" d="M140 0 V17 H62 V34 M140 17 H218 V34"/>
+      <circle class="uml-pulse" r="3" cx="140" cy="0"><animateMotion dur="2s" repeatCount="indefinite" path="M140 0 V17 H62 V34"/></circle>
+      <circle class="uml-pulse" r="3" cx="140" cy="0"><animateMotion dur="2s" begin="1s" repeatCount="indefinite" path="M140 0 V17 H218 V34"/></circle>
+    </svg>`;
     const branch = el("div", "arch-uml-branch");
     const c1 = el("div", "arch-uml-node");
     c1.append(el("small", "", "extends EntiteBase"), el("strong", "", "Etudiant"), el("code", "", "@Override + afficherProfil()"));
@@ -357,21 +410,29 @@ function createBespokeStageCanvas(meta, language) {
   if (meta.domainKind === "mcp") {
     const top = el("div", "arch-win-bar");
     top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "Cloudflare Workers · MCP Protocol"), el("span", "arch-badge-ok", "EDGE 11ms"));
-    const req = el("div", "arch-code-pane compact");
-    req.append(
-      el("code", "", "TOOL CALL  mcp.search_opportunities({ query: \"PFE Full-Stack\", limit: 12 })"),
-      el("code", "", "STATUS     200 OK · Edge Node CDG · Schema Validated")
-    );
+    const radarSplit = el("div", "arch-mcp-split");
+    const radar = el("div", "arch-radar-box");
+    radar.innerHTML = `<div class="arch-radar">
+      <span class="radar-ring r1"></span>
+      <span class="radar-ring r2"></span>
+      <span class="radar-sweep"></span>
+      <span class="radar-blip b1"></span>
+      <span class="radar-blip b2"></span>
+      <span class="radar-core">MCP</span>
+    </div>`;
     const list = el("div", "arch-erp-table");
     const items = isEn
-      ? [["PFE", "Full-Stack Developer · Laravel / Angular", "Tunisia", "Verified"], ["JOB", "TypeScript Edge Engineer · Junior", "Remote", "Live"]]
-      : [["PFE", "Développeur Full-Stack · Laravel / Angular", "Sfax / Tunis", "Vérifié"], ["ALT", "Ingénieur TypeScript & Workers", "Hybride", "Actif"]];
+      ? [["PFE", "Full-Stack · Laravel / Angular", "Tunisia", "Verified"], ["JOB", "TypeScript Edge · Junior", "Remote", "Live"]]
+      : [["PFE", "Full-Stack · Laravel / Angular", "Sfax / Tunis", "Vérifié"], ["ALT", "Ingénieur TypeScript & Workers", "Hybride", "Actif"]];
     items.forEach(([tag, role, loc, st]) => {
       const r = el("div", "arch-erp-row");
       r.append(el("code", "", tag), el("span", "arch-erp-name", role), el("em", "", loc), el("b", "good", st));
       list.append(r);
     });
-    shell.append(top, req, list);
+    radarSplit.append(radar, list);
+    const req = el("div", "arch-telemetry-strip");
+    req.append(el("span", "ok", "200 OK"), el("span", "", "mcp.search_opportunities()"), el("span", "", "CDG Edge · Schema OK"));
+    shell.append(top, radarSplit, req);
     return shell;
   }
 
@@ -379,19 +440,20 @@ function createBespokeStageCanvas(meta, language) {
     const top = el("div", "arch-win-bar");
     top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "FirstApp.exe · .NET Desktop"), el("span", "arch-badge-ok", "C# / .NET"));
     const grid = el("div", "arch-two-pane");
-    const nav = el("div", "arch-lms-rail");
-    [isEn ? "Overview" : "Vue générale", isEn ? "Components" : "Composants", isEn ? "Runtime" : "Exécution"].forEach((t, idx) => {
-      const row = el("div", "arch-rail-item" + (idx === 0 ? " done" : ""));
-      row.append(el("em", "", "0" + (idx + 1)), el("span", "", t));
-      nav.append(row);
-    });
+    const gauge = el("div", "arch-ring-card");
+    gauge.innerHTML = `<svg class="arch-svg-ring" viewBox="0 0 88 88" aria-hidden="true">
+      <defs><linearGradient id="netGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#6366f1"/></linearGradient></defs>
+      <circle class="ring-track" cx="44" cy="44" r="34"/>
+      <circle class="ring-fill" cx="44" cy="44" r="34" stroke="url(#netGrad)"/>
+      <text x="44" y="48" text-anchor="middle" class="ring-val">.NET</text>
+    </svg>`;
     const kv = el("div", "arch-kv-card");
     kv.append(
       createArchNodeRow("Runtime", ".NET Managed UI"),
       createArchNodeRow("Namespace", "FirstApp.Views"),
       createArchNodeRow("Build", "Release Ready", "ok")
     );
-    grid.append(nav, kv);
+    grid.append(gauge, kv);
     shell.append(top, grid);
     return shell;
   }
@@ -401,7 +463,7 @@ function createBespokeStageCanvas(meta, language) {
     top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", "localhost:8000/index.php"), el("span", "arch-badge-ok", "PHP 8 · CSS"));
     const grid = el("div", "arch-two-pane");
     const code = el("div", "arch-code-pane");
-    ["session_start();", "$stmt = $pdo->prepare('SELECT ...');", "require 'views/layout.php';"].forEach(l => code.append(el("code", "", l)));
+    ["<?php session_start();", "$stmt = $pdo->prepare('SELECT *');", "require 'views/layout.php'; ?>"].forEach(l => code.append(el("code", "", l)));
     const kv = el("div", "arch-kv-card");
     kv.append(
       createArchNodeRow(isEn ? "Rendering" : "Rendu", "Server-Side PHP"),
@@ -409,11 +471,13 @@ function createBespokeStageCanvas(meta, language) {
       createArchNodeRow("Latency", "4.2ms Local", "ok")
     );
     grid.append(code, kv);
-    shell.append(top, grid);
+    const bar = el("div", "arch-telemetry-strip");
+    bar.append(el("span", "ok", "PHP 8 OK"), el("span", "", "PDO Prepared"), el("span", "", "SSR View Ready"));
+    shell.append(top, grid, bar);
     return shell;
   }
 
-  /* Clean Dynamic Fallback for Custom / API-Loaded Projects */
+  /* Dynamic fallback for custom / API-loaded projects */
   const top = el("div", "arch-win-bar");
   top.append(el("span", "arch-win-dots"), el("span", "arch-win-title", meta.repoSlug), el("span", "arch-badge-ok", meta.chips[0] || "APP"));
   const grid = el("div", "arch-two-pane");
@@ -434,49 +498,26 @@ function createBespokeStageCanvas(meta, language) {
   return shell;
 }
 
-function rebuildCoverflowDock(visibleIndices) {
-  const dock = document.getElementById("coverflowDockPills");
-  if (!dock) return;
-  dock.replaceChildren();
-  visibleIndices.forEach(idx => {
-    const project = currentRenderedProjects[idx];
-    if (!project) return;
-    const meta = getProjectMetadata(project, idx);
-    const pill = document.createElement("button");
-    pill.type = "button";
-    pill.className = "cf-dock-pill" + (idx === activeSpotlightIndex ? " is-active" : "");
-    pill.dataset.idx = String(idx);
-    pill.setAttribute("role", "tab");
-    pill.setAttribute("aria-selected", idx === activeSpotlightIndex ? "true" : "false");
-    pill.append(el("em", "", meta.indexLabel), el("span", "", meta.title));
-    pill.addEventListener("click", () => {
-      window._pauseProjectAuto?.();
-      updateSpotlightStage(idx);
-    });
-    dock.append(pill);
-  });
-}
-
 function updateSpotlightStage(projectOrIndex) {
   const showcase = document.getElementById("projectsShowcase");
-  const viewport = showcase?.querySelector(".projects-coverflow-viewport");
-  const dock = showcase?.querySelector(".coverflow-dock");
+  const theater = document.getElementById("projectSpotlightStage");
+  const railWrap = showcase?.querySelector(".projects-rail-wrap");
   const cards = Array.from(document.querySelectorAll("#projets .project-card"));
 
   if (!currentRenderedProjects || currentRenderedProjects.length === 0 || cards.length === 0) {
-    if (viewport) viewport.hidden = true;
-    if (dock) dock.hidden = true;
+    if (theater) theater.hidden = true;
+    if (railWrap) railWrap.hidden = true;
     return;
   }
 
   const visibleCards = cards.filter(c => c.style.display !== "none");
   if (visibleCards.length === 0) {
-    if (viewport) viewport.hidden = true;
-    if (dock) dock.hidden = true;
+    if (theater) theater.hidden = true;
+    if (railWrap) railWrap.hidden = true;
     return;
   }
-  if (viewport) viewport.hidden = false;
-  if (dock) dock.hidden = false;
+  if (theater) theater.hidden = false;
+  if (railWrap) railWrap.hidden = false;
 
   let idx = typeof projectOrIndex === "number"
     ? Math.max(0, Math.min(currentRenderedProjects.length - 1, projectOrIndex))
@@ -493,6 +534,7 @@ function updateSpotlightStage(projectOrIndex) {
 
   const language = document.documentElement.lang === "en" ? "en" : "fr";
   const meta = getProjectMetadata(project, idx);
+  const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
   const accent = DOMAIN_ACCENTS[meta.domainKind] || DOMAIN_ACCENTS.architecture;
 
   if (showcase) {
@@ -500,54 +542,69 @@ function updateSpotlightStage(projectOrIndex) {
     showcase.style.setProperty("--stage-hue-2", accent.h2);
   }
 
-  const visibleIndices = cards.reduce((arr, c, i) => {
-    if (c.style.display !== "none") arr.push(i);
-    return arr;
-  }, []);
-  const activePos = Math.max(0, visibleIndices.indexOf(idx));
-  const totalVisible = visibleIndices.length;
-
-  cards.forEach((card, i) => {
-    const pos = visibleIndices.indexOf(i);
-    if (pos === -1) {
-      card.classList.remove("is-active", "is-near", "is-far");
-      return;
+  cards.forEach((tile, i) => {
+    const active = i === idx;
+    tile.classList.toggle("is-active", active);
+    tile.setAttribute("aria-current", active ? "true" : "false");
+    if (active) {
+      tile.style.setProperty("--stage-hue-1", accent.h1);
+      tile.style.setProperty("--stage-hue-2", accent.h2);
+      const rail = tile.parentElement;
+      if (rail && rail.scrollWidth > rail.clientWidth + 4) {
+        const targetLeft = tile.offsetLeft - (rail.clientWidth - tile.clientWidth) / 2;
+        rail.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
+      }
     }
-    let diff = pos - activePos;
-    if (totalVisible > 2) {
-      if (diff > totalVisible / 2) diff -= totalVisible;
-      if (diff < -totalVisible / 2) diff += totalVisible;
-    }
-    const abs = Math.abs(diff);
-    const isActive = diff === 0;
-    const isFar = abs > 2;
-
-    card.style.setProperty("--cf-offset", String(diff));
-    card.style.setProperty("--cf-abs", String(abs));
-    card.style.zIndex = String(30 - abs * 5);
-
-    const cardMeta = getProjectMetadata(currentRenderedProjects[i], i);
-    const cardAccent = DOMAIN_ACCENTS[cardMeta.domainKind] || DOMAIN_ACCENTS.architecture;
-    card.style.setProperty("--stage-hue-1", cardAccent.h1);
-    card.style.setProperty("--stage-hue-2", cardAccent.h2);
-
-    const stageSlot = card.querySelector("[data-arch-slot]");
-    if (stageSlot && (!stageSlot.hasChildNodes() || stageSlot.dataset.lang !== language)) {
-      stageSlot.replaceChildren(createBespokeStageCanvas(cardMeta, language));
-      stageSlot.dataset.lang = language;
-    }
-
-    card.classList.toggle("is-active", isActive);
-    card.classList.toggle("is-near", abs === 1 || abs === 2);
-    card.classList.toggle("is-far", isFar);
-    card.setAttribute("aria-current", isActive ? "true" : "false");
   });
 
-  document.querySelectorAll("#coverflowDockPills .cf-dock-pill").forEach(pill => {
-    const active = Number(pill.dataset.idx) === idx;
-    pill.classList.toggle("is-active", active);
-    pill.setAttribute("aria-selected", active ? "true" : "false");
-  });
+  const stageIndex = document.getElementById("stageIndex");
+  const stageGhost = document.getElementById("stageGhostNum");
+  const stageCat = document.getElementById("stageCategory");
+  const stageRepo = document.getElementById("stageRepoSlug");
+  const stageCanvas = document.getElementById("stageCanvas");
+  const stageTitle = document.getElementById("stageTitle");
+  const stageHighlights = document.getElementById("stageHighlights");
+  const stageChips = document.getElementById("stageChips");
+  const stageSummary = document.getElementById("stageSummary");
+  const stageInspect = document.getElementById("stageInspectBtn");
+  const stageGh = document.getElementById("stageGithubLink");
+
+  if (stageIndex) stageIndex.textContent = `${meta.indexLabel} / ${totalStr}`;
+  if (stageGhost) stageGhost.textContent = meta.indexLabel;
+  if (stageCat) stageCat.textContent = meta.type;
+  if (stageRepo) stageRepo.textContent = meta.repoSlug;
+  if (stageTitle) stageTitle.textContent = meta.title;
+  if (stageSummary) {
+    stageSummary.textContent = language === "en"
+      ? (project.description_en || project.description || "")
+      : (project.description_fr || project.description || "");
+  }
+  if (stageGh) stageGh.href = meta.url;
+  if (stageInspect) stageInspect.onclick = () => window.openProjectPreviewModal(idx);
+  if (stageChips) {
+    stageChips.replaceChildren(...meta.chips.map(label => el("span", "tech-tag", label)));
+  }
+  if (stageHighlights) {
+    const hSet = DOMAIN_HIGHLIGHTS[meta.domainKind] || DOMAIN_HIGHLIGHTS.architecture;
+    const bullets = hSet[language] || hSet.fr;
+    stageHighlights.replaceChildren(...bullets.map(text => {
+      const item = el("div", "th-item");
+      item.append(el("span", "th-dot"), el("span", "", text));
+      return item;
+    }));
+  }
+  if (stageCanvas) {
+    stageCanvas.classList.remove("is-entering");
+    stageCanvas.replaceChildren(createBespokeStageCanvas(meta, language));
+    void stageCanvas.offsetWidth;
+    stageCanvas.classList.add("is-entering");
+  }
+  const infoPanel = theater?.querySelector(".theater-info-panel");
+  if (infoPanel) {
+    infoPanel.classList.remove("is-entering");
+    void infoPanel.offsetWidth;
+    infoPanel.classList.add("is-entering");
+  }
 }
 
 function updateProjectsCountLabel(visibleCount) {
@@ -568,7 +625,6 @@ function applyProjectFilter(filterValue) {
   let firstVisibleIndex = -1;
   let visibleCount = 0;
   let currentStillVisible = false;
-  const visibleIndices = [];
 
   document.querySelectorAll("#projets .project-card").forEach((card, i) => {
     const cats = String(card.dataset.category || "").split(/\s+/).filter(Boolean);
@@ -576,7 +632,6 @@ function applyProjectFilter(filterValue) {
     card.style.display = visible ? "" : "none";
     if (visible) {
       visibleCount += 1;
-      visibleIndices.push(i);
       if (firstVisibleIndex === -1) firstVisibleIndex = i;
       if (i === activeSpotlightIndex) currentStillVisible = true;
     }
@@ -584,12 +639,9 @@ function applyProjectFilter(filterValue) {
 
   updateProjectsCountLabel(visibleCount);
   if (visibleCount === 0) {
-    rebuildCoverflowDock([]);
     updateSpotlightStage(0);
   } else {
     const nextIdx = currentStillVisible ? activeSpotlightIndex : firstVisibleIndex;
-    activeSpotlightIndex = nextIdx;
-    rebuildCoverflowDock(visibleIndices);
     updateSpotlightStage(nextIdx);
   }
 }
@@ -603,10 +655,10 @@ function syncStaticSpotlight() {
     const descEl = card.querySelector("p:not(.project-type)");
     const linkEl = card.querySelector("a[href]");
     const idAttr = card.id ? card.id.replace(/^card_/, "") : `p_${idx + 1}`;
+    card.addEventListener("mouseenter", () => { window._pauseProjectAuto?.(); updateSpotlightStage(idx); });
+    card.addEventListener("focusin", () => updateSpotlightStage(idx));
     card.addEventListener("click", (e) => {
-      if (idx !== activeSpotlightIndex) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (!e.target.closest("a, button")) {
         window._pauseProjectAuto?.();
         updateSpotlightStage(idx);
       }
@@ -620,7 +672,6 @@ function syncStaticSpotlight() {
     };
   });
   updateProjectsCountLabel(currentRenderedProjects.length);
-  rebuildCoverflowDock(currentRenderedProjects.map((_, i) => i));
   updateSpotlightStage(0);
 }
 
@@ -675,40 +726,25 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
   const isAdmin = Boolean(options.isAdmin);
   currentRenderedProjects = Array.isArray(projectsList) ? projectsList : [];
   grid.replaceChildren();
-  const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
 
   currentRenderedProjects.forEach((project, index) => {
     const meta = getProjectMetadata(project, index);
     const card = document.createElement("article");
-    card.className = "project-card coverflow-card";
+    card.className = "project-card kinetic-tile";
     card.dataset.category = meta.categories;
     card.tabIndex = 0;
     if (project.id) card.id = "card_" + project.id;
 
-    const beam = el("div", "cf-card-beam");
-    beam.setAttribute("aria-hidden", "true");
-    const inner = el("div", "cf-card-inner");
+    const topBar = el("div", "kt-top");
+    topBar.append(el("span", "kt-num", meta.indexLabel), el("p", "project-type", meta.type));
 
-    const topBar = el("div", "cf-card-top");
-    const indexEl = el("span", "cf-index", `${meta.indexLabel} / ${totalStr}`);
-    const typeEl = el("p", "project-type", meta.type);
-    const chipsWrap = el("div", "ledger-chips");
-    meta.chips.forEach(ch => chipsWrap.append(el("span", "tech-tag", ch)));
-    topBar.append(indexEl, typeEl, chipsWrap);
-
-    const stageSlot = el("div", "cf-card-stage");
-    stageSlot.dataset.archSlot = "true";
-    stageSlot.dataset.lang = language;
-    stageSlot.append(createBespokeStageCanvas(meta, language));
-
-    const body = el("div", "cf-card-body");
     const h3 = el("h3", "", meta.title);
     const descEl = el("p", "ledger-desc", language === "en"
       ? (project.description_en || project.description || "")
       : (project.description_fr || project.description || ""));
 
-    const actions = el("div", "ledger-actions");
-    const viewBtn = el("button", "btn-pcard-view", language === "en" ? "Inspect" : "Vue complète");
+    const foot = el("div", "kt-foot");
+    const viewBtn = el("button", "kt-inspect", language === "en" ? "Inspect" : "Zoom");
     viewBtn.type = "button";
     viewBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -716,13 +752,13 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
       window.openProjectPreviewModal(index);
     });
 
-    const githubLink = el("a", "btn-pcard-github", "GitHub ↗");
+    const githubLink = el("a", "kt-gh", "GitHub ↗");
     githubLink.href = meta.url;
     githubLink.target = "_blank";
     githubLink.rel = "noopener noreferrer";
     githubLink.addEventListener("click", (e) => e.stopPropagation());
 
-    actions.append(viewBtn, githubLink);
+    foot.append(viewBtn, githubLink);
 
     if (isAdmin && project.id) {
       const adminWrap = el("div", "admin-proj-actions");
@@ -739,17 +775,17 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
         if (typeof deleteProjectDirect === "function") deleteProjectDirect(project.id);
       });
       adminWrap.append(editBtn, delBtn);
-      actions.append(adminWrap);
+      foot.append(adminWrap);
     }
 
-    body.append(h3, descEl, actions);
-    inner.append(topBar, stageSlot, body);
-    card.append(beam, inner);
+    const progress = el("span", "kt-progress");
+    progress.setAttribute("aria-hidden", "true");
 
+    card.append(topBar, h3, descEl, foot, progress);
+    card.addEventListener("mouseenter", () => { window._pauseProjectAuto?.(); updateSpotlightStage(index); });
+    card.addEventListener("focusin", () => updateSpotlightStage(index));
     card.addEventListener("click", (e) => {
-      if (index !== activeSpotlightIndex) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (!e.target.closest("a, button")) {
         window._pauseProjectAuto?.();
         updateSpotlightStage(index);
       }
@@ -760,7 +796,6 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
 
   if (currentRenderedProjects.length === 0) {
     updateProjectsCountLabel(0);
-    rebuildCoverflowDock([]);
     updateSpotlightStage(0);
     return;
   }
@@ -774,10 +809,10 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
   tab.addEventListener("click", () => applyProjectFilter(tab.dataset.filter));
 });
 
-/* ── Kinetic 3D Coverflow Controls, Touch Swipe, Keyboard & Auto-Showcase ── */
+/* ── Kinetic 3D Theater Parallax, Swipe, Keyboard & Auto-Showcase ── */
 (function initKineticProjectsExperience() {
   const showcase = document.getElementById("projectsShowcase");
-  const viewport = showcase?.querySelector(".projects-coverflow-viewport");
+  const theater = document.getElementById("projectSpotlightStage");
   const prevBtn = document.getElementById("stagePrevBtn");
   const nextBtn = document.getElementById("stageNextBtn");
   const autoBtn = document.getElementById("stageAutoToggle");
@@ -832,13 +867,36 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
     });
   }
 
-  // Mobile horizontal swipe gesture
-  if (viewport) {
+  if (theater && !reducedMotion && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
+    let rafId = null;
+    theater.addEventListener("mousemove", (e) => {
+      const rect = theater.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rx = (0.5 - py) * 3.6;
+      const ry = (px - 0.5) * 4.4;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        theater.style.setProperty("--mouse-x", `${(px * 100).toFixed(1)}%`);
+        theater.style.setProperty("--mouse-y", `${(py * 100).toFixed(1)}%`);
+        theater.style.setProperty("--tilt-x", `${rx.toFixed(2)}deg`);
+        theater.style.setProperty("--tilt-y", `${ry.toFixed(2)}deg`);
+        theater.classList.add("is-tilting");
+      });
+    });
+    theater.addEventListener("mouseleave", () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      theater.classList.remove("is-tilting");
+      theater.style.setProperty("--tilt-x", "0deg");
+      theater.style.setProperty("--tilt-y", "0deg");
+    });
+
+    // Mobile/tablet swipe on theater
     let startX = 0;
-    viewport.addEventListener("touchstart", (e) => {
+    theater.addEventListener("touchstart", (e) => {
       startX = e.changedTouches[0]?.clientX || 0;
     }, { passive: true });
-    viewport.addEventListener("touchend", (e) => {
+    theater.addEventListener("touchend", (e) => {
       const endX = e.changedTouches[0]?.clientX || 0;
       const dx = endX - startX;
       if (Math.abs(dx) > 42) {
