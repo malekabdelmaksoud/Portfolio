@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=25.0">
+<link rel="stylesheet" href="style.css?v=26.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -267,7 +267,7 @@
           <span data-fr="Architecture &amp;" data-en="Engineering &amp;">Architecture &amp;</span>
           <span class="title-italic-accent" data-fr="Réalisations" data-en="Craft">Réalisations</span>
         </h2>
-        <p class="projects-subtitle" data-fr="Sélection de projets en génie logiciel, web et services edge — cliquez ou survolez une ligne pour inspecter son architecture." data-en="Curated engineering works across backend systems, web platforms, and edge services — select any entry to inspect its live architecture.">Sélection de projets en génie logiciel, web et services edge — cliquez ou survolez une ligne pour inspecter son architecture.</p>
+        <p class="projects-subtitle" data-fr="Naviguez dans le carrousel 3D interactif pour inspecter l'architecture de chaque projet." data-en="Browse the interactive 3D showcase to inspect each project's live architecture.">Naviguez dans le carrousel 3D interactif pour inspecter l'architecture de chaque projet.</p>
       </div>
 
       <div class="projects-controls-col">
@@ -305,203 +305,185 @@
       </div>
     </div>
 
-    <div class="projects-workbench">
-      <!-- Left: Crisp Architectural Ledger (Single column index, no blocky grid wall) -->
-      <div class="projects-grid projects-ledger">
-        <!-- Fallback static ledger rows (synchronized dynamically via ProjectsManager / Remote API) -->
-        <article class="project-card project-ledger-row is-active" data-category="java desktop" id="card_p_1" tabindex="0">
-          <span class="ledger-index">01</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">JAVA · APPLICATION</p>
-              <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">LMS</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3>elearning-platform</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants." data-en="E-learning platform built in Java: course management, enrolment, and learner progress tracking.">Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_1')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
+    <div class="projects-coverflow-shell" id="projectsShowcase">
+      <div class="coverflow-ambient-glow" id="coverflowAmbient" aria-hidden="true"></div>
 
-        <article class="project-card project-ledger-row" data-category="web php" id="card_p_2" tabindex="0">
-          <span class="ledger-index">02</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">PHP · CSS · WEB</p>
-              <div class="ledger-chips"><span class="tech-tag">PHP</span><span class="tech-tag">CSS3</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3>projet-php</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur." data-en="A web application built with PHP and CSS to practise server-side web development fundamentals.">Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_2')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/projetphp" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="web php" id="card_p_3" tabindex="0">
-          <span class="ledger-index">03</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">PHP · LARAVEL · FRAMEWORK</p>
-              <div class="ledger-chips"><span class="tech-tag">Laravel</span><span class="tech-tag">MVC</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3 data-fr="Application Laravel" data-en="Laravel Application">Application Laravel</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification." data-en="Full-stack web application built with the Laravel framework (PHP), applying the MVC pattern, migrations, and authentication.">Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_3')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/laravel" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="java desktop" id="card_p_4" tabindex="0">
-          <span class="ledger-index">04</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">JAVA · GESTION</p>
-              <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">Stock</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3 data-fr="Gestion de Magasin" data-en="Store Management">Gestion de Magasin</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente." data-en="Java store management app: product inventory, stock management, and sales operations.">Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_4')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/tpmagasin" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="java desktop" id="card_p_5" tabindex="0">
-          <span class="ledger-index">05</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">JAVA · POO</p>
-              <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">OOP</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3 data-fr="TP Programmation Orientée Objet" data-en="OOP Lab Projects">TP Programmation Orientée Objet</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation." data-en="Java lab exercises applying OOP concepts: inheritance, polymorphism, and encapsulation.">Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_5')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/tp-poo" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="web php" id="card_p_6" tabindex="0">
-          <span class="ledger-index">06</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">SYMFONY · PHP · WEB</p>
-              <div class="ledger-chips"><span class="tech-tag">Symfony</span><span class="tech-tag">Doctrine</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3 data-fr="Projet Symfony" data-en="Symfony Project">Projet Symfony</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine." data-en="Web application built with the Symfony framework, exploring routing, Twig controllers, and database management with Doctrine.">Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_6')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/projet-symfony" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="csharp desktop" id="card_p_7" tabindex="0">
-          <span class="ledger-index">07</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">C# · APPLICATION</p>
-              <div class="ledger-chips"><span class="tech-tag">C#</span><span class="tech-tag">.NET</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3 data-fr="Première Application C#" data-en="First C# App">Première Application C#</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces." data-en="First C# project exploring the .NET environment, language fundamentals, and UI creation.">Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_7')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/firstApp" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="project-card project-ledger-row" data-category="web typescript" id="card_p_8" tabindex="0">
-          <span class="ledger-index">08</span>
-          <div class="ledger-main">
-            <div class="ledger-meta-top">
-              <p class="project-type">TYPESCRIPT · CLOUDFLARE WORKERS · MCP</p>
-              <div class="ledger-chips"><span class="tech-tag">TypeScript</span><span class="tech-tag">MCP</span></div>
-            </div>
-            <div class="ledger-title-row">
-              <h3>Opportunity Hunter</h3>
-              <span class="ledger-indicator" aria-hidden="true">→</span>
-            </div>
-            <p class="ledger-desc" data-fr="Serveur MCP déployé sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior à partir de mots-clés." data-en="MCP server deployed on Cloudflare Workers to search public internship, final-year project, apprenticeship, and junior job listings by keywords.">Serveur MCP déployé sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior à partir de mots-clés.</p>
-            <div class="ledger-actions">
-              <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_8')" data-fr="Aperçu" data-en="Inspect">Aperçu</button>
-              <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/opportunity-hunter" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <!-- Right: Sticky Live Bespoke Architectural Preview Stage -->
-      <aside class="projects-stage-panel" id="projectSpotlightStage" aria-live="polite">
-        <div class="stage-border-beam" aria-hidden="true"></div>
-        <div class="stage-aurora-backdrop" aria-hidden="true"></div>
-        <div class="stage-cursor-sheen" aria-hidden="true"></div>
-        <div class="stage-inner">
-          <div class="stage-chrome">
-            <div class="stage-chrome-left">
-              <span class="stage-index-pill" id="stageIndex">01 / 08</span>
-              <span class="stage-category-label" id="stageCategory">JAVA · APPLICATION</span>
-            </div>
-            <div class="stage-chrome-right">
-              <span class="stage-repo-slug" id="stageRepoSlug">malekabdelmaksoud/elearning-platform</span>
-              <div class="stage-nav-arrows">
-                <button type="button" class="stage-nav-btn" id="stagePrevBtn" aria-label="Projet précédent">‹</button>
-                <button type="button" class="stage-nav-btn" id="stageNextBtn" aria-label="Projet suivant">›</button>
+      <div class="projects-coverflow-viewport">
+        <!-- Interactive 3D Coverflow Track (Preserves .projects-grid & .project-card for API/Tests) -->
+        <div class="projects-grid projects-coverflow-track" id="projectsTrack">
+          <!-- Fallback static 3D cards (synchronized dynamically via ProjectsManager / Remote API) -->
+          <article class="project-card coverflow-card is-active" data-category="java desktop" id="card_p_1" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">01 / 08</span>
+                <p class="project-type">JAVA · APPLICATION</p>
+                <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">LMS</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3>elearning-platform</h3>
+                <p class="ledger-desc" data-fr="Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants." data-en="E-learning platform built in Java: course management, enrolment, and learner progress tracking.">Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_1')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
               </div>
             </div>
-          </div>
+          </article>
 
-          <div class="stage-canvas-frame" id="stageCanvas">
-            <!-- Populated dynamically by script.js bespoke architectural preview builder -->
-          </div>
+          <article class="project-card coverflow-card" data-category="web php" id="card_p_2" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">02 / 08</span>
+                <p class="project-type">PHP · CSS · WEB</p>
+                <div class="ledger-chips"><span class="tech-tag">PHP</span><span class="tech-tag">CSS3</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3>projet-php</h3>
+                <p class="ledger-desc" data-fr="Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur." data-en="A web application built with PHP and CSS to practise server-side web development fundamentals.">Application web réalisée avec PHP et CSS pour mettre en pratique les bases du développement web côté serveur.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_2')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/projetphp" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
+            </div>
+          </article>
 
-          <div class="stage-editorial-footer">
-            <div class="stage-title-row">
-              <h3 id="stageTitle">elearning-platform</h3>
-              <div class="stage-chips" id="stageChips"></div>
+          <article class="project-card coverflow-card" data-category="web php" id="card_p_3" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">03 / 08</span>
+                <p class="project-type">PHP · LARAVEL · FRAMEWORK</p>
+                <div class="ledger-chips"><span class="tech-tag">Laravel</span><span class="tech-tag">MVC</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3 data-fr="Application Laravel" data-en="Laravel Application">Application Laravel</h3>
+                <p class="ledger-desc" data-fr="Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification." data-en="Full-stack web application built with the Laravel framework (PHP), applying the MVC pattern, migrations, and authentication.">Application web full-stack développée avec le framework Laravel (PHP), mettant en pratique le pattern MVC, les migrations et l'authentification.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_3')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/laravel" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
             </div>
-            <p class="stage-summary" id="stageSummary">Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.</p>
-            <div class="stage-cta-row">
-              <button type="button" class="button primary stage-inspect-btn" id="stageInspectBtn" data-fr="Vue architecturale complète" data-en="Full Case Study">Vue architecturale complète</button>
-              <a class="button secondary stage-github-btn" id="stageGithubLink" href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank" rel="noopener noreferrer">
-                <span>GitHub</span>
-                <span aria-hidden="true">↗</span>
-              </a>
+          </article>
+
+          <article class="project-card coverflow-card" data-category="java desktop" id="card_p_4" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">04 / 08</span>
+                <p class="project-type">JAVA · GESTION</p>
+                <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">Stock</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3 data-fr="Gestion de Magasin" data-en="Store Management">Gestion de Magasin</h3>
+                <p class="ledger-desc" data-fr="Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente." data-en="Java store management app: product inventory, stock management, and sales operations.">Application Java de gestion de magasin : inventaire des produits, gestion des stocks et opérations de vente.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_4')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/tpmagasin" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
             </div>
-          </div>
+          </article>
+
+          <article class="project-card coverflow-card" data-category="java desktop" id="card_p_5" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">05 / 08</span>
+                <p class="project-type">JAVA · POO</p>
+                <div class="ledger-chips"><span class="tech-tag">Java</span><span class="tech-tag">OOP</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3 data-fr="TP Programmation Orientée Objet" data-en="OOP Lab Projects">TP Programmation Orientée Objet</h3>
+                <p class="ledger-desc" data-fr="Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation." data-en="Java lab exercises applying OOP concepts: inheritance, polymorphism, and encapsulation.">Travaux pratiques en Java appliquant les concepts de la programmation orientée objet : héritage, polymorphisme et encapsulation.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_5')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/tp-poo" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="project-card coverflow-card" data-category="web php" id="card_p_6" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">06 / 08</span>
+                <p class="project-type">SYMFONY · PHP · WEB</p>
+                <div class="ledger-chips"><span class="tech-tag">Symfony</span><span class="tech-tag">Doctrine</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3 data-fr="Projet Symfony" data-en="Symfony Project">Projet Symfony</h3>
+                <p class="ledger-desc" data-fr="Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine." data-en="Web application built with the Symfony framework, exploring routing, Twig controllers, and database management with Doctrine.">Application web construite avec le framework Symfony, explorant le routage, les contrôleurs Twig et la gestion de base de données avec Doctrine.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_6')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/projet-symfony" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="project-card coverflow-card" data-category="csharp desktop" id="card_p_7" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">07 / 08</span>
+                <p class="project-type">C# · APPLICATION</p>
+                <div class="ledger-chips"><span class="tech-tag">C#</span><span class="tech-tag">.NET</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3 data-fr="Première Application C#" data-en="First C# App">Première Application C#</h3>
+                <p class="ledger-desc" data-fr="Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces." data-en="First C# project exploring the .NET environment, language fundamentals, and UI creation.">Premier projet en C# pour découvrir l'environnement .NET, les bases du langage et la création d'interfaces.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_7')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/firstApp" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="project-card coverflow-card" data-category="web typescript" id="card_p_8" tabindex="0">
+            <div class="cf-card-beam" aria-hidden="true"></div>
+            <div class="cf-card-inner">
+              <div class="cf-card-top">
+                <span class="cf-index">08 / 08</span>
+                <p class="project-type">TYPESCRIPT · CLOUDFLARE WORKERS · MCP</p>
+                <div class="ledger-chips"><span class="tech-tag">TypeScript</span><span class="tech-tag">MCP</span></div>
+              </div>
+              <div class="cf-card-stage" data-arch-slot="true"></div>
+              <div class="cf-card-body">
+                <h3>Opportunity Hunter</h3>
+                <p class="ledger-desc" data-fr="Serveur MCP déployé sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior à partir de mots-clés." data-en="MCP server deployed on Cloudflare Workers to search public internship, final-year project, apprenticeship, and junior job listings by keywords.">Serveur MCP déployé sur Cloudflare Workers pour rechercher des offres publiques de stages, PFE, alternance et postes junior à partir de mots-clés.</p>
+                <div class="ledger-actions">
+                  <button type="button" class="btn-pcard-view" onclick="openProjectPreviewModal('p_8')" data-fr="Vue complète" data-en="Inspect">Vue complète</button>
+                  <a class="btn-pcard-github" href="https://github.com/malekabdelmaksoud/opportunity-hunter" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+                </div>
+              </div>
+            </div>
+          </article>
         </div>
-      </aside>
+      </div>
+
+      <!-- Bottom Kinetic Control Dock -->
+      <div class="coverflow-dock" aria-label="Contrôles du carrousel de projets">
+        <button type="button" class="cf-arrow-btn" id="stagePrevBtn" aria-label="Projet précédent">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="cf-dock-pills" id="coverflowDockPills" role="tablist" aria-label="Sélection directe des projets"></div>
+        <button type="button" class="cf-arrow-btn" id="stageNextBtn" aria-label="Projet suivant">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
     </div>
 
     <div class="projects-more-row">
@@ -1012,7 +994,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="api-config.js?v=1.1.0"></script>
-<script src="script.js?v=25.0"></script>
+<script src="script.js?v=26.0"></script>
 <script src="portfolio-auth-core.js?v=21.0"></script>
 <script src="cv-manager.js?v=14.0"></script>
 <script src="portfolio-auth-ui.js?v=14.0"></script>

@@ -434,19 +434,58 @@ function createBespokeStageCanvas(meta, language) {
   return shell;
 }
 
-function updateSpotlightStage(projectOrIndex) {
-  const stagePanel = document.getElementById("projectSpotlightStage");
-  if (!stagePanel) return;
+function rebuildCoverflowDock(visibleIndices) {
+  const dock = document.getElementById("coverflowDockPills");
+  if (!dock) return;
+  dock.replaceChildren();
+  visibleIndices.forEach(idx => {
+    const project = currentRenderedProjects[idx];
+    if (!project) return;
+    const meta = getProjectMetadata(project, idx);
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "cf-dock-pill" + (idx === activeSpotlightIndex ? " is-active" : "");
+    pill.dataset.idx = String(idx);
+    pill.setAttribute("role", "tab");
+    pill.setAttribute("aria-selected", idx === activeSpotlightIndex ? "true" : "false");
+    pill.append(el("em", "", meta.indexLabel), el("span", "", meta.title));
+    pill.addEventListener("click", () => {
+      window._pauseProjectAuto?.();
+      updateSpotlightStage(idx);
+    });
+    dock.append(pill);
+  });
+}
 
-  if (!currentRenderedProjects || currentRenderedProjects.length === 0) {
-    stagePanel.hidden = true;
+function updateSpotlightStage(projectOrIndex) {
+  const showcase = document.getElementById("projectsShowcase");
+  const viewport = showcase?.querySelector(".projects-coverflow-viewport");
+  const dock = showcase?.querySelector(".coverflow-dock");
+  const cards = Array.from(document.querySelectorAll("#projets .project-card"));
+
+  if (!currentRenderedProjects || currentRenderedProjects.length === 0 || cards.length === 0) {
+    if (viewport) viewport.hidden = true;
+    if (dock) dock.hidden = true;
     return;
   }
-  stagePanel.hidden = false;
 
-  const idx = typeof projectOrIndex === "number"
+  const visibleCards = cards.filter(c => c.style.display !== "none");
+  if (visibleCards.length === 0) {
+    if (viewport) viewport.hidden = true;
+    if (dock) dock.hidden = true;
+    return;
+  }
+  if (viewport) viewport.hidden = false;
+  if (dock) dock.hidden = false;
+
+  let idx = typeof projectOrIndex === "number"
     ? Math.max(0, Math.min(currentRenderedProjects.length - 1, projectOrIndex))
     : Math.max(0, currentRenderedProjects.findIndex(p => String(p.id) === String(projectOrIndex)));
+
+  if (cards[idx] && cards[idx].style.display === "none") {
+    idx = cards.findIndex(c => c.style.display !== "none");
+    if (idx < 0) idx = 0;
+  }
 
   activeSpotlightIndex = idx;
   const project = currentRenderedProjects[idx];
@@ -454,58 +493,61 @@ function updateSpotlightStage(projectOrIndex) {
 
   const language = document.documentElement.lang === "en" ? "en" : "fr";
   const meta = getProjectMetadata(project, idx);
-  const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
   const accent = DOMAIN_ACCENTS[meta.domainKind] || DOMAIN_ACCENTS.architecture;
 
-  stagePanel.style.setProperty("--stage-hue-1", accent.h1);
-  stagePanel.style.setProperty("--stage-hue-2", accent.h2);
+  if (showcase) {
+    showcase.style.setProperty("--stage-hue-1", accent.h1);
+    showcase.style.setProperty("--stage-hue-2", accent.h2);
+  }
 
-  document.querySelectorAll("#projets .project-ledger-row").forEach((row, i) => {
-    const active = i === idx;
-    row.classList.toggle("is-active", active);
-    row.setAttribute("aria-current", active ? "true" : "false");
-    if (active) {
-      row.style.setProperty("--stage-hue-1", accent.h1);
-      row.style.setProperty("--stage-hue-2", accent.h2);
+  const visibleIndices = cards.reduce((arr, c, i) => {
+    if (c.style.display !== "none") arr.push(i);
+    return arr;
+  }, []);
+  const activePos = Math.max(0, visibleIndices.indexOf(idx));
+  const totalVisible = visibleIndices.length;
+
+  cards.forEach((card, i) => {
+    const pos = visibleIndices.indexOf(i);
+    if (pos === -1) {
+      card.classList.remove("is-active", "is-near", "is-far");
+      return;
     }
+    let diff = pos - activePos;
+    if (totalVisible > 2) {
+      if (diff > totalVisible / 2) diff -= totalVisible;
+      if (diff < -totalVisible / 2) diff += totalVisible;
+    }
+    const abs = Math.abs(diff);
+    const isActive = diff === 0;
+    const isFar = abs > 2;
+
+    card.style.setProperty("--cf-offset", String(diff));
+    card.style.setProperty("--cf-abs", String(abs));
+    card.style.zIndex = String(30 - abs * 5);
+
+    const cardMeta = getProjectMetadata(currentRenderedProjects[i], i);
+    const cardAccent = DOMAIN_ACCENTS[cardMeta.domainKind] || DOMAIN_ACCENTS.architecture;
+    card.style.setProperty("--stage-hue-1", cardAccent.h1);
+    card.style.setProperty("--stage-hue-2", cardAccent.h2);
+
+    const stageSlot = card.querySelector("[data-arch-slot]");
+    if (stageSlot && (!stageSlot.hasChildNodes() || stageSlot.dataset.lang !== language)) {
+      stageSlot.replaceChildren(createBespokeStageCanvas(cardMeta, language));
+      stageSlot.dataset.lang = language;
+    }
+
+    card.classList.toggle("is-active", isActive);
+    card.classList.toggle("is-near", abs === 1 || abs === 2);
+    card.classList.toggle("is-far", isFar);
+    card.setAttribute("aria-current", isActive ? "true" : "false");
   });
 
-  const stageIndex = document.getElementById("stageIndex");
-  const stageCat = document.getElementById("stageCategory");
-  const stageRepo = document.getElementById("stageRepoSlug");
-  const stageCanvas = document.getElementById("stageCanvas");
-  const stageTitle = document.getElementById("stageTitle");
-  const stageChips = document.getElementById("stageChips");
-  const stageSummary = document.getElementById("stageSummary");
-  const stageInspect = document.getElementById("stageInspectBtn");
-  const stageGh = document.getElementById("stageGithubLink");
-
-  if (stageIndex) stageIndex.textContent = `${meta.indexLabel} / ${totalStr}`;
-  if (stageCat) stageCat.textContent = meta.type;
-  if (stageRepo) stageRepo.textContent = meta.repoSlug;
-  if (stageTitle) stageTitle.textContent = meta.title;
-  if (stageSummary) {
-    stageSummary.textContent = language === "en"
-      ? (project.description_en || project.description || "")
-      : (project.description_fr || project.description || "");
-  }
-  if (stageGh) stageGh.href = meta.url;
-  if (stageInspect) stageInspect.onclick = () => window.openProjectPreviewModal(idx);
-  if (stageChips) {
-    stageChips.replaceChildren(...meta.chips.map(label => el("span", "tech-tag", label)));
-  }
-  if (stageCanvas) {
-    stageCanvas.classList.remove("is-entering");
-    stageCanvas.replaceChildren(createBespokeStageCanvas(meta, language));
-    void stageCanvas.offsetWidth;
-    stageCanvas.classList.add("is-entering");
-  }
-  const footerEl = stagePanel.querySelector(".stage-editorial-footer");
-  if (footerEl) {
-    footerEl.classList.remove("is-entering");
-    void footerEl.offsetWidth;
-    footerEl.classList.add("is-entering");
-  }
+  document.querySelectorAll("#coverflowDockPills .cf-dock-pill").forEach(pill => {
+    const active = Number(pill.dataset.idx) === idx;
+    pill.classList.toggle("is-active", active);
+    pill.setAttribute("aria-selected", active ? "true" : "false");
+  });
 }
 
 function updateProjectsCountLabel(visibleCount) {
@@ -526,6 +568,7 @@ function applyProjectFilter(filterValue) {
   let firstVisibleIndex = -1;
   let visibleCount = 0;
   let currentStillVisible = false;
+  const visibleIndices = [];
 
   document.querySelectorAll("#projets .project-card").forEach((card, i) => {
     const cats = String(card.dataset.category || "").split(/\s+/).filter(Boolean);
@@ -533,20 +576,21 @@ function applyProjectFilter(filterValue) {
     card.style.display = visible ? "" : "none";
     if (visible) {
       visibleCount += 1;
+      visibleIndices.push(i);
       if (firstVisibleIndex === -1) firstVisibleIndex = i;
       if (i === activeSpotlightIndex) currentStillVisible = true;
     }
   });
 
   updateProjectsCountLabel(visibleCount);
-  const stagePanel = document.getElementById("projectSpotlightStage");
   if (visibleCount === 0) {
-    if (stagePanel) stagePanel.hidden = true;
+    rebuildCoverflowDock([]);
+    updateSpotlightStage(0);
   } else {
-    if (stagePanel) stagePanel.hidden = false;
-    if (!currentStillVisible && firstVisibleIndex !== -1) {
-      updateSpotlightStage(firstVisibleIndex);
-    }
+    const nextIdx = currentStillVisible ? activeSpotlightIndex : firstVisibleIndex;
+    activeSpotlightIndex = nextIdx;
+    rebuildCoverflowDock(visibleIndices);
+    updateSpotlightStage(nextIdx);
   }
 }
 
@@ -559,10 +603,13 @@ function syncStaticSpotlight() {
     const descEl = card.querySelector("p:not(.project-type)");
     const linkEl = card.querySelector("a[href]");
     const idAttr = card.id ? card.id.replace(/^card_/, "") : `p_${idx + 1}`;
-    card.addEventListener("mouseenter", () => updateSpotlightStage(idx));
-    card.addEventListener("focusin", () => updateSpotlightStage(idx));
     card.addEventListener("click", (e) => {
-      if (!e.target.closest("a, button")) updateSpotlightStage(idx);
+      if (idx !== activeSpotlightIndex) {
+        e.preventDefault();
+        e.stopPropagation();
+        window._pauseProjectAuto?.();
+        updateSpotlightStage(idx);
+      }
     });
     return {
       id: idAttr,
@@ -573,6 +620,7 @@ function syncStaticSpotlight() {
     };
   });
   updateProjectsCountLabel(currentRenderedProjects.length);
+  rebuildCoverflowDock(currentRenderedProjects.map((_, i) => i));
   updateSpotlightStage(0);
 }
 
@@ -627,36 +675,40 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
   const isAdmin = Boolean(options.isAdmin);
   currentRenderedProjects = Array.isArray(projectsList) ? projectsList : [];
   grid.replaceChildren();
+  const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
 
   currentRenderedProjects.forEach((project, index) => {
     const meta = getProjectMetadata(project, index);
     const card = document.createElement("article");
-    card.className = "project-card project-ledger-row";
+    card.className = "project-card coverflow-card";
     card.dataset.category = meta.categories;
     card.tabIndex = 0;
     if (project.id) card.id = "card_" + project.id;
 
-    const indexEl = el("span", "ledger-index", meta.indexLabel);
-    const main = el("div", "ledger-main");
+    const beam = el("div", "cf-card-beam");
+    beam.setAttribute("aria-hidden", "true");
+    const inner = el("div", "cf-card-inner");
 
-    const metaTop = el("div", "ledger-meta-top");
+    const topBar = el("div", "cf-card-top");
+    const indexEl = el("span", "cf-index", `${meta.indexLabel} / ${totalStr}`);
     const typeEl = el("p", "project-type", meta.type);
     const chipsWrap = el("div", "ledger-chips");
     meta.chips.forEach(ch => chipsWrap.append(el("span", "tech-tag", ch)));
-    metaTop.append(typeEl, chipsWrap);
+    topBar.append(indexEl, typeEl, chipsWrap);
 
-    const titleRow = el("div", "ledger-title-row");
+    const stageSlot = el("div", "cf-card-stage");
+    stageSlot.dataset.archSlot = "true";
+    stageSlot.dataset.lang = language;
+    stageSlot.append(createBespokeStageCanvas(meta, language));
+
+    const body = el("div", "cf-card-body");
     const h3 = el("h3", "", meta.title);
-    const indicator = el("span", "ledger-indicator", "→");
-    indicator.setAttribute("aria-hidden", "true");
-    titleRow.append(h3, indicator);
-
     const descEl = el("p", "ledger-desc", language === "en"
       ? (project.description_en || project.description || "")
       : (project.description_fr || project.description || ""));
 
     const actions = el("div", "ledger-actions");
-    const viewBtn = el("button", "btn-pcard-view", language === "en" ? "Inspect" : "Aperçu");
+    const viewBtn = el("button", "btn-pcard-view", language === "en" ? "Inspect" : "Vue complète");
     viewBtn.type = "button";
     viewBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -690,13 +742,17 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
       actions.append(adminWrap);
     }
 
-    main.append(metaTop, titleRow, descEl, actions);
-    card.append(indexEl, main);
+    body.append(h3, descEl, actions);
+    inner.append(topBar, stageSlot, body);
+    card.append(beam, inner);
 
-    card.addEventListener("mouseenter", () => updateSpotlightStage(index));
-    card.addEventListener("focusin", () => updateSpotlightStage(index));
     card.addEventListener("click", (e) => {
-      if (!e.target.closest("a, button")) updateSpotlightStage(index);
+      if (index !== activeSpotlightIndex) {
+        e.preventDefault();
+        e.stopPropagation();
+        window._pauseProjectAuto?.();
+        updateSpotlightStage(index);
+      }
     });
 
     grid.append(card);
@@ -704,13 +760,13 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
 
   if (currentRenderedProjects.length === 0) {
     updateProjectsCountLabel(0);
+    rebuildCoverflowDock([]);
     updateSpotlightStage(0);
     return;
   }
 
   activeSpotlightIndex = Math.min(activeSpotlightIndex, currentRenderedProjects.length - 1);
   applyProjectFilter(activeProjectFilter);
-  updateSpotlightStage(activeSpotlightIndex);
 };
 
 /* ── Filter Tabs Setup ── */
@@ -718,10 +774,10 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
   tab.addEventListener("click", () => applyProjectFilter(tab.dataset.filter));
 });
 
-/* ── Kinetic 3D Stage Tilt, Nav Arrows & Auto-Showcase Controller ── */
+/* ── Kinetic 3D Coverflow Controls, Touch Swipe, Keyboard & Auto-Showcase ── */
 (function initKineticProjectsExperience() {
-  const stage = document.getElementById("projectSpotlightStage");
-  const workbench = document.querySelector(".projects-workbench");
+  const showcase = document.getElementById("projectsShowcase");
+  const viewport = showcase?.querySelector(".projects-coverflow-viewport");
   const prevBtn = document.getElementById("stagePrevBtn");
   const nextBtn = document.getElementById("stageNextBtn");
   const autoBtn = document.getElementById("stageAutoToggle");
@@ -743,21 +799,22 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
     updateSpotlightStage(nextIdx);
   }
 
-  prevBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(-1); });
-  nextBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(1); });
-
   let autoEnabled = !reducedMotion;
   let userPausedUntil = 0;
   let pointerInside = false;
+
+  function pauseAutoTemporarily() {
+    userPausedUntil = Date.now() + 9000;
+  }
+  window._pauseProjectAuto = pauseAutoTemporarily;
+
+  prevBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(-1); });
+  nextBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(1); });
 
   function syncAutoBtn() {
     if (!autoBtn) return;
     autoBtn.classList.toggle("is-playing", autoEnabled);
     autoBtn.setAttribute("aria-pressed", String(autoEnabled));
-  }
-
-  function pauseAutoTemporarily() {
-    userPausedUntil = Date.now() + 9000;
   }
 
   autoBtn?.addEventListener("click", () => {
@@ -766,10 +823,29 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
     syncAutoBtn();
   });
 
-  if (workbench) {
-    workbench.addEventListener("mouseenter", () => { pointerInside = true; });
-    workbench.addEventListener("mouseleave", () => { pointerInside = false; });
-    workbench.addEventListener("focusin", () => { pauseAutoTemporarily(); });
+  if (showcase) {
+    showcase.addEventListener("mouseenter", () => { pointerInside = true; });
+    showcase.addEventListener("mouseleave", () => { pointerInside = false; });
+    showcase.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { pauseAutoTemporarily(); stepProject(-1); }
+      else if (e.key === "ArrowRight") { pauseAutoTemporarily(); stepProject(1); }
+    });
+  }
+
+  // Mobile horizontal swipe gesture
+  if (viewport) {
+    let startX = 0;
+    viewport.addEventListener("touchstart", (e) => {
+      startX = e.changedTouches[0]?.clientX || 0;
+    }, { passive: true });
+    viewport.addEventListener("touchend", (e) => {
+      const endX = e.changedTouches[0]?.clientX || 0;
+      const dx = endX - startX;
+      if (Math.abs(dx) > 42) {
+        pauseAutoTemporarily();
+        stepProject(dx < 0 ? 1 : -1);
+      }
+    }, { passive: true });
   }
 
   if (!reducedMotion) {
@@ -777,38 +853,12 @@ document.querySelectorAll(".filter-tab").forEach(tab => {
       if (!autoEnabled || pointerInside || Date.now() < userPausedUntil) return;
       const modalOpen = document.getElementById("projectPreviewBackdrop")?.classList.contains("active");
       if (modalOpen || document.hidden) return;
-      const rect = workbench?.getBoundingClientRect();
+      const rect = showcase?.getBoundingClientRect();
       if (!rect || rect.bottom < 80 || rect.top > window.innerHeight - 80) return;
       stepProject(1);
     }, 5200);
   }
   syncAutoBtn();
-
-  // Interactive 3D perspective tilt + cursor spotlight sheen on desktop pointers
-  if (stage && !reducedMotion && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
-    let rafId = null;
-    stage.addEventListener("mousemove", (e) => {
-      const rect = stage.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width;
-      const py = (e.clientY - rect.top) / rect.height;
-      const rx = (0.5 - py) * 4.8;
-      const ry = (px - 0.5) * 6.0;
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        stage.style.setProperty("--mouse-x", `${(px * 100).toFixed(1)}%`);
-        stage.style.setProperty("--mouse-y", `${(py * 100).toFixed(1)}%`);
-        stage.style.setProperty("--tilt-x", `${rx.toFixed(2)}deg`);
-        stage.style.setProperty("--tilt-y", `${ry.toFixed(2)}deg`);
-        stage.classList.add("is-tilting");
-      });
-    });
-    stage.addEventListener("mouseleave", () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      stage.classList.remove("is-tilting");
-      stage.style.setProperty("--tilt-x", "0deg");
-      stage.style.setProperty("--tilt-y", "0deg");
-    });
-  }
 })();
 
 /* ── Initialize static spotlight immediately on first load ── */
