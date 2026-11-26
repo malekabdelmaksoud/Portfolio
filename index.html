@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=24.1">
+<link rel="stylesheet" href="style.css?v=25.0">
 </head>
 <body>
 <header class="header"><nav class="nav container">
@@ -271,9 +271,15 @@
       </div>
 
       <div class="projects-controls-col">
-        <div class="projects-count-meta">
-          <span class="status-dot"></span>
-          <span id="projectsCountLabel" data-fr="08 projets archivés" data-en="08 curated works">08 projets archivés</span>
+        <div class="projects-meta-row">
+          <div class="projects-count-meta">
+            <span class="status-dot"></span>
+            <span id="projectsCountLabel" data-fr="08 projets archivés" data-en="08 curated works">08 projets archivés</span>
+          </div>
+          <button type="button" class="stage-auto-toggle is-playing" id="stageAutoToggle" aria-pressed="true" title="Auto-cycle projects">
+            <span class="auto-dot" aria-hidden="true"></span>
+            <span class="auto-label" data-fr="Auto" data-en="Auto">Auto</span>
+          </button>
         </div>
         <div class="project-filter-tabs" role="tablist" aria-label="Filtrer les projets par technologie">
           <button type="button" class="filter-tab active" data-filter="all">
@@ -458,30 +464,41 @@
 
       <!-- Right: Sticky Live Bespoke Architectural Preview Stage -->
       <aside class="projects-stage-panel" id="projectSpotlightStage" aria-live="polite">
-        <div class="stage-chrome">
-          <div class="stage-chrome-left">
-            <span class="stage-index-pill" id="stageIndex">01 / 08</span>
-            <span class="stage-category-label" id="stageCategory">JAVA · APPLICATION</span>
+        <div class="stage-border-beam" aria-hidden="true"></div>
+        <div class="stage-aurora-backdrop" aria-hidden="true"></div>
+        <div class="stage-cursor-sheen" aria-hidden="true"></div>
+        <div class="stage-inner">
+          <div class="stage-chrome">
+            <div class="stage-chrome-left">
+              <span class="stage-index-pill" id="stageIndex">01 / 08</span>
+              <span class="stage-category-label" id="stageCategory">JAVA · APPLICATION</span>
+            </div>
+            <div class="stage-chrome-right">
+              <span class="stage-repo-slug" id="stageRepoSlug">malekabdelmaksoud/elearning-platform</span>
+              <div class="stage-nav-arrows">
+                <button type="button" class="stage-nav-btn" id="stagePrevBtn" aria-label="Projet précédent">‹</button>
+                <button type="button" class="stage-nav-btn" id="stageNextBtn" aria-label="Projet suivant">›</button>
+              </div>
+            </div>
           </div>
-          <span class="stage-repo-slug" id="stageRepoSlug">malekabdelmaksoud/elearning-platform</span>
-        </div>
 
-        <div class="stage-canvas-frame" id="stageCanvas">
-          <!-- Populated dynamically by script.js bespoke architectural preview builder -->
-        </div>
-
-        <div class="stage-editorial-footer">
-          <div class="stage-title-row">
-            <h3 id="stageTitle">elearning-platform</h3>
-            <div class="stage-chips" id="stageChips"></div>
+          <div class="stage-canvas-frame" id="stageCanvas">
+            <!-- Populated dynamically by script.js bespoke architectural preview builder -->
           </div>
-          <p class="stage-summary" id="stageSummary">Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.</p>
-          <div class="stage-cta-row">
-            <button type="button" class="button primary stage-inspect-btn" id="stageInspectBtn" data-fr="Vue architecturale complète" data-en="Full Case Study">Vue architecturale complète</button>
-            <a class="button secondary stage-github-btn" id="stageGithubLink" href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank" rel="noopener noreferrer">
-              <span>GitHub</span>
-              <span aria-hidden="true">↗</span>
-            </a>
+
+          <div class="stage-editorial-footer">
+            <div class="stage-title-row">
+              <h3 id="stageTitle">elearning-platform</h3>
+              <div class="stage-chips" id="stageChips"></div>
+            </div>
+            <p class="stage-summary" id="stageSummary">Plateforme e-learning développée en Java : gestion des cours, inscriptions et suivi des apprenants.</p>
+            <div class="stage-cta-row">
+              <button type="button" class="button primary stage-inspect-btn" id="stageInspectBtn" data-fr="Vue architecturale complète" data-en="Full Case Study">Vue architecturale complète</button>
+              <a class="button secondary stage-github-btn" id="stageGithubLink" href="https://github.com/malekabdelmaksoud/elearning-platform" target="_blank" rel="noopener noreferrer">
+                <span>GitHub</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
           </div>
         </div>
       </aside>
@@ -995,7 +1012,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="api-config.js?v=1.1.0"></script>
-<script src="script.js?v=24.1"></script>
+<script src="script.js?v=25.0"></script>
 <script src="portfolio-auth-core.js?v=21.0"></script>
 <script src="cv-manager.js?v=14.0"></script>
 <script src="portfolio-auth-ui.js?v=14.0"></script>

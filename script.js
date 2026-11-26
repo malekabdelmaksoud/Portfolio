@@ -194,6 +194,18 @@ function getProjectMetadata(project, index) {
   };
 }
 
+const DOMAIN_ACCENTS = {
+  elearning: { h1: "#6366f1", h2: "#38bdf8" },
+  laravel:   { h1: "#f43f5e", h2: "#a855f7" },
+  store:     { h1: "#f59e0b", h2: "#10b981" },
+  oop:       { h1: "#818cf8", h2: "#c084fc" },
+  symfony:   { h1: "#10b981", h2: "#38bdf8" },
+  mcp:       { h1: "#06b6d4", h2: "#818cf8" },
+  dotnet:    { h1: "#a855f7", h2: "#6366f1" },
+  php:       { h1: "#8b5cf6", h2: "#38bdf8" },
+  architecture: { h1: "#818cf8", h2: "#38bdf8" }
+};
+
 function createArchNodeRow(label, value, toneClass) {
   const row = el("div", "arch-kv-row");
   row.append(el("span", "arch-k", label), el("strong", "arch-v" + (toneClass ? " " + toneClass : ""), value));
@@ -308,13 +320,15 @@ function createBespokeStageCanvas(meta, language) {
     const uml = el("div", "arch-uml-canvas");
     const parent = el("div", "arch-uml-node parent");
     parent.append(el("small", "", "«abstract»"), el("strong", "", "EntiteBase"), el("code", "", "+ afficherProfil(): void"));
+    const svgWrap = el("div", "arch-uml-svg-wrap");
+    svgWrap.innerHTML = '<svg class="arch-uml-svg" viewBox="0 0 260 28" preserveAspectRatio="none" aria-hidden="true"><path class="uml-line" d="M130 0 V14 H55 V28 M130 14 H205 V28"/><circle class="uml-pulse" r="2.6" cx="130" cy="0"><animateMotion dur="2.2s" repeatCount="indefinite" path="M130 0 V14 H55 V28"/></circle><circle class="uml-pulse" r="2.6" cx="130" cy="0"><animateMotion dur="2.2s" begin="1.1s" repeatCount="indefinite" path="M130 0 V14 H205 V28"/></circle></svg>';
     const branch = el("div", "arch-uml-branch");
     const c1 = el("div", "arch-uml-node");
     c1.append(el("small", "", "extends EntiteBase"), el("strong", "", "Etudiant"), el("code", "", "@Override + afficherProfil()"));
     const c2 = el("div", "arch-uml-node");
     c2.append(el("small", "", "implements Evaluable"), el("strong", "", "ModuleCours"), el("code", "", "+ calculerMoyenne(): double"));
     branch.append(c1, c2);
-    uml.append(parent, el("div", "arch-uml-connectors"), branch);
+    uml.append(parent, svgWrap, branch);
     shell.append(top, uml);
     return shell;
   }
@@ -441,11 +455,19 @@ function updateSpotlightStage(projectOrIndex) {
   const language = document.documentElement.lang === "en" ? "en" : "fr";
   const meta = getProjectMetadata(project, idx);
   const totalStr = String(currentRenderedProjects.length).padStart(2, "0");
+  const accent = DOMAIN_ACCENTS[meta.domainKind] || DOMAIN_ACCENTS.architecture;
+
+  stagePanel.style.setProperty("--stage-hue-1", accent.h1);
+  stagePanel.style.setProperty("--stage-hue-2", accent.h2);
 
   document.querySelectorAll("#projets .project-ledger-row").forEach((row, i) => {
     const active = i === idx;
     row.classList.toggle("is-active", active);
     row.setAttribute("aria-current", active ? "true" : "false");
+    if (active) {
+      row.style.setProperty("--stage-hue-1", accent.h1);
+      row.style.setProperty("--stage-hue-2", accent.h2);
+    }
   });
 
   const stageIndex = document.getElementById("stageIndex");
@@ -473,7 +495,16 @@ function updateSpotlightStage(projectOrIndex) {
     stageChips.replaceChildren(...meta.chips.map(label => el("span", "tech-tag", label)));
   }
   if (stageCanvas) {
+    stageCanvas.classList.remove("is-entering");
     stageCanvas.replaceChildren(createBespokeStageCanvas(meta, language));
+    void stageCanvas.offsetWidth;
+    stageCanvas.classList.add("is-entering");
+  }
+  const footerEl = stagePanel.querySelector(".stage-editorial-footer");
+  if (footerEl) {
+    footerEl.classList.remove("is-entering");
+    void footerEl.offsetWidth;
+    footerEl.classList.add("is-entering");
   }
 }
 
@@ -686,6 +717,99 @@ window.renderPortfolioProjectsV2 = function(grid, projectsList, options = {}) {
 document.querySelectorAll(".filter-tab").forEach(tab => {
   tab.addEventListener("click", () => applyProjectFilter(tab.dataset.filter));
 });
+
+/* ── Kinetic 3D Stage Tilt, Nav Arrows & Auto-Showcase Controller ── */
+(function initKineticProjectsExperience() {
+  const stage = document.getElementById("projectSpotlightStage");
+  const workbench = document.querySelector(".projects-workbench");
+  const prevBtn = document.getElementById("stagePrevBtn");
+  const nextBtn = document.getElementById("stageNextBtn");
+  const autoBtn = document.getElementById("stageAutoToggle");
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function getVisibleIndices() {
+    const rows = Array.from(document.querySelectorAll("#projets .project-card"));
+    return rows.reduce((acc, row, idx) => {
+      if (row.style.display !== "none") acc.push(idx);
+      return acc;
+    }, []);
+  }
+
+  function stepProject(delta) {
+    const visible = getVisibleIndices();
+    if (visible.length <= 1) return;
+    const pos = Math.max(0, visible.indexOf(activeSpotlightIndex));
+    const nextIdx = visible[(pos + delta + visible.length) % visible.length];
+    updateSpotlightStage(nextIdx);
+  }
+
+  prevBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(-1); });
+  nextBtn?.addEventListener("click", () => { pauseAutoTemporarily(); stepProject(1); });
+
+  let autoEnabled = !reducedMotion;
+  let userPausedUntil = 0;
+  let pointerInside = false;
+
+  function syncAutoBtn() {
+    if (!autoBtn) return;
+    autoBtn.classList.toggle("is-playing", autoEnabled);
+    autoBtn.setAttribute("aria-pressed", String(autoEnabled));
+  }
+
+  function pauseAutoTemporarily() {
+    userPausedUntil = Date.now() + 9000;
+  }
+
+  autoBtn?.addEventListener("click", () => {
+    autoEnabled = !autoEnabled;
+    userPausedUntil = 0;
+    syncAutoBtn();
+  });
+
+  if (workbench) {
+    workbench.addEventListener("mouseenter", () => { pointerInside = true; });
+    workbench.addEventListener("mouseleave", () => { pointerInside = false; });
+    workbench.addEventListener("focusin", () => { pauseAutoTemporarily(); });
+  }
+
+  if (!reducedMotion) {
+    setInterval(() => {
+      if (!autoEnabled || pointerInside || Date.now() < userPausedUntil) return;
+      const modalOpen = document.getElementById("projectPreviewBackdrop")?.classList.contains("active");
+      if (modalOpen || document.hidden) return;
+      const rect = workbench?.getBoundingClientRect();
+      if (!rect || rect.bottom < 80 || rect.top > window.innerHeight - 80) return;
+      stepProject(1);
+    }, 5200);
+  }
+  syncAutoBtn();
+
+  // Interactive 3D perspective tilt + cursor spotlight sheen on desktop pointers
+  if (stage && !reducedMotion && window.matchMedia && window.matchMedia("(pointer: fine)").matches) {
+    let rafId = null;
+    stage.addEventListener("mousemove", (e) => {
+      const rect = stage.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      const rx = (0.5 - py) * 4.8;
+      const ry = (px - 0.5) * 6.0;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        stage.style.setProperty("--mouse-x", `${(px * 100).toFixed(1)}%`);
+        stage.style.setProperty("--mouse-y", `${(py * 100).toFixed(1)}%`);
+        stage.style.setProperty("--tilt-x", `${rx.toFixed(2)}deg`);
+        stage.style.setProperty("--tilt-y", `${ry.toFixed(2)}deg`);
+        stage.classList.add("is-tilting");
+      });
+    });
+    stage.addEventListener("mouseleave", () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      stage.classList.remove("is-tilting");
+      stage.style.setProperty("--tilt-x", "0deg");
+      stage.style.setProperty("--tilt-y", "0deg");
+    });
+  }
+})();
 
 /* ── Initialize static spotlight immediately on first load ── */
 syncStaticSpotlight();
